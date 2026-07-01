@@ -7,21 +7,21 @@ import { Card } from "@/components/ui/card";
 const pillars = [
   {
     icon: ShieldCheck,
-    title: "Compliance, automated",
+    title: "CBAM Compliance",
     description:
-      "Track CPCB, SPCB, and MoEFCC obligations with deadline alerts and audit-ready records.",
+      "Calculate and report Specific Embedded Emissions for EU Carbon Border Adjustment Mechanism. Steel, cement, aluminium, fertilizers, hydrogen, electricity.",
   },
   {
     icon: BarChart3,
-    title: "Emissions intelligence",
+    title: "CCTS & Carbon Markets",
     description:
-      "Scope 1, 2 & 3 dashboards purpose-built for Indian industrial and regulatory contexts.",
+      "Track GHG intensity, earn Carbon Credit Certificates under India's Carbon Credit Trading Scheme. Article 9 deduction calculated automatically.",
   },
   {
     icon: Sparkles,
-    title: "Climate risk, foresight",
+    title: "ESG & Scope 1, 2, 3",
     description:
-      "AI-driven signals surface risk before it becomes a compliance incident.",
+      "Unified Scope 1, 2 and 3 emissions dashboard built for Indian regulatory frameworks — BRSR, GHG Protocol, ISO 14064.",
   },
 ];
 
@@ -32,7 +32,7 @@ export default function Home() {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-gradient-radial-glow" />
 
       <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <Logo />
+        <Logo size="lg" />
         <nav className="flex items-center gap-3">
           <Link href="/login">
             <Button variant="ghost" size="sm">
@@ -89,7 +89,7 @@ export default function Home() {
       </main>
 
       <footer className="relative z-10 border-t border-surface-border py-6 text-center text-xs text-muted">
-        © {new Date().getFullYear()} Intellocarbon Technologies. All rights reserved.
+        © {new Date().getFullYear()} Intellocarbon Solutions. All rights reserved.
       </footer>
     </div>
   );

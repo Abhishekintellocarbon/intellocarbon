@@ -61,7 +61,7 @@ export function AuthShell({
         </div>
 
         <p className="relative z-10 text-xs text-muted">
-          © {new Date().getFullYear()} Intellocarbon Technologies. All rights reserved.
+          © {new Date().getFullYear()} Intellocarbon Solutions. All rights reserved.
         </p>
       </div>
 
