@@ -207,6 +207,20 @@ wired up; the steps below are what's needed to stand one up.
    `RAZORPAY_PLAN_ID_STARTER`, `RAZORPAY_PLAN_ID_GROWTH`, `NODE_ENV=production`.
 3. Note the deployed URL (e.g. `https://api-intellocarbon.up.railway.app`) —
    you'll need it for the frontend's `NEXT_PUBLIC_API_URL`.
+4. **`CLIENT_URL` must exactly match the frontend's production origin**
+   (e.g. `https://intellocarbon.vercel.app`, no trailing slash) — CORS
+   (`backend/src/app.ts`) only allows this one origin. Leaving it on the
+   `http://localhost:3000` default causes every API call from the deployed
+   frontend to fail in the browser with a CORS error, which the frontend
+   surfaces as a generic "Something went wrong." Redeploy/restart the backend
+   after changing it.
+
+**Free-tier sleep**: Render's (and some other hosts') free plans spin the
+service down after ~15 minutes idle, so the first request after a lull pays a
+slow cold start. `.github/workflows/keep-backend-awake.yml` pings
+`/api/health` every 10 minutes via a scheduled GitHub Action to keep it warm —
+update the URL in that file if your backend host/URL differs, or delete the
+workflow once you're on a plan that doesn't sleep.
 
 ### 3. Frontend (Vercel)
 
