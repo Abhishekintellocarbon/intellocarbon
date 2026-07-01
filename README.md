@@ -210,9 +210,25 @@ wired up; the steps below are what's needed to stand one up.
 
 ### 3. Frontend (Vercel)
 
-1. Import this repo into Vercel, set the project root to `frontend/`.
-2. Set `NEXT_PUBLIC_API_URL` to the backend URL from step 2.
-3. Deploy — Next.js 14 App Router needs zero extra Vercel config.
+This is a monorepo with the Next.js app in `frontend/`, not at the repo root.
+Use the **Root Directory** project setting for this — it's the only approach
+that correctly handles this app's dynamic/SSR routes (e.g.
+`/facilities/[id]`, `/verifier/review/[id]`), because it makes Vercel's
+Next.js build pipeline actually run from inside `frontend/` and package those
+routes as serverless functions. There is no `vercel.json` key that replicates
+this (no `rootDirectory` field exists in `vercel.json`), and faking it with a
+custom `buildCommand`/`outputDirectory` produces a build that looks fine for
+static pages but 404s on dynamic ones — don't reach for that instead.
+
+1. Import this repo into Vercel.
+2. In **Project Settings → Build and Deployment → Root Directory**, set it to
+   `frontend`, then **Save**.
+3. Leave Framework Preset, Build Command, Output Directory, and Install
+   Command all on their auto-detected defaults — Vercel zero-configs Next.js
+   correctly once Root Directory is set, no `vercel.json` needed.
+4. Set `NEXT_PUBLIC_API_URL` to the backend URL from step 2.
+5. Deploy (or redeploy, if you'd already imported the project — changing Root
+   Directory takes effect on the next deployment, not retroactively).
 
 ### 4. Razorpay
 
