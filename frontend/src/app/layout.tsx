@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   title: "Intellocarbon — Environmental Compliance & Climate Intelligence",
   description:
     "India's first unified Environmental Compliance and Climate Intelligence Platform. Track emissions, automate compliance, and act on climate risk in one place.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

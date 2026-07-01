@@ -51,7 +51,7 @@ export default function Home() {
           India&apos;s first unified environmental compliance platform
         </span>
 
-        <h1 className="mt-6 text-4xl font-semibold leading-tight text-balance sm:text-5xl">
+        <h1 className="mt-6 text-[44px] font-semibold leading-tight text-balance sm:text-[60px]">
           Environmental compliance and{" "}
           <span className="text-gradient">climate intelligence</span>, unified
         </h1>
