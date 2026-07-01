@@ -207,13 +207,14 @@ wired up; the steps below are what's needed to stand one up.
    `RAZORPAY_PLAN_ID_STARTER`, `RAZORPAY_PLAN_ID_GROWTH`, `NODE_ENV=production`.
 3. Note the deployed URL (e.g. `https://api-intellocarbon.up.railway.app`) —
    you'll need it for the frontend's `NEXT_PUBLIC_API_URL`.
-4. **`CLIENT_URL` must exactly match the frontend's production origin**
-   (e.g. `https://intellocarbon.vercel.app`, no trailing slash) — CORS
-   (`backend/src/app.ts`) only allows this one origin. Leaving it on the
-   `http://localhost:3000` default causes every API call from the deployed
-   frontend to fail in the browser with a CORS error, which the frontend
-   surfaces as a generic "Something went wrong." Redeploy/restart the backend
-   after changing it.
+4. **CORS is a hardcoded allowlist**, not just `CLIENT_URL` — see
+   `backend/src/config/cors.ts`. It allows `intellocarbon.com`,
+   `www.intellocarbon.com`, `intellocarbon.vercel.app`, Vercel preview URLs
+   (`intellocarbon-*.vercel.app` and `*.intellocarbon.vercel.app`), and
+   whatever `CLIENT_URL` is set to. If you add another production domain,
+   add it to that file, not just the env var — a mismatched origin makes the
+   browser silently block every API response, which the frontend surfaces as
+   a generic "Something went wrong" with no useful error.
 
 **Free-tier sleep**: Render's (and some other hosts') free plans spin the
 service down after ~15 minutes idle, so the first request after a lull pays a
