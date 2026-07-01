@@ -1,0 +1,332 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Runtime connection — in production (Supabase) this is the pooled/PgBouncer
+  // connection string (port 6543, ?pgbouncer=true).
+  url       = env("DATABASE_URL")
+  // Used only by `prisma migrate` / `prisma db push` — must be a direct,
+  // non-pooled connection (port 5432). Locally this is the same as DATABASE_URL.
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+  VERIFIER
+}
+
+model User {
+  id               String    @id @default(cuid())
+  name             String
+  email            String    @unique
+  passwordHash     String
+  companyName      String?
+  role             Role      @default(ADMIN)
+  emailVerified    Boolean   @default(false)
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  refreshTokens        RefreshToken[]
+  passwordResetTokens  PasswordResetToken[]
+  company              Company?
+  verificationsHandled VerificationRequest[] @relation("VerifierAssignments")
+
+  @@map("users")
+}
+
+enum Sector {
+  STEEL
+  CEMENT
+  ALUMINIUM
+  FERTILIZER
+  HYDROGEN
+  ELECTRICITY
+  OTHER
+}
+
+model Company {
+  id                      String    @id @default(cuid())
+  ownerId                 String    @unique
+  owner                   User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name                    String
+  registrationNumber      String?
+  sector                  Sector
+  subSector               String?
+  address                 String?
+  city                    String?
+  state                   String?
+  pincode                 String?
+  country                 String    @default("India")
+  annualTurnoverInr       Float?
+  employeeCount           Int?
+  reportingFyStartMonth   Int       @default(4)
+  appliesCbam             Boolean   @default(false)
+  appliesCcts             Boolean   @default(false)
+  isPatDesignatedConsumer Boolean   @default(false)
+  onboardingCompletedAt   DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  facilities           Facility[]
+  subscription         Subscription?
+  verificationRequests VerificationRequest[]
+
+  @@map("companies")
+}
+
+enum SubscriptionTier {
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  companyId              String             @unique
+  company                Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tier                   SubscriptionTier   @default(STARTER)
+  status                 SubscriptionStatus @default(INCOMPLETE)
+  razorpayCustomerId     String?
+  razorpaySubscriptionId String?            @unique
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  payments Payment[]
+
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                String       @id @default(cuid())
+  subscriptionId    String
+  subscription      Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  razorpayPaymentId String?      @unique
+  razorpayOrderId   String?
+  amountInr         Float
+  status            String
+  paidAt            DateTime?
+  createdAt         DateTime     @default(now())
+
+  @@index([subscriptionId])
+  @@map("payments")
+}
+
+enum VerificationStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model VerificationRequest {
+  id             String             @id @default(cuid())
+  activityDataId String             @unique
+  activityData   SteelActivityData  @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status         VerificationStatus @default(PENDING)
+  verifierId     String?
+  verifier       User?              @relation("VerifierAssignments", fields: [verifierId], references: [id])
+  verifierOrg    String?
+  statement      String?
+  comments       String?
+  submittedAt    DateTime           @default(now())
+  decidedAt      DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([companyId])
+  @@index([verifierId])
+  @@map("verification_requests")
+}
+
+enum FacilityType {
+  INTEGRATED_STEEL_PLANT
+  EAF_MINI_MILL
+  DRI_PLANT
+  ROLLING_MILL
+  PELLET_PLANT
+  OTHER
+}
+
+enum ProductionRoute {
+  BF_BOF
+  EAF
+  DRI_EAF
+  OTHER
+}
+
+model Facility {
+  id                   String          @id @default(cuid())
+  companyId            String
+  company              Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                 String
+  facilityType         FacilityType
+  productionRoute      ProductionRoute
+  address              String?
+  state                String?
+  district             String?
+  pincode              String?
+  latitude             Float?
+  longitude            Float?
+  installedCapacityTpa Float?
+  commissioningYear    Int?
+  productsManufactured String[]
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  activityData SteelActivityData[]
+
+  @@index([companyId])
+  @@map("facilities")
+}
+
+enum DataEntryStatus {
+  DRAFT
+  SUBMITTED
+}
+
+model SteelActivityData {
+  id                  String   @id @default(cuid())
+  facilityId          String
+  facility            Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  periodStart         DateTime
+  periodEnd           DateTime
+  productCategory     String
+  productionQuantityT Float
+
+  gridElectricityMwh         Float  @default(0)
+  renewableElectricityMwh    Float  @default(0)
+  gridEmissionFactorOverride Float?
+
+  steamImportedGj             Float  @default(0)
+  steamEmissionFactorOverride Float?
+
+  status DataEntryStatus @default(DRAFT)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fuelEntries            FuelEntry[]
+  processMaterialEntries ProcessMaterialEntry[]
+  precursorEntries       PrecursorEntry[]
+  calculationResult      EmissionCalculationResult?
+  verificationRequest    VerificationRequest?
+
+  @@index([facilityId])
+  @@map("steel_activity_data")
+}
+
+model FuelEntry {
+  id                        String            @id @default(cuid())
+  activityDataId            String
+  activityData              SteelActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  fuelType                  String
+  quantity                  Float
+  unit                      String
+  emissionFactorOverrideCo2 Float?
+  createdAt                 DateTime          @default(now())
+
+  @@index([activityDataId])
+  @@map("fuel_entries")
+}
+
+model ProcessMaterialEntry {
+  id                     String            @id @default(cuid())
+  activityDataId         String
+  activityData           SteelActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  materialType           String
+  quantityTonnes         Float
+  emissionFactorOverride Float?
+  createdAt              DateTime          @default(now())
+
+  @@index([activityDataId])
+  @@map("process_material_entries")
+}
+
+model PrecursorEntry {
+  id                             String            @id @default(cuid())
+  activityDataId                 String
+  activityData                   SteelActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  materialType                   String
+  quantityTonnes                 Float
+  embeddedEmissionFactorOverride Float?
+  sourceLabel                    String?
+  createdAt                      DateTime          @default(now())
+
+  @@index([activityDataId])
+  @@map("precursor_entries")
+}
+
+model EmissionCalculationResult {
+  id             String            @id @default(cuid())
+  activityDataId String            @unique
+  activityData   SteelActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+
+  directCombustionCo2eAr5 Float
+  directCombustionCo2eAr4 Float
+  directProcessCo2e       Float
+  directPrecursorCo2e     Float
+
+  indirectElectricityCo2e Float
+  indirectSteamCo2e       Float
+
+  totalDirectCo2eAr5    Float
+  totalDirectCo2eAr4    Float
+  totalEmissionsCbamAr5 Float
+  totalEmissionsCctsAr4 Float
+
+  specificEmbeddedEmissionsCbam Float
+  ghgIntensityCcts              Float
+
+  gridEmissionFactorUsed Float
+  breakdown              Json
+
+  calculatedAt DateTime @default(now())
+
+  @@map("emission_calculation_results")
+}
+
+model RefreshToken {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+  userAgent  String?
+  ipAddress  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
