@@ -17,8 +17,8 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
     tier: "STARTER",
     name: "Starter",
     facilityLimit: 1,
-    priceInr: 4999,
-    priceLabel: "₹4,999/mo",
+    priceInr: 9999,
+    priceLabel: "₹9,999/mo",
     description: "For a single plant getting started with CBAM/CCTS compliance.",
     features: [
       "1 facility",
@@ -33,8 +33,8 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
     tier: "GROWTH",
     name: "Growth",
     facilityLimit: 5,
-    priceInr: 14999,
-    priceLabel: "₹14,999/mo",
+    priceInr: 19999,
+    priceLabel: "₹19,999/mo",
     description: "For multi-plant operators managing several facilities.",
     features: [
       "Up to 5 facilities",

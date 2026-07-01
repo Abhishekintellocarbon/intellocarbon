@@ -165,7 +165,7 @@ npm run dev                 # http://localhost:3000
   rejection means creating a new activity data entry, not reopening the old
   request).
 - **Billing** — 3 Razorpay-billed tiers defined in `backend/src/data/plans.ts`:
-  Starter (1 facility, ₹4,999/mo), Growth (5 facilities, ₹14,999/mo), Enterprise
+  Starter (1 facility, ₹9,999/mo), Growth (5 facilities, ₹19,999/mo), Enterprise
   (unlimited, contact sales — no self-serve checkout). An active subscription is
   required to create facilities; the limit is enforced server-side in
   `facility.service.ts` via `billing.service.ts`'s `requireCapacityForNewFacility`,
