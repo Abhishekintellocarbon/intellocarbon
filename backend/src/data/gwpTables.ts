@@ -11,12 +11,11 @@
  * mandated by the EU CBAM Implementing Regulation (2023/1773, Annex III) for
  * converting non-CO2 gases to CO2e.
  *
- * CO2, CH4 and N2O are modelled for both schemes — the gases relevant to
- * steel-sector combustion and process emissions covered by this module. CF4
- * and C2F6 are recorded on the AR2/BUR3 table for citation completeness (the
- * full S.O. 2825(E) gazette table covers them for other sectors, e.g.
- * aluminium smelting) but are not multiplied into any calculation here, since
- * no steel-sector activity data line item in this app emits them.
+ * CO2, CH4 and N2O are modelled for both schemes. CF4 and C2F6 (from
+ * aluminium smelter anode effects — see the ALUMINIUM sector's PFC emission
+ * calculation) are recorded on both tables and ARE multiplied into the
+ * aluminium calculation: CBAM uses the AR5 values (6630 / 11100), CCTS uses
+ * the AR2/BUR3-gazetted values (6500 / 9200) per S.O. 2825(E).
  */
 
 export type GwpScheme = "AR2_BUR3" | "AR5";
@@ -50,6 +49,8 @@ export const GWP_AR5: GwpTable = {
   co2: 1,
   ch4: 28,
   n2o: 265,
+  cf4: 6630,
+  c2f6: 11100,
 };
 
 export const GWP_TABLES: Record<GwpScheme, GwpTable> = {

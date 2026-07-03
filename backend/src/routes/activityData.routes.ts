@@ -1,16 +1,16 @@
 import { Router } from "express";
-import * as activityDataController from "../controllers/steelActivityData.controller";
+import * as activityDataController from "../controllers/activityData.controller";
 import * as verificationController from "../controllers/verification.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { validate } from "../middleware/validate";
-import { steelActivityDataSchema } from "../validators/steelActivityData.validators";
+import { activityDataSchema } from "../validators/activityData.validators";
 
 const router = Router({ mergeParams: true });
 
 router.use(requireAuth);
 
 router.get("/", activityDataController.listActivityData);
-router.post("/", validate(steelActivityDataSchema), activityDataController.createActivityData);
+router.post("/", validate(activityDataSchema), activityDataController.createActivityData);
 router.get("/:dataId", activityDataController.getActivityData);
 router.delete("/:dataId", activityDataController.deleteActivityData);
 router.get("/:dataId/report/cbam", activityDataController.downloadCbamReport);

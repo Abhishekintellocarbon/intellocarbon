@@ -11,12 +11,22 @@ const optionalNumericString = z
 export const facilitySchema = z.object({
   name: z.string().trim().min(2, "Enter a facility name").max(150),
   facilityType: z.enum(
-    ["INTEGRATED_STEEL_PLANT", "EAF_MINI_MILL", "DRI_PLANT", "ROLLING_MILL", "PELLET_PLANT", "OTHER"],
+    [
+      "INTEGRATED_STEEL_PLANT",
+      "EAF_MINI_MILL",
+      "DRI_PLANT",
+      "ROLLING_MILL",
+      "PELLET_PLANT",
+      "CEMENT_PLANT",
+      "ALUMINIUM_SMELTER",
+      "FERTILIZER_PLANT",
+      "HYDROGEN_PLANT",
+      "POWER_PLANT",
+      "OTHER",
+    ],
     { error: "Select a facility type" },
   ),
-  productionRoute: z.enum(["BF_BOF", "EAF", "DRI_EAF", "OTHER"], {
-    error: "Select a production route",
-  }),
+  productionRoute: z.string().trim().min(1, "Select a production route"),
   address: optionalString(250),
   state: optionalString(100),
   district: optionalString(100),

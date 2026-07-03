@@ -3,7 +3,7 @@ import * as facilityController from "../controllers/facility.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { validate } from "../middleware/validate";
 import { facilitySchema } from "../validators/facility.validators";
-import activityDataRoutes from "./steelActivityData.routes";
+import activityDataRoutes from "./activityData.routes";
 
 const router = Router();
 

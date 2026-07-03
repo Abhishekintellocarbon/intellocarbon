@@ -1,6 +1,6 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
-import { requireOwnedActivityData } from "./steelActivityData.service";
+import { requireOwnedActivityData } from "./activityData.service";
 import {
   sendVerificationSubmittedEmail,
   sendVerificationDecidedEmail,
@@ -130,7 +130,7 @@ export const decideRequest = async (
     where: { id: request.companyId },
     include: { owner: true },
   });
-  const activityData = await prisma.steelActivityData.findUnique({
+  const activityData = await prisma.activityData.findUnique({
     where: { id: request.activityDataId },
     include: { facility: true },
   });

@@ -1,8 +1,9 @@
 import PDFDocument from "pdfkit";
 import { prisma } from "../config/prisma";
-import { requireOwnedActivityData } from "./steelActivityData.service";
+import { requireOwnedActivityData } from "./activityData.service";
 import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
 import { buildCbamCommunicationPackage } from "./cbamReport/build";
+import { SECTOR_PRODUCTION_ROUTES } from "../data/cbamReferenceData";
 
 const TEAL = "#00A886";
 const NAVY = "#0F1923";
@@ -14,7 +15,7 @@ export type ReportType = "CBAM" | "CCTS";
 export const getReportContext = async (userId: string, facilityId: string, activityDataId: string) => {
   await requireOwnedActivityData(userId, facilityId, activityDataId);
 
-  const activityData = await prisma.steelActivityData.findUniqueOrThrow({
+  const activityData = await prisma.activityData.findUniqueOrThrow({
     where: { id: activityDataId },
     include: {
       facility: { include: { company: { include: { owner: true } } } },
@@ -160,7 +161,11 @@ const writeCompanyAndFacility = (c: Cursor, ctx: ReportContext) => {
   c.heading("Facility");
   c.keyValueRow("Facility name", facility.name);
   c.keyValueRow("Facility type", facility.facilityType.replace(/_/g, " "));
-  c.keyValueRow("Production route", facility.productionRoute.replace(/_/g, " "));
+  c.keyValueRow(
+    "Production route",
+    SECTOR_PRODUCTION_ROUTES[ctx.sector]?.find((r) => r.value === facility.productionRoute)?.label ??
+      facility.productionRoute.replace(/_/g, " "),
+  );
   if (facility.installedCapacityTpa) {
     c.keyValueRow("Installed capacity", `${facility.installedCapacityTpa.toLocaleString("en-IN")} tonnes/year`);
   }
@@ -221,22 +226,27 @@ export const buildCctsReportPdf = (doc: PDFKit.PDFDocument, ctx: ReportContext) 
 
   c.scoreBox(
     "GHG INTENSITY",
-    `${fmt(result.ghgIntensityCcts)} tCO2e / t product`,
+    `${fmt(result.ghgIntensityCcts)} tCO2e / ${ctx.sector === "ELECTRICITY" ? "MWh exported" : "t product"}`,
     `Total emissions for period: ${result.totalEmissionsCctsAr4.toLocaleString("en-IN", { maximumFractionDigits: 1 })} tCO2e`,
   );
 
   c.heading("Emissions breakdown (AR2/BUR3 GWP)");
-  c.table(
-    ["Category", "tCO2e"],
-    [
-      ["Direct combustion (fuels)", fmt(result.directCombustionCo2eAr4, 2)],
-      ["Process emissions", fmt(result.directProcessCo2e, 2)],
-      ["Precursor materials (embedded)", fmt(result.directPrecursorCo2e, 2)],
-      ["Electricity (indirect)", fmt(result.indirectElectricityCo2e, 2)],
-      ["Steam (indirect)", fmt(result.indirectSteamCo2e, 2)],
-    ],
-    [350, 145],
+  const breakdownRows: [string, string][] = [
+    ["Direct combustion (fuels)", fmt(result.directCombustionCo2eAr4, 2)],
+    ["Process emissions (incl. calcination / feedstock)", fmt(result.directProcessCo2e, 2)],
+  ];
+  if (result.directPfcCo2eAr4 > 0) {
+    breakdownRows.push(["PFC emissions (aluminium anode effects)", fmt(result.directPfcCo2eAr4, 2)]);
+  }
+  if (result.directN2oProcessCo2eAr4 > 0) {
+    breakdownRows.push(["N2O process emissions (nitric acid)", fmt(result.directN2oProcessCo2eAr4, 2)]);
+  }
+  breakdownRows.push(
+    ["Precursor materials (embedded)", fmt(result.directPrecursorCo2e, 2)],
+    ["Electricity (indirect)", fmt(result.indirectElectricityCo2e, 2)],
+    ["Steam (indirect)", fmt(result.indirectSteamCo2e, 2)],
   );
+  c.table(["Category", "tCO2e"], breakdownRows, [350, 145]);
 
   if (ctx.processMaterialEntries.length > 0) {
     c.heading("Process material detail");

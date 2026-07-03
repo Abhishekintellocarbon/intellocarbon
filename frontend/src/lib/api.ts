@@ -5,7 +5,7 @@ import type {
   EmissionFactorReference,
   Facility,
   PlanDefinition,
-  SteelActivityData,
+  ActivityData,
   Subscription,
   SubscriptionTier,
   VerificationRequest,
@@ -194,13 +194,13 @@ export const facilityApi = {
 };
 
 export const activityDataApi = {
-  list: (facilityId: string): Promise<{ entries: SteelActivityData[] }> =>
+  list: (facilityId: string): Promise<{ entries: ActivityData[] }> =>
     apiFetch(`/api/facilities/${facilityId}/activity-data`),
 
-  get: (facilityId: string, dataId: string): Promise<{ entry: SteelActivityData }> =>
+  get: (facilityId: string, dataId: string): Promise<{ entry: ActivityData }> =>
     apiFetch(`/api/facilities/${facilityId}/activity-data/${dataId}`),
 
-  create: (facilityId: string, input: Record<string, unknown>): Promise<{ entry: SteelActivityData }> =>
+  create: (facilityId: string, input: Record<string, unknown>): Promise<{ entry: ActivityData }> =>
     apiFetch(`/api/facilities/${facilityId}/activity-data`, {
       method: "POST",
       body: JSON.stringify(input),

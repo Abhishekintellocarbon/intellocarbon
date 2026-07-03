@@ -36,7 +36,7 @@ export default function Home() {
       <main className="relative z-10 mx-auto max-w-4xl px-6 pb-24 pt-16 text-center sm:pt-24">
         <span className="inline-flex items-center gap-2 rounded-full border border-surface-border bg-surface px-3.5 py-1.5 text-xs font-medium text-muted-foreground">
           <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
-          India&apos;s first unified environmental compliance platform
+          CBAM &middot; CCTS &middot; EPR &middot; ESG &mdash; one platform.
         </span>
 
         <h1 className="mt-6 text-[44px] font-semibold leading-tight text-balance sm:text-[60px]">

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Factory } from "lucide-react";
+import { Factory, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -13,9 +13,9 @@ import { FieldError } from "@/components/ui/field-error";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { facilitySchema, type FacilityFormValues } from "@/lib/validations/facility";
-import { FACILITY_TYPE_OPTIONS, PRODUCTION_ROUTE_OPTIONS } from "@/lib/constants";
-import { facilityApi, ApiError } from "@/lib/api";
-import type { Facility } from "@/lib/types";
+import { FACILITY_TYPE_OPTIONS, SECTOR_FACILITY_TYPE_VALUES } from "@/lib/constants";
+import { facilityApi, companyApi, referenceApi, ApiError } from "@/lib/api";
+import type { Facility, ReferenceOption, Sector } from "@/lib/types";
 
 export function FacilityForm({ facility }: { facility?: Facility }) {
   const router = useRouter();
@@ -24,6 +24,22 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
   const isEditing = Boolean(facility);
 
   const [serverError, setServerError] = useState<string | null>(null);
+  const [sector, setSector] = useState<Sector | null>(null);
+  const [routeOptions, setRouteOptions] = useState<ReferenceOption[]>([]);
+
+  useEffect(() => {
+    Promise.all([companyApi.getMine(), referenceApi.emissionFactors()])
+      .then(([{ company }, reference]) => {
+        if (!company) return;
+        setSector(company.sector);
+        setRouteOptions(reference.sectorProductionRoutes[company.sector] ?? []);
+      })
+      .catch(() => setServerError("Couldn't load your company's sector. Please try again."));
+  }, []);
+
+  const facilityTypeOptions = sector
+    ? FACILITY_TYPE_OPTIONS.filter((o) => SECTOR_FACILITY_TYPE_VALUES[sector].includes(o.value))
+    : FACILITY_TYPE_OPTIONS;
 
   const {
     register,
@@ -115,7 +131,7 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
               <Label htmlFor="facilityType">Facility type</Label>
               <Select id="facilityType" error={Boolean(errors.facilityType)} {...register("facilityType")}>
                 <option value="">Select type</option>
-                {FACILITY_TYPE_OPTIONS.map((o) => (
+                {facilityTypeOptions.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -127,13 +143,18 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
               <Label htmlFor="productionRoute">Production route</Label>
               <Select id="productionRoute" error={Boolean(errors.productionRoute)} {...register("productionRoute")}>
                 <option value="">Select route</option>
-                {PRODUCTION_ROUTE_OPTIONS.map((o) => (
+                {routeOptions.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
               </Select>
               <FieldError message={errors.productionRoute?.message} />
+              {sector === null && (
+                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Loading routes for your sector...
+                </p>
+              )}
             </div>
           </div>
 

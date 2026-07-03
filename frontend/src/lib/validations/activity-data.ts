@@ -35,7 +35,10 @@ export const activityDataSchema = z
     periodStart: z.string().min(1, "Select a start date"),
     periodEnd: z.string().min(1, "Select an end date"),
     productCategory: z.string().trim().min(2, "Enter a product category").max(150),
-    productionQuantityT: numericString("Enter production quantity"),
+    // Normally required — but the electricity sector's SEE is denominated in
+    // MWh exported to the EU, not tonnes, and that field isn't shown for
+    // that sector, so it's optional here and cross-checked below.
+    productionQuantityT: optionalNumericString,
 
     gridElectricityMwh: optionalNumericString,
     renewableElectricityMwh: optionalNumericString,
@@ -47,6 +50,33 @@ export const activityDataSchema = z
     carbonPricePaidEurPerTonne: optionalNumericString,
     cctsTargetIntensity: optionalNumericString,
 
+    // --- Cement ---
+    limestoneInputTonnes: optionalNumericString,
+    clinkerProducedTonnes: optionalNumericString,
+    clinkerConversionFraction: optionalNumericString,
+
+    // --- Aluminium (PFC) ---
+    cf4EmissionsTonnes: optionalNumericString,
+    c2f6EmissionsTonnes: optionalNumericString,
+    anodeEffectMinutes: optionalNumericString,
+
+    // --- Fertilizer ---
+    n2oProcessEmissionsTonnes: optionalNumericString,
+    n2oAbatementFactorPct: optionalNumericString,
+    naturalGasFeedstockNm3: optionalNumericString,
+
+    // --- Hydrogen ---
+    hydrogenRoute: z.string().optional().or(z.literal("")),
+    ccsCaptureRatePct: optionalNumericString,
+    hydrogenPurityPct: optionalNumericString,
+    byproductOxygenTonnes: optionalNumericString,
+
+    // --- Electricity ---
+    electricityGeneratedMwh: optionalNumericString,
+    electricityExportedEuMwh: optionalNumericString,
+    ownUseElectricityMwh: optionalNumericString,
+    lineLossMwh: optionalNumericString,
+
     notes: z.string().trim().max(1000).optional().or(z.literal("")),
 
     fuelEntries: z.array(fuelRowSchema),
@@ -56,6 +86,10 @@ export const activityDataSchema = z
   .refine((data) => data.periodEnd >= data.periodStart, {
     message: "Period end must be on or after period start",
     path: ["periodEnd"],
+  })
+  .refine((data) => Number(data.productionQuantityT || 0) > 0 || Number(data.electricityExportedEuMwh || 0) > 0, {
+    message: "Enter production quantity greater than zero",
+    path: ["productionQuantityT"],
   });
 
 export type ActivityDataFormValues = z.infer<typeof activityDataSchema>;

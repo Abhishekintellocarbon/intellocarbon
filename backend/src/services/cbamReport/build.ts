@@ -26,7 +26,8 @@ import {
   DEFAULT_GRID_EMISSION_FACTOR_SOURCE,
   DEFAULT_STEAM_EMISSION_FACTOR,
 } from "../../data/emissionFactors";
-import { GWP_AR5 } from "../../data/gwpTables";
+import { GWP_AR5, GWP_AR2_BUR3 } from "../../data/gwpTables";
+import { CN_CODES_BY_SECTOR, SECTOR_PRODUCTION_ROUTES } from "../../data/cbamReferenceData";
 
 const LOGO_PATH = path.join(__dirname, "../../assets/logo-full.png");
 const EMISSION_FACTOR_SOURCE = "EU 2023/1773 Annex VIII";
@@ -35,13 +36,16 @@ const UNIT_LABELS: Record<string, string> = {
   TONNE: "t",
   KILOLITRE: "kl",
   THOUSAND_NM3: "'000 Nm³",
+  GJ: "GJ",
 };
 
-const PRODUCTION_ROUTE_LABELS: Record<string, string> = {
-  BF_BOF: "BF-BOF",
-  EAF: "EAF",
-  DRI_EAF: "DRI-EAF",
-  OTHER: "Other",
+const productionRouteLabel = (sector: ReportContext["sector"], route: string): string =>
+  SECTOR_PRODUCTION_ROUTES[sector]?.find((r) => r.value === route)?.label ?? titleCase(route);
+
+const cnCodesLabel = (ctx: ReportContext): string => {
+  if (ctx.facility.cnCodes.length > 0) return ctx.facility.cnCodes.join(", ");
+  const sectorDefaults = CN_CODES_BY_SECTOR[ctx.sector]?.map((c) => c.code);
+  return sectorDefaults && sectorDefaults.length > 0 ? sectorDefaults.join(", ") : "Not provided";
 };
 
 export const buildCbamCommunicationPackage = (
@@ -162,21 +166,26 @@ function cctsPositionLabel(financials: CbamFinancialImpact): string {
 function buildExecutiveSummary(pb: PageBuilder, ctx: ReportContext, financials: CbamFinancialImpact) {
   pb.startSection(1, "Executive Summary");
 
+  const seeUnit = ctx.sector === "ELECTRICITY" ? "tCO2e/MWh" : "tCO2e/t";
+  const quantityLabel =
+    ctx.sector === "ELECTRICITY"
+      ? `${fmtInt(ctx.electricityExportedEuMwh ?? 0)} MWh exported to the EU`
+      : `${fmtInt(ctx.productionQuantityT)} tonnes of ${ctx.productCategory}`;
+
   pb.paragraph(
     `This Communication Package presents the Specific Embedded Emissions (SEE) and associated CBAM financial ` +
       `exposure for ${ctx.facility.name} (${ctx.facility.company.name}) for the reporting period ` +
-      `${fmtDate(ctx.periodStart)} – ${fmtDate(ctx.periodEnd)}, covering ${fmtInt(ctx.productionQuantityT)} tonnes ` +
-      `of ${ctx.productCategory}.`,
+      `${fmtDate(ctx.periodStart)} – ${fmtDate(ctx.periodEnd)}, covering ${quantityLabel}.`,
   );
 
   pb.summaryBox(
     "Key Findings",
     [
-      ["Actual Specific Embedded Emissions (SEE)", `${fmt(financials.actualSee)} tCO2e/t`],
-      ["EU default value (illustrative)", `${fmt(financials.defaultSee)} tCO2e/t`],
+      ["Actual Specific Embedded Emissions (SEE)", `${fmt(financials.actualSee)} ${seeUnit}`],
+      ["EU default value (illustrative)", `${fmt(financials.defaultSee)} ${seeUnit}`],
       [
         "Variance from default",
-        `${fmtSigned(financials.varianceFromDefault)} tCO2e/t (${financials.varianceIsBetterThanDefault ? "better than default" : "above default"})`,
+        `${fmtSigned(financials.varianceFromDefault)} ${seeUnit} (${financials.varianceIsBetterThanDefault ? "better than default" : "above default"})`,
       ],
       ["Estimated net CBAM liability", fmtEur(financials.netLiabilityEur)],
       ["CCTS CCC position", cctsPositionLabel(financials)],
@@ -239,7 +248,7 @@ function buildInstallationDeclarant(pb: PageBuilder, ctx: ReportContext, financi
         ? `${facility.installedCapacityTpa.toLocaleString("en-IN")} tonnes/year`
         : "Not provided",
     ],
-    ["CN code(s)", facility.cnCodes.length > 0 ? facility.cnCodes.join(", ") : "Not provided"],
+    ["CN code(s)", cnCodesLabel(ctx)],
     ["CBAM activity", financials.cbamActivity],
   ];
 
@@ -271,21 +280,24 @@ function buildGoodsProduction(pb: PageBuilder, ctx: ReportContext, financials: C
     "The table below summarises the goods produced at this installation and reported under this CBAM Communication Package.",
   );
 
+  const volumeLabel = ctx.sector === "ELECTRICITY" ? "Volume (MWh)" : "Volume (t)";
+  const volumeValue = ctx.sector === "ELECTRICITY" ? fmtInt(ctx.electricityExportedEuMwh ?? 0) : fmtInt(ctx.productionQuantityT);
+
   pb.table({
     columns: [
       { header: "Product type", width: 115 },
       { header: "CN code(s)", width: 90 },
-      { header: "Volume (t)", width: 80, align: "right" },
+      { header: volumeLabel, width: 80, align: "right" },
       { header: "Reporting period", width: 135 },
       { header: "Route", width: 75 },
     ],
     rows: [
       [
         ctx.productCategory,
-        ctx.facility.cnCodes.length > 0 ? ctx.facility.cnCodes.join(", ") : "Not provided",
-        fmtInt(ctx.productionQuantityT),
+        cnCodesLabel(ctx),
+        volumeValue,
         `${fmtDate(ctx.periodStart)} – ${fmtDate(ctx.periodEnd)}`,
-        PRODUCTION_ROUTE_LABELS[ctx.facility.productionRoute] ?? titleCase(ctx.facility.productionRoute),
+        productionRouteLabel(ctx.sector, ctx.facility.productionRoute),
       ],
     ],
   });
@@ -301,16 +313,17 @@ function buildSeeResults(pb: PageBuilder, ctx: ReportContext, financials: CbamFi
   pb.startSection(4, "Specific Embedded Emissions Results");
 
   const result = ctx.calculationResult!;
-  const production = ctx.productionQuantityT;
+  const production = ctx.sector === "ELECTRICITY" ? (ctx.electricityExportedEuMwh ?? 0) : ctx.productionQuantityT;
+  const seeUnit = ctx.sector === "ELECTRICITY" ? "tCO2e/MWh" : "tCO2e/t";
   const directSee = result.totalDirectCo2eAr5 / production;
   const indirectSee = (result.indirectElectricityCo2e + result.indirectSteamCo2e) / production;
 
   const rows: (string | number)[][] = [
-    ["Direct SEE", fmt(directSee), "tCO2e/t", "—", "—"],
-    ["Indirect SEE", fmt(indirectSee), "tCO2e/t", "—", "—"],
-    ["Total SEE", fmt(financials.actualSee), "tCO2e/t", fmt(financials.defaultSee), financials.varianceIsBetterThanDefault ? "Better than default" : "Above default"],
-    ["EU Default Value", fmt(financials.defaultSee), "tCO2e/t", "—", "Illustrative default"],
-    ["Variance from Default", fmtSigned(financials.varianceFromDefault), "tCO2e/t", "—", financials.varianceIsBetterThanDefault ? "Favourable" : "Unfavourable"],
+    ["Direct SEE", fmt(directSee), seeUnit, "—", "—"],
+    ["Indirect SEE", fmt(indirectSee), seeUnit, "—", "—"],
+    ["Total SEE", fmt(financials.actualSee), seeUnit, fmt(financials.defaultSee), financials.varianceIsBetterThanDefault ? "Better than default" : "Above default"],
+    ["EU Default Value", fmt(financials.defaultSee), seeUnit, "—", "Illustrative default"],
+    ["Variance from Default", fmtSigned(financials.varianceFromDefault), seeUnit, "—", financials.varianceIsBetterThanDefault ? "Favourable" : "Unfavourable"],
     ["CBAM Certificates Required", fmt(financials.certificatesRequired, 2), "certificates", "—", "—"],
     [
       "Carbon Price Paid — India",
@@ -341,10 +354,10 @@ function buildSeeResults(pb: PageBuilder, ctx: ReportContext, financials: CbamFi
       ["Direct emissions (Scope 1)", `${fmt(result.totalDirectCo2eAr5, 2)} tCO2e`],
       ["Indirect emissions (Scope 2)", `${fmt(result.indirectElectricityCo2e + result.indirectSteamCo2e, 2)} tCO2e`],
       ["Precursor embedded emissions", `${fmt(result.directPrecursorCo2e, 2)} tCO2e`],
-      ["Production quantity", `${fmtInt(production)} t`],
+      ["Production quantity", `${fmtInt(production)} ${ctx.sector === "ELECTRICITY" ? "MWh" : "t"}`],
     ],
     "SEE",
-    `${fmt(result.totalEmissionsCbamAr5, 2)} tCO2e ÷ ${fmtInt(production)} t = ${fmt(financials.actualSee)} tCO2e/t`,
+    `${fmt(result.totalEmissionsCbamAr5, 2)} tCO2e ÷ ${fmtInt(production)} ${ctx.sector === "ELECTRICITY" ? "MWh" : "t"} = ${fmt(financials.actualSee)} ${seeUnit}`,
   );
 }
 
@@ -448,39 +461,114 @@ function buildScope1Combustion(pb: PageBuilder, ctx: ReportContext) {
 // Section 07 — Direct Emissions: Scope 1 Process (page 9)
 // ---------------------------------------------------------------------------
 
+interface SectorBreakdown {
+  calcination?: { limestoneInputTonnes: number; emissionFactorUsed: number; clinkerConversionFraction: number; co2Tonnes: number };
+  fertilizerFeedstock?: { naturalGasFeedstockNm3: number; emissionFactorUsed: number; co2Tonnes: number };
+  pfc?: { cf4Tonnes: number; c2f6Tonnes: number; anodeEffectMinutes: number | null; co2eAr5: number; co2eAr4: number };
+  n2oProcess?: { n2oTonnes: number; abatementFactorPct: number; netN2oTonnes: number; co2eAr5: number; co2eAr4: number };
+}
+
 function buildScope1Process(pb: PageBuilder, ctx: ReportContext) {
   pb.startSection(7, "Direct Emissions — Scope 1 Process");
 
   pb.paragraph(
-    "Process (calcination) emissions from flux and carbonate materials charged to the furnace. Purchased precursor materials (pig iron, DRI, scrap) are reported as embedded emissions in Section 09 — Precursor Embedded Emissions, consistent with the mass balance approach described in Section 10.",
+    "Process emissions from flux/carbonate calcination, anode carbon oxidation, and other sector-specific process reactions. Purchased precursor materials (pig iron, DRI, scrap, clinker, alumina, ammonia) are reported as embedded emissions in Section 09 — Precursor Embedded Emissions, consistent with the mass balance approach described in Section 10.",
   );
 
-  if (ctx.processMaterialEntries.length === 0) {
+  const breakdown = (ctx.calculationResult?.breakdown ?? {}) as SectorBreakdown;
+
+  if (ctx.processMaterialEntries.length === 0 && !breakdown.calcination && !breakdown.fertilizerFeedstock) {
     pb.note("No process material entries recorded for this reporting period.");
-    return;
+  } else {
+    let subtotal = 0;
+    const rows: (string | number)[][] = ctx.processMaterialEntries.map((entry) => {
+      const def = PROCESS_MATERIAL_LIBRARY[entry.materialType];
+      const efUsed = entry.emissionFactorOverride ?? def.efCo2PerTonne;
+      const co2 = entry.quantityTonnes * efUsed;
+      subtotal += co2;
+      return [def.label, fmt(entry.quantityTonnes, 2), `${fmt(efUsed, 3)} tCO2/t`, EMISSION_FACTOR_SOURCE, fmt(co2, 2)];
+    });
+
+    if (breakdown.calcination) {
+      subtotal += breakdown.calcination.co2Tonnes;
+      rows.push([
+        "Limestone calcination (cement)",
+        fmt(breakdown.calcination.limestoneInputTonnes, 2),
+        `${fmt(breakdown.calcination.emissionFactorUsed, 3)} tCO2/t CaCO3 x ${fmt(breakdown.calcination.clinkerConversionFraction, 2)}`,
+        "IPCC 2006 Vol.3 Ch.2",
+        fmt(breakdown.calcination.co2Tonnes, 2),
+      ]);
+    }
+    if (breakdown.fertilizerFeedstock) {
+      subtotal += breakdown.fertilizerFeedstock.co2Tonnes;
+      rows.push([
+        "Natural gas feedstock carbon (ammonia)",
+        `${fmt(breakdown.fertilizerFeedstock.naturalGasFeedstockNm3, 2)} '000 Nm3`,
+        `${fmt(breakdown.fertilizerFeedstock.emissionFactorUsed, 3)} tCO2/'000 Nm3`,
+        EMISSION_FACTOR_SOURCE,
+        fmt(breakdown.fertilizerFeedstock.co2Tonnes, 2),
+      ]);
+    }
+    rows.push(["Subtotal — Scope 1 Process", "", "", "", fmt(subtotal, 2)]);
+
+    pb.table({
+      columns: [
+        { header: "Process material", width: 140 },
+        { header: "Quantity (t)", width: 65, align: "right" },
+        { header: "Emission factor", width: 80, align: "right" },
+        { header: "Source regulation", width: 130 },
+        { header: "tCO2e", width: 80, align: "right" },
+      ],
+      rows,
+      highlightRowIndex: rows.length - 1,
+    });
   }
 
-  let subtotal = 0;
-  const rows: (string | number)[][] = ctx.processMaterialEntries.map((entry) => {
-    const def = PROCESS_MATERIAL_LIBRARY[entry.materialType];
-    const efUsed = entry.emissionFactorOverride ?? def.efCo2PerTonne;
-    const co2 = entry.quantityTonnes * efUsed;
-    subtotal += co2;
-    return [def.label, fmt(entry.quantityTonnes, 2), `${fmt(efUsed, 3)} tCO2/t`, EMISSION_FACTOR_SOURCE, fmt(co2, 2)];
-  });
-  rows.push(["Subtotal — Scope 1 Process", "", "", "", fmt(subtotal, 2)]);
+  if (breakdown.pfc) {
+    pb.heading("PFC emissions — anode effects (aluminium)");
+    pb.paragraph(
+      "Perfluorocarbons (CF4, C2F6) released during anode effects in Hall-Héroult electrolysis cells. CBAM uses IPCC AR5 GWPs; CCTS uses the AR2/BUR3-gazetted GWPs under S.O. 2825(E).",
+    );
+    pb.table({
+      columns: [
+        { header: "Gas", width: 90 },
+        { header: "Quantity (t)", width: 90, align: "right" },
+        { header: "GWP (CBAM/AR5)", width: 105, align: "right" },
+        { header: "GWP (CCTS/AR2)", width: 105, align: "right" },
+        { header: "tCO2e (CBAM)", width: 105, align: "right" },
+      ],
+      rows: [
+        ["CF4", fmt(breakdown.pfc.cf4Tonnes, 3), fmt(GWP_AR5.cf4 ?? 0, 0), fmt(GWP_AR2_BUR3.cf4 ?? 0, 0), fmt(breakdown.pfc.cf4Tonnes * (GWP_AR5.cf4 ?? 0), 2)],
+        ["C2F6", fmt(breakdown.pfc.c2f6Tonnes, 3), fmt(GWP_AR5.c2f6 ?? 0, 0), fmt(GWP_AR2_BUR3.c2f6 ?? 0, 0), fmt(breakdown.pfc.c2f6Tonnes * (GWP_AR5.c2f6 ?? 0), 2)],
+        ["Subtotal — PFC (CBAM/AR5)", "", "", "", fmt(breakdown.pfc.co2eAr5, 2)],
+      ],
+      highlightRowIndex: 2,
+    });
+    pb.note(`PFC subtotal under CCTS (AR2/BUR3 GWPs): ${fmt(breakdown.pfc.co2eAr4, 2)} tCO2e.`);
+  }
 
-  pb.table({
-    columns: [
-      { header: "Process material", width: 140 },
-      { header: "Quantity (t)", width: 65, align: "right" },
-      { header: "Emission factor", width: 80, align: "right" },
-      { header: "Source regulation", width: 130 },
-      { header: "tCO2e", width: 80, align: "right" },
-    ],
-    rows,
-    highlightRowIndex: rows.length - 1,
-  });
+  if (breakdown.n2oProcess) {
+    pb.heading("N2O process emissions — nitric acid (fertilizer)");
+    pb.paragraph(
+      "Nitrous oxide released during nitric acid production (Ostwald process), net of any catalytic abatement installed. This typically accounts for 60-70% of total GHG emissions at a nitric acid plant.",
+    );
+    pb.table({
+      columns: [
+        { header: "N2O emitted (t)", width: 110, align: "right" },
+        { header: "Abatement", width: 90, align: "right" },
+        { header: "Net N2O (t)", width: 100, align: "right" },
+        { header: "tCO2e (CBAM/AR5)", width: 100, align: "right" },
+        { header: "tCO2e (CCTS/AR2)", width: 100, align: "right" },
+      ],
+      rows: [[
+        fmt(breakdown.n2oProcess.n2oTonnes, 3),
+        `${fmt(breakdown.n2oProcess.abatementFactorPct, 1)}%`,
+        fmt(breakdown.n2oProcess.netN2oTonnes, 3),
+        fmt(breakdown.n2oProcess.co2eAr5, 2),
+        fmt(breakdown.n2oProcess.co2eAr4, 2),
+      ]],
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -632,6 +720,8 @@ function buildMethodology(pb: PageBuilder) {
       ["CO2", fmt(GWP_AR5.co2, 0), gwpCitation],
       ["CH4", fmt(GWP_AR5.ch4, 0), gwpCitation],
       ["N2O", fmt(GWP_AR5.n2o, 0), gwpCitation],
+      ["CF4 (aluminium PFC)", fmt(GWP_AR5.cf4 ?? 0, 0), gwpCitation],
+      ["C2F6 (aluminium PFC)", fmt(GWP_AR5.c2f6 ?? 0, 0), gwpCitation],
     ],
   });
   pb.note(GWP_AR5.source);

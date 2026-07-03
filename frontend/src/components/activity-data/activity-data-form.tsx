@@ -13,17 +13,23 @@ import { FieldError } from "@/components/ui/field-error";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { activityDataSchema, type ActivityDataFormValues } from "@/lib/validations/activity-data";
-import { activityDataApi, referenceApi, ApiError } from "@/lib/api";
-import type { EmissionFactorReference } from "@/lib/types";
-import { FUEL_UNIT_LABELS } from "@/lib/constants";
+import { activityDataApi, companyApi, referenceApi, ApiError } from "@/lib/api";
+import type { EmissionFactorReference, Sector } from "@/lib/types";
+import { FUEL_UNIT_LABELS, HYDROGEN_ROUTE_OPTIONS } from "@/lib/constants";
 
 export function ActivityDataForm({ facilityId }: { facilityId: string }) {
   const router = useRouter();
   const [reference, setReference] = useState<EmissionFactorReference | null>(null);
+  const [sector, setSector] = useState<Sector>("STEEL");
   const [serverError, setServerError] = useState<string | null>(null);
 
   useEffect(() => {
-    referenceApi.emissionFactors().then(setReference).catch(() => setServerError("Couldn't load emission factor reference data."));
+    Promise.all([referenceApi.emissionFactors(), companyApi.getMine()])
+      .then(([ref, { company }]) => {
+        setReference(ref);
+        if (company) setSector(company.sector);
+      })
+      .catch(() => setServerError("Couldn't load emission factor reference data."));
   }, []);
 
   const {
@@ -46,15 +52,27 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
   const precursorArray = useFieldArray({ control, name: "precursorEntries" });
 
   const watchedFuels = watch("fuelEntries");
+  const watchedHydrogenRoute = watch("hydrogenRoute");
+  const watchedElectricityExported = watch("electricityExportedEuMwh");
+  const watchedN2o = watch("n2oProcessEmissionsTonnes");
+
+  const sectorFuels = reference?.fuels.filter((f) => f.sectors.includes(sector)) ?? [];
+  const sectorMaterials = reference?.processMaterials.filter((m) => m.sectors.includes(sector)) ?? [];
+  const sectorPrecursors = reference?.precursors.filter((p) => p.sectors.includes(sector)) ?? [];
 
   const onSubmit = async (data: ActivityDataFormValues) => {
     setServerError(null);
     try {
+      const isElectricity = sector === "ELECTRICITY";
       const { entry } = await activityDataApi.create(facilityId, {
         periodStart: data.periodStart,
         periodEnd: data.periodEnd,
         productCategory: data.productCategory,
-        productionQuantityT: Number(data.productionQuantityT),
+        // Electricity's CBAM SEE is per MWh exported to the EU — that field
+        // doubles as the calculation denominator, so no separate tonnage input.
+        productionQuantityT: isElectricity
+          ? Number(data.electricityExportedEuMwh || 0)
+          : Number(data.productionQuantityT),
         gridElectricityMwh: data.gridElectricityMwh ? Number(data.gridElectricityMwh) : 0,
         renewableElectricityMwh: data.renewableElectricityMwh ? Number(data.renewableElectricityMwh) : 0,
         gridEmissionFactorOverride: data.gridEmissionFactorOverride
@@ -68,6 +86,33 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           ? Number(data.carbonPricePaidEurPerTonne)
           : undefined,
         cctsTargetIntensity: data.cctsTargetIntensity ? Number(data.cctsTargetIntensity) : undefined,
+
+        limestoneInputTonnes: data.limestoneInputTonnes ? Number(data.limestoneInputTonnes) : undefined,
+        clinkerProducedTonnes: data.clinkerProducedTonnes ? Number(data.clinkerProducedTonnes) : undefined,
+        clinkerConversionFraction: data.clinkerConversionFraction
+          ? Number(data.clinkerConversionFraction)
+          : undefined,
+
+        cf4EmissionsTonnes: data.cf4EmissionsTonnes ? Number(data.cf4EmissionsTonnes) : undefined,
+        c2f6EmissionsTonnes: data.c2f6EmissionsTonnes ? Number(data.c2f6EmissionsTonnes) : undefined,
+        anodeEffectMinutes: data.anodeEffectMinutes ? Number(data.anodeEffectMinutes) : undefined,
+
+        n2oProcessEmissionsTonnes: data.n2oProcessEmissionsTonnes
+          ? Number(data.n2oProcessEmissionsTonnes)
+          : undefined,
+        n2oAbatementFactorPct: data.n2oAbatementFactorPct ? Number(data.n2oAbatementFactorPct) : undefined,
+        naturalGasFeedstockNm3: data.naturalGasFeedstockNm3 ? Number(data.naturalGasFeedstockNm3) : undefined,
+
+        hydrogenRoute: data.hydrogenRoute || undefined,
+        ccsCaptureRatePct: data.ccsCaptureRatePct ? Number(data.ccsCaptureRatePct) : undefined,
+        hydrogenPurityPct: data.hydrogenPurityPct ? Number(data.hydrogenPurityPct) : undefined,
+        byproductOxygenTonnes: data.byproductOxygenTonnes ? Number(data.byproductOxygenTonnes) : undefined,
+
+        electricityGeneratedMwh: data.electricityGeneratedMwh ? Number(data.electricityGeneratedMwh) : undefined,
+        electricityExportedEuMwh: data.electricityExportedEuMwh ? Number(data.electricityExportedEuMwh) : undefined,
+        ownUseElectricityMwh: data.ownUseElectricityMwh ? Number(data.ownUseElectricityMwh) : undefined,
+        lineLossMwh: data.lineLossMwh ? Number(data.lineLossMwh) : undefined,
+
         notes: data.notes || undefined,
         fuelEntries: data.fuelEntries.map((f) => ({
           fuelType: f.fuelType,
@@ -98,6 +143,9 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
     );
   }
 
+  const suggestedN2o =
+    sector === "FERTILIZER" ? Number(watch("productionQuantityT") || 0) * reference.n2oDefaultEf.tonnesPerTonneNitricAcid : 0;
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
       {serverError && <Alert variant="error">{serverError}</Alert>}
@@ -119,26 +167,61 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
             <Label htmlFor="productCategory">Product category</Label>
             <Input
               id="productCategory"
-              placeholder="Crude Steel"
+              placeholder={sector === "FERTILIZER" ? "Ammonia, Urea, Nitric Acid..." : "Crude Steel"}
               error={Boolean(errors.productCategory)}
               {...register("productCategory")}
             />
             <FieldError message={errors.productCategory?.message} />
           </div>
-          <div>
-            <Label htmlFor="productionQuantityT">Production quantity (tonnes)</Label>
-            <Input
-              id="productionQuantityT"
-              type="number"
-              step="any"
-              placeholder="100000"
-              error={Boolean(errors.productionQuantityT)}
-              {...register("productionQuantityT")}
-            />
-            <FieldError message={errors.productionQuantityT?.message} />
-          </div>
+          {sector !== "ELECTRICITY" && (
+            <div>
+              <Label htmlFor="productionQuantityT">Production quantity (tonnes)</Label>
+              <Input
+                id="productionQuantityT"
+                type="number"
+                step="any"
+                placeholder="100000"
+                error={Boolean(errors.productionQuantityT)}
+                {...register("productionQuantityT")}
+              />
+              <FieldError message={errors.productionQuantityT?.message} />
+            </div>
+          )}
         </div>
       </Card>
+
+      {sector === "CEMENT" && (
+        <Card className="p-6">
+          <h2 className="font-medium">Cement — calcination & clinker</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Calcination of raw limestone is the dominant emission source for cement — it is calculated as
+            limestone input x {reference.cementCalcinationEmissionFactor} tCO2/t CaCO3 x the fraction converted
+            to clinker, and shown as a separate line in your reports.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="limestoneInputTonnes">Raw limestone input (tonnes)</Label>
+              <Input id="limestoneInputTonnes" type="number" step="any" placeholder="150000" {...register("limestoneInputTonnes")} />
+            </div>
+            <div>
+              <Label htmlFor="clinkerConversionFraction">
+                Fraction converted to clinker <span className="text-muted">(0-1, default 1)</span>
+              </Label>
+              <Input id="clinkerConversionFraction" type="number" step="any" min="0" max="1" placeholder="1" {...register("clinkerConversionFraction")} />
+              <FieldError message={errors.clinkerConversionFraction?.message} />
+            </div>
+            <div>
+              <Label htmlFor="clinkerProducedTonnes">Clinker produced (tonnes)</Label>
+              <Input id="clinkerProducedTonnes" type="number" step="any" placeholder="95000" {...register("clinkerProducedTonnes")} />
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Fly ash, slag and gypsum added, plus clinker purchased externally, are entered below under Process
+            materials / Precursor materials — all carry a zero direct process emission factor except purchased
+            clinker, which brings its supplier&apos;s embedded emissions.
+          </p>
+        </Card>
+      )}
 
       <Card className="p-6">
         <div className="flex items-center justify-between">
@@ -168,13 +251,13 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
             </p>
           )}
           {fuelArray.fields.map((field, index) => {
-            const selectedUnit = reference.fuels.find((f) => f.key === watchedFuels?.[index]?.fuelType)?.unit;
+            const selectedUnit = sectorFuels.find((f) => f.key === watchedFuels?.[index]?.fuelType)?.unit;
             return (
               <div key={field.id} className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[1fr_auto_auto]">
                 <div>
                   <Select error={Boolean(errors.fuelEntries?.[index]?.fuelType)} {...register(`fuelEntries.${index}.fuelType`)}>
                     <option value="">Select fuel</option>
-                    {reference.fuels.map((f) => (
+                    {sectorFuels.map((f) => (
                       <option key={f.key} value={f.key}>
                         {f.label}
                       </option>
@@ -211,6 +294,54 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
         </div>
       </Card>
 
+      {sector === "FERTILIZER" && (
+        <Card className="p-6">
+          <h2 className="font-medium">Fertilizer — natural gas feedstock</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Natural gas is both a fuel and a feedstock for ammonia synthesis. Enter fuel use above under Fuel &amp;
+            energy consumption, and the feedstock carbon input here — tracked and shown as a separate line, since
+            it is not combustion.
+          </p>
+          <div className="mt-4">
+            <Label htmlFor="naturalGasFeedstockNm3">Natural gas feedstock (&apos;000 Nm3)</Label>
+            <Input id="naturalGasFeedstockNm3" type="number" step="any" placeholder="500" {...register("naturalGasFeedstockNm3")} />
+          </div>
+        </Card>
+      )}
+
+      {sector === "FERTILIZER" && (
+        <Card className="p-6">
+          <h2 className="font-medium">N2O process emissions — nitric acid (Ostwald process)</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Nitrous oxide is released during catalytic oxidation of ammonia in nitric acid production. It
+            typically accounts for 60-70% of total GHG emissions at a nitric acid plant, so it is shown
+            separately rather than folded into fuel combustion. IPCC 2006 default: {" "}
+            {reference.n2oDefaultEf.tonnesPerTonneNitricAcid * 1000} kg N2O per tonne nitric acid produced
+            (uncontrolled) — {reference.n2oDefaultEf.source}.
+            {suggestedN2o > 0 && (
+              <> Based on your production quantity, the uncontrolled default would be ~{suggestedN2o.toFixed(2)} t N2O.</>
+            )}
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="n2oProcessEmissionsTonnes">N2O emitted (tonnes)</Label>
+              <Input id="n2oProcessEmissionsTonnes" type="number" step="any" placeholder="45" {...register("n2oProcessEmissionsTonnes")} />
+            </div>
+            <div>
+              <Label htmlFor="n2oAbatementFactorPct">
+                Abatement factor <span className="text-muted">(%, if N2O catalyst installed)</span>
+              </Label>
+              <Input id="n2oAbatementFactorPct" type="number" step="any" min="0" max="100" placeholder="0" {...register("n2oAbatementFactorPct")} />
+            </div>
+          </div>
+          {watchedN2o && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              This will be converted to CO2e using AR5 (CBAM, GWP 265) and AR2/BUR3 (CCTS, GWP 310).
+            </p>
+          )}
+        </Card>
+      )}
+
       <Card className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -228,7 +359,11 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           </Button>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Calcination of flux materials (limestone, dolomite) — process CO2 emissions.
+          {sector === "ALUMINIUM"
+            ? "Anode carbon / petroleum coke and pitch consumed — the carbon oxidation reaction in Hall-Héroult electrolysis. Alumina, cryolite and aluminium fluoride carry no direct process emission but can be recorded for mass balance."
+            : sector === "CEMENT"
+              ? "Fly ash, slag and gypsum added — zero process emission, recorded for clinker-to-cement ratio and mass balance."
+              : "Calcination of flux materials (limestone, dolomite) — process CO2 emissions."}
         </p>
 
         <div className="mt-4 space-y-3">
@@ -245,7 +380,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
                   {...register(`processMaterialEntries.${index}.materialType`)}
                 >
                   <option value="">Select material</option>
-                  {reference.processMaterials.map((m) => (
+                  {sectorMaterials.map((m) => (
                     <option key={m.key} value={m.key}>
                       {m.label}
                     </option>
@@ -276,6 +411,34 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
         </div>
       </Card>
 
+      {sector === "ALUMINIUM" && (
+        <Card className="p-6">
+          <h2 className="font-medium">PFC emissions — anode effects</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Perfluorocarbons (CF4, C2F6) are released during anode effects — voltage excursions in the
+            electrolysis cell caused by alumina depletion at the anode. They carry very high Global Warming
+            Potentials and are shown separately from other aluminium process emissions. CBAM uses AR5 GWPs
+            (CF4 = 6630, C2F6 = 11100); CCTS uses AR2/BUR3-gazetted GWPs (CF4 = 6500, C2F6 = 9200).
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <Label htmlFor="cf4EmissionsTonnes">CF4 emissions (tonnes)</Label>
+              <Input id="cf4EmissionsTonnes" type="number" step="any" placeholder="0.05" {...register("cf4EmissionsTonnes")} />
+            </div>
+            <div>
+              <Label htmlFor="c2f6EmissionsTonnes">C2F6 emissions (tonnes)</Label>
+              <Input id="c2f6EmissionsTonnes" type="number" step="any" placeholder="0.005" {...register("c2f6EmissionsTonnes")} />
+            </div>
+            <div>
+              <Label htmlFor="anodeEffectMinutes">
+                Anode effect minutes / cell-day <span className="text-muted">(optional, for estimation)</span>
+              </Label>
+              <Input id="anodeEffectMinutes" type="number" step="any" placeholder="0.3" {...register("anodeEffectMinutes")} />
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Card className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -293,7 +456,8 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           </Button>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Purchased pig iron, DRI, scrap or ferro-alloys — embedded emissions counted for CBAM.
+          Purchased materials with embedded emissions from an external supplier — enter source country/supplier
+          and use the verified or default embedded emission factor.
         </p>
 
         <div className="mt-4 space-y-3">
@@ -310,7 +474,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
                   {...register(`precursorEntries.${index}.materialType`)}
                 >
                   <option value="">Select material</option>
-                  {reference.precursors.map((p) => (
+                  {sectorPrecursors.map((p) => (
                     <option key={p.key} value={p.key}>
                       {p.label}
                     </option>
@@ -328,7 +492,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
                 />
                 <FieldError message={errors.precursorEntries?.[index]?.quantityTonnes?.message} />
               </div>
-              <Input placeholder="Supplier (optional)" {...register(`precursorEntries.${index}.sourceLabel`)} />
+              <Input placeholder="Supplier / source country (optional)" {...register(`precursorEntries.${index}.sourceLabel`)} />
               <button
                 type="button"
                 onClick={() => precursorArray.remove(index)}
@@ -347,13 +511,22 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           <Zap className="h-4 w-4 text-blue-400" />
           <h2 className="font-medium">Electricity & steam (indirect, Scope 2)</h2>
         </div>
+        {sector === "HYDROGEN" && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            For electrolysis routes, electricity consumption is the critical input. Use grid electricity for
+            India-grid sourced power, renewable/captive electricity for dedicated renewable supply (zero-rated),
+            or enter both plus a blended override factor for a mixed source.
+          </p>
+        )}
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="gridElectricityMwh">Grid electricity purchased (MWh)</Label>
             <Input id="gridElectricityMwh" type="number" step="any" placeholder="45000" {...register("gridElectricityMwh")} />
           </div>
           <div>
-            <Label htmlFor="renewableElectricityMwh">Renewable / captive electricity (MWh)</Label>
+            <Label htmlFor="renewableElectricityMwh">
+              Renewable / captive electricity (MWh) <span className="text-muted">(zero-rated)</span>
+            </Label>
             <Input
               id="renewableElectricityMwh"
               type="number"
@@ -382,6 +555,84 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           </div>
         </div>
       </Card>
+
+      {sector === "HYDROGEN" && (
+        <Card className="p-6">
+          <h2 className="font-medium">Hydrogen — production route</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            The production route drives almost the entire emission profile — select it first. Green hydrogen
+            from dedicated renewable electricity with zero grid connection can have a near-zero SEE; the
+            platform handles this correctly rather than treating it as an error.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="hydrogenRoute">Production route</Label>
+              <Select id="hydrogenRoute" {...register("hydrogenRoute")}>
+                <option value="">Select route</option>
+                {HYDROGEN_ROUTE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            {watchedHydrogenRoute === "SMR_CCS" && (
+              <div>
+                <Label htmlFor="ccsCaptureRatePct">CCS capture rate (%)</Label>
+                <Input id="ccsCaptureRatePct" type="number" step="any" min="0" max="100" placeholder="90" {...register("ccsCaptureRatePct")} />
+              </div>
+            )}
+            <div>
+              <Label htmlFor="hydrogenPurityPct">
+                Hydrogen purity (%) <span className="text-muted">(optional)</span>
+              </Label>
+              <Input id="hydrogenPurityPct" type="number" step="any" min="0" max="100" placeholder="99.9" {...register("hydrogenPurityPct")} />
+            </div>
+            <div>
+              <Label htmlFor="byproductOxygenTonnes">
+                By-product oxygen (tonnes) <span className="text-muted">(optional, for records)</span>
+              </Label>
+              <Input id="byproductOxygenTonnes" type="number" step="any" placeholder="8000" {...register("byproductOxygenTonnes")} />
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {sector === "ELECTRICITY" && (
+        <Card className="p-6">
+          <h2 className="font-medium">Electricity generation & export</h2>
+          <Alert variant="info">
+            EU CBAM for electricity applies to electricity physically transmitted to EU customs territory.
+            Indian exporters should confirm with their EU buyer whether this sector applies before completing
+            this form.
+          </Alert>
+          <p className="mt-3 text-xs text-muted-foreground">
+            SEE for this sector is per MWh, not per tonne — it applies only to the quantity exported to the EU.
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="electricityGeneratedMwh">Total electricity generated (MWh)</Label>
+              <Input id="electricityGeneratedMwh" type="number" step="any" placeholder="500000" {...register("electricityGeneratedMwh")} />
+            </div>
+            <div>
+              <Label htmlFor="electricityExportedEuMwh">Electricity exported to the EU (MWh)</Label>
+              <Input id="electricityExportedEuMwh" type="number" step="any" placeholder="10000" error={Boolean(errors.productionQuantityT)} {...register("electricityExportedEuMwh")} />
+              <FieldError message={errors.productionQuantityT?.message} />
+            </div>
+            <div>
+              <Label htmlFor="ownUseElectricityMwh">Own use electricity (MWh)</Label>
+              <Input id="ownUseElectricityMwh" type="number" step="any" placeholder="15000" {...register("ownUseElectricityMwh")} />
+            </div>
+            <div>
+              <Label htmlFor="lineLossMwh">Line losses (MWh)</Label>
+              <Input id="lineLossMwh" type="number" step="any" placeholder="5000" {...register("lineLossMwh")} />
+            </div>
+          </div>
+          {!watchedElectricityExported && (
+            <p className="mt-2 text-xs text-danger">Enter the MWh exported to the EU to calculate SEE for this period.</p>
+          )}
+        </Card>
+      )}
 
       <Card className="p-6">
         <h2 className="font-medium">CBAM &amp; CCTS reporting inputs</h2>

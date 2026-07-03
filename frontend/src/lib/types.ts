@@ -5,8 +5,15 @@ export type FacilityType =
   | "DRI_PLANT"
   | "ROLLING_MILL"
   | "PELLET_PLANT"
+  | "CEMENT_PLANT"
+  | "ALUMINIUM_SMELTER"
+  | "FERTILIZER_PLANT"
+  | "HYDROGEN_PLANT"
+  | "POWER_PLANT"
   | "OTHER";
-export type ProductionRoute = "BF_BOF" | "EAF" | "DRI_EAF" | "OTHER";
+/** Free-text route key, validated against SECTOR_PRODUCTION_ROUTES for the company's sector — not a fixed union. */
+export type ProductionRoute = string;
+export type HydrogenRoute = "SMR" | "SMR_CCS" | "ELECTROLYSIS_GRID" | "ELECTROLYSIS_RENEWABLE" | "BIOMASS";
 
 export interface Company {
   id: string;
@@ -137,6 +144,47 @@ export interface EmissionBreakdown {
     isOverride: boolean;
     co2eTonnes: number;
   };
+  calcination?: {
+    limestoneInputTonnes: number;
+    emissionFactorUsed: number;
+    clinkerConversionFraction: number;
+    co2Tonnes: number;
+  };
+  fertilizerFeedstock?: {
+    naturalGasFeedstockNm3: number;
+    emissionFactorUsed: number;
+    co2Tonnes: number;
+  };
+  pfc?: {
+    cf4Tonnes: number;
+    c2f6Tonnes: number;
+    anodeEffectMinutes: number | null;
+    co2eAr5: number;
+    co2eAr4: number;
+    gwpAr5: { cf4?: number; c2f6?: number };
+    gwpAr4: { cf4?: number; c2f6?: number };
+  };
+  n2oProcess?: {
+    n2oTonnes: number;
+    abatementFactorPct: number;
+    netN2oTonnes: number;
+    co2eAr5: number;
+    co2eAr4: number;
+  };
+  hydrogen?: {
+    route: HydrogenRoute;
+    ccsCaptureRatePct: number | null;
+    hydrogenPurityPct: number | null;
+    byproductOxygenTonnes: number | null;
+  };
+  electricitySector?: {
+    electricityGeneratedMwh: number | null;
+    electricityExportedEuMwh: number | null;
+    ownUseElectricityMwh: number | null;
+    lineLossMwh: number | null;
+  };
+  sector: Sector;
+  seeUnit: string;
   gwpTables: { ar4: GwpTable; ar5: GwpTable };
 }
 
@@ -147,6 +195,10 @@ export interface EmissionCalculationResult {
   directCombustionCo2eAr4: number;
   directProcessCo2e: number;
   directPrecursorCo2e: number;
+  directPfcCo2eAr5: number;
+  directPfcCo2eAr4: number;
+  directN2oProcessCo2eAr5: number;
+  directN2oProcessCo2eAr4: number;
   indirectElectricityCo2e: number;
   indirectSteamCo2e: number;
   totalDirectCo2eAr5: number;
@@ -160,9 +212,10 @@ export interface EmissionCalculationResult {
   calculatedAt: string;
 }
 
-export interface SteelActivityData {
+export interface ActivityData {
   id: string;
   facilityId: string;
+  sector: Sector;
   periodStart: string;
   periodEnd: string;
   productCategory: string;
@@ -172,6 +225,23 @@ export interface SteelActivityData {
   gridEmissionFactorOverride: number | null;
   steamImportedGj: number;
   steamEmissionFactorOverride: number | null;
+  limestoneInputTonnes: number | null;
+  clinkerProducedTonnes: number | null;
+  clinkerConversionFraction: number | null;
+  cf4EmissionsTonnes: number | null;
+  c2f6EmissionsTonnes: number | null;
+  anodeEffectMinutes: number | null;
+  n2oProcessEmissionsTonnes: number | null;
+  n2oAbatementFactorPct: number | null;
+  naturalGasFeedstockNm3: number | null;
+  hydrogenRoute: HydrogenRoute | null;
+  ccsCaptureRatePct: number | null;
+  hydrogenPurityPct: number | null;
+  byproductOxygenTonnes: number | null;
+  electricityGeneratedMwh: number | null;
+  electricityExportedEuMwh: number | null;
+  ownUseElectricityMwh: number | null;
+  lineLossMwh: number | null;
   carbonPricePaidEurPerTonne: number | null;
   cctsTargetIntensity: number | null;
   status: "DRAFT" | "SUBMITTED";
@@ -198,18 +268,31 @@ export interface FuelDefinition {
   efCo2PerUnit: number;
   efCh4PerUnit: number;
   efN2oPerUnit: number;
+  sectors: Sector[];
 }
 
 export interface ProcessMaterialDefinition {
   key: string;
   label: string;
   efCo2PerTonne: number;
+  sectors: Sector[];
 }
 
 export interface PrecursorDefinition {
   key: string;
   label: string;
   defaultEmbeddedFactor: number;
+  sectors: Sector[];
+}
+
+export interface EuDefaultSeeReference {
+  valueTco2ePerTonne: number;
+  source: string;
+}
+
+export interface CnCodeReference {
+  code: string;
+  label: string;
 }
 
 export interface EmissionFactorReference {
@@ -222,8 +305,21 @@ export interface EmissionFactorReference {
   enums: {
     sector: ReferenceOption[];
     facilityType: ReferenceOption[];
-    productionRoute: ReferenceOption[];
+    hydrogenRoute: ReferenceOption[];
   };
+  sectorFacilityTypes: Record<Sector, FacilityType[]>;
+  sectorProductionRoutes: Record<Sector, ReferenceOption[]>;
+  cnCodesBySector: Record<Sector, CnCodeReference[]>;
+  fertilizerProductOptions: ReferenceOption[];
+  euDefaultSee: {
+    steel: Record<string, EuDefaultSeeReference>;
+    cement: EuDefaultSeeReference;
+    aluminium: EuDefaultSeeReference;
+    hydrogen: EuDefaultSeeReference;
+    fertilizer: Record<string, EuDefaultSeeReference>;
+  };
+  n2oDefaultEf: { tonnesPerTonneNitricAcid: number; source: string };
+  cementCalcinationEmissionFactor: number;
 }
 
 export type SubscriptionTier = "CCTS_COMPLIANCE" | "CBAM_COMPLIANCE" | "CBAM_PLUS_CCTS";
@@ -279,5 +375,5 @@ export interface VerificationRequest {
 }
 
 export interface VerificationRequestDetail extends VerificationRequest {
-  activityData: SteelActivityData & { facility: Facility & { company: Company } };
+  activityData: ActivityData & { facility: Facility & { company: Company } };
 }

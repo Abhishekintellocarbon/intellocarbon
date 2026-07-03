@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { activityDataApi, facilityApi, ApiError } from "@/lib/api";
-import type { Facility, SteelActivityData } from "@/lib/types";
+import type { Facility, ActivityData } from "@/lib/types";
 import { FACILITY_TYPE_OPTIONS, PRODUCTION_ROUTE_OPTIONS } from "@/lib/constants";
 
 const labelFor = (options: readonly { value: string; label: string }[], value: string) =>
@@ -22,7 +22,7 @@ function FacilityDetailContent() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [facility, setFacility] = useState<Facility | null>(null);
-  const [entries, setEntries] = useState<SteelActivityData[] | null>(null);
+  const [entries, setEntries] = useState<ActivityData[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 

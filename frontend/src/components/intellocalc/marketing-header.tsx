@@ -19,13 +19,20 @@ export function MarketingHeader() {
           About Us
         </Link>
         <FaqNavLink />
-        <Link href="/login" style={{ marginLeft: "24px" }}>
-          <Button variant="ghost" size="sm">
+        <Link href="/login" style={{ marginLeft: "32px" }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto rounded-[8px] border-[1.5px] border-[#00D4AA] bg-transparent px-5 py-2 font-semibold text-[#00D4AA] hover:bg-[#00D4AA]/10 hover:text-[#00D4AA]"
+          >
             Log in
           </Button>
         </Link>
         <Link href="/signup" style={{ marginLeft: "12px" }}>
-          <Button size="sm" className="min-w-[120px]">
+          <Button
+            size="sm"
+            className="h-auto min-w-[120px] rounded-[8px] bg-none bg-[#00D4AA] px-5 py-2 font-bold text-[#0F1923] shadow-none hover:bg-[#00D4AA] hover:brightness-105"
+          >
             Get started
           </Button>
         </Link>

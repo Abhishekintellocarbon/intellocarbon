@@ -1,5 +1,5 @@
 import { asyncHandler } from "../utils/asyncHandler";
-import * as activityDataService from "../services/steelActivityData.service";
+import * as activityDataService from "../services/activityData.service";
 import { generateReportPdf, getReportContext, type ReportType } from "../services/report.service";
 
 export const listActivityData = asyncHandler(async (req, res) => {

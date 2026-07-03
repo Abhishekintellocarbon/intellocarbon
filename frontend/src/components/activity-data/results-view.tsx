@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { activityDataApi, ApiError } from "@/lib/api";
-import type { SteelActivityData, VerificationRequest } from "@/lib/types";
+import type { ActivityData, VerificationRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const fmt = (n: number, digits = 3) => n.toLocaleString("en-IN", { maximumFractionDigits: digits, minimumFractionDigits: digits });
@@ -18,7 +18,7 @@ const formatDate = (iso: string) =>
 
 export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId: string }) {
   const router = useRouter();
-  const [entry, setEntry] = useState<SteelActivityData | null>(null);
+  const [entry, setEntry] = useState<ActivityData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -133,7 +133,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
               scheme="CBAM"
               title="Specific Embedded Emissions (SEE)"
               value={result.specificEmbeddedEmissionsCbam}
-              unit="tCO2e / t product"
+              unit={`${result.breakdown.seeUnit ?? "tCO2e/t"} product`}
               total={result.totalEmissionsCbamAr5}
               gwp="IPCC AR5"
               accent="teal"
@@ -142,7 +142,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
               scheme="CCTS"
               title="GHG Intensity"
               value={result.ghgIntensityCcts}
-              unit="tCO2e / t product"
+              unit={`${result.breakdown.seeUnit ?? "tCO2e/t"} product`}
               total={result.totalEmissionsCctsAr4}
               gwp="IPCC AR2/BUR3"
               accent="blue"
@@ -178,7 +178,13 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
                 valueAr4={result.directCombustionCo2eAr4}
                 max={result.totalEmissionsCbamAr5}
               />
-              <CategoryBar label="Process emissions (calcination)" valueAr5={result.directProcessCo2e} valueAr4={result.directProcessCo2e} max={result.totalEmissionsCbamAr5} single />
+              <CategoryBar label="Process emissions (calcination / feedstock)" valueAr5={result.directProcessCo2e} valueAr4={result.directProcessCo2e} max={result.totalEmissionsCbamAr5} single />
+              {result.directPfcCo2eAr5 > 0 && (
+                <CategoryBar label="PFC emissions (aluminium anode effects)" valueAr5={result.directPfcCo2eAr5} valueAr4={result.directPfcCo2eAr4} max={result.totalEmissionsCbamAr5} />
+              )}
+              {result.directN2oProcessCo2eAr5 > 0 && (
+                <CategoryBar label="N2O process emissions (nitric acid)" valueAr5={result.directN2oProcessCo2eAr5} valueAr4={result.directN2oProcessCo2eAr4} max={result.totalEmissionsCbamAr5} />
+              )}
               <CategoryBar label="Precursor materials (embedded)" valueAr5={result.directPrecursorCo2e} valueAr4={result.directPrecursorCo2e} max={result.totalEmissionsCbamAr5} single />
               <CategoryBar label="Electricity (indirect)" valueAr5={result.indirectElectricityCo2e} valueAr4={result.indirectElectricityCo2e} max={result.totalEmissionsCbamAr5} single />
               <CategoryBar label="Steam (indirect)" valueAr5={result.indirectSteamCo2e} valueAr4={result.indirectSteamCo2e} max={result.totalEmissionsCbamAr5} single />
@@ -258,6 +264,94 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
                 `${p.emissionFactorUsed}${p.isOverride ? " (override)" : ""}`,
                 fmt(p.co2eTonnes),
               ])}
+            />
+          )}
+
+          {result.breakdown.calcination && (
+            <DetailTable
+              title="Calcination detail (cement)"
+              columns={["Limestone input (t)", "Factor (tCO2/t CaCO3)", "Conversion fraction", "CO2 (t)"]}
+              rows={[[
+                fmtInt(result.breakdown.calcination.limestoneInputTonnes),
+                String(result.breakdown.calcination.emissionFactorUsed),
+                String(result.breakdown.calcination.clinkerConversionFraction),
+                fmt(result.breakdown.calcination.co2Tonnes),
+              ]]}
+            />
+          )}
+
+          {result.breakdown.fertilizerFeedstock && (
+            <DetailTable
+              title="Natural gas feedstock detail (fertilizer)"
+              columns={["Feedstock ('000 Nm3)", "Factor (tCO2/'000 Nm3)", "CO2 (t)"]}
+              rows={[[
+                fmtInt(result.breakdown.fertilizerFeedstock.naturalGasFeedstockNm3),
+                String(result.breakdown.fertilizerFeedstock.emissionFactorUsed),
+                fmt(result.breakdown.fertilizerFeedstock.co2Tonnes),
+              ]]}
+            />
+          )}
+
+          {result.breakdown.pfc && (
+            <DetailTable
+              title="PFC emissions detail (aluminium)"
+              columns={["Gas", "Quantity (t)", "GWP (CBAM/AR5)", "GWP (CCTS/AR2)", "CO2e (t)"]}
+              rows={[
+                [
+                  "CF4",
+                  fmt(result.breakdown.pfc.cf4Tonnes, 3),
+                  String(result.breakdown.pfc.gwpAr5.cf4 ?? "—"),
+                  String(result.breakdown.pfc.gwpAr4.cf4 ?? "—"),
+                  fmt(result.breakdown.pfc.cf4Tonnes * (result.breakdown.pfc.gwpAr5.cf4 ?? 0)),
+                ],
+                [
+                  "C2F6",
+                  fmt(result.breakdown.pfc.c2f6Tonnes, 3),
+                  String(result.breakdown.pfc.gwpAr5.c2f6 ?? "—"),
+                  String(result.breakdown.pfc.gwpAr4.c2f6 ?? "—"),
+                  fmt(result.breakdown.pfc.c2f6Tonnes * (result.breakdown.pfc.gwpAr5.c2f6 ?? 0)),
+                ],
+              ]}
+            />
+          )}
+
+          {result.breakdown.n2oProcess && (
+            <DetailTable
+              title="N2O process emissions detail (fertilizer)"
+              columns={["N2O emitted (t)", "Abatement (%)", "Net N2O (t)", "CO2e AR5 (t)", "CO2e AR2/BUR3 (t)"]}
+              rows={[[
+                fmt(result.breakdown.n2oProcess.n2oTonnes, 3),
+                fmt(result.breakdown.n2oProcess.abatementFactorPct, 1),
+                fmt(result.breakdown.n2oProcess.netN2oTonnes, 3),
+                fmt(result.breakdown.n2oProcess.co2eAr5),
+                fmt(result.breakdown.n2oProcess.co2eAr4),
+              ]]}
+            />
+          )}
+
+          {result.breakdown.hydrogen && (
+            <DetailTable
+              title="Hydrogen production route"
+              columns={["Route", "CCS capture (%)", "Purity (%)", "By-product O2 (t)"]}
+              rows={[[
+                result.breakdown.hydrogen.route.replace(/_/g, " "),
+                result.breakdown.hydrogen.ccsCaptureRatePct != null ? fmt(result.breakdown.hydrogen.ccsCaptureRatePct, 1) : "—",
+                result.breakdown.hydrogen.hydrogenPurityPct != null ? fmt(result.breakdown.hydrogen.hydrogenPurityPct, 1) : "—",
+                result.breakdown.hydrogen.byproductOxygenTonnes != null ? fmtInt(result.breakdown.hydrogen.byproductOxygenTonnes) : "—",
+              ]]}
+            />
+          )}
+
+          {result.breakdown.electricitySector && (
+            <DetailTable
+              title="Electricity generation & export"
+              columns={["Generated (MWh)", "Exported to EU (MWh)", "Own use (MWh)", "Line losses (MWh)"]}
+              rows={[[
+                result.breakdown.electricitySector.electricityGeneratedMwh != null ? fmtInt(result.breakdown.electricitySector.electricityGeneratedMwh) : "—",
+                result.breakdown.electricitySector.electricityExportedEuMwh != null ? fmtInt(result.breakdown.electricitySector.electricityExportedEuMwh) : "—",
+                result.breakdown.electricitySector.ownUseElectricityMwh != null ? fmtInt(result.breakdown.electricitySector.ownUseElectricityMwh) : "—",
+                result.breakdown.electricitySector.lineLossMwh != null ? fmtInt(result.breakdown.electricitySector.lineLossMwh) : "—",
+              ]]}
             />
           )}
 

@@ -1,5 +1,5 @@
 import type { ReportContext } from "./report.service";
-import { CBAM_CERTIFICATE_PRICE, EU_DEFAULT_SEE_BY_ROUTE, CBAM_ACTIVITY_BY_ROUTE } from "../data/cbamReferenceData";
+import { CBAM_CERTIFICATE_PRICE, getEuDefaultSee, getCbamActivity } from "../data/cbamReferenceData";
 
 const round = (value: number, decimals = 4) => {
   const factor = 10 ** decimals;
@@ -63,10 +63,11 @@ export interface CbamFinancialImpact {
 
 export const computeCbamFinancialImpact = (ctx: ReportContext): CbamFinancialImpact => {
   const result = ctx.calculationResult!;
-  const production = ctx.productionQuantityT;
+  // Electricity's CBAM SEE is per MWh exported to the EU, not per tonne of product.
+  const production = ctx.sector === "ELECTRICITY" ? (ctx.electricityExportedEuMwh ?? 0) : ctx.productionQuantityT;
 
   const actualSee = result.specificEmbeddedEmissionsCbam;
-  const defaultRef = EU_DEFAULT_SEE_BY_ROUTE[ctx.facility.productionRoute];
+  const defaultRef = getEuDefaultSee(ctx.sector, ctx.facility.productionRoute, ctx.productCategory);
   const defaultSee = defaultRef.valueTco2ePerTonne;
   const varianceFromDefault = defaultSee - actualSee;
 
@@ -120,7 +121,7 @@ export const computeCbamFinancialImpact = (ctx: ReportContext): CbamFinancialImp
     netLiabilityEur: round(netLiabilityEur, 2),
     savingVsDefaultEur: round(savingVsDefaultEur, 2),
 
-    cbamActivity: CBAM_ACTIVITY_BY_ROUTE[ctx.facility.productionRoute],
+    cbamActivity: getCbamActivity(ctx.sector, ctx.facility.productionRoute),
 
     cctsPosition,
   };

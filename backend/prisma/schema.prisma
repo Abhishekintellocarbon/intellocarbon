@@ -77,8 +77,8 @@ model Company {
   euImporterContactEmail String?
   euImporterContactPhone String?
 
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   facilities           Facility[]
   subscription         Subscription?
@@ -141,22 +141,22 @@ enum VerificationStatus {
 }
 
 model VerificationRequest {
-  id             String             @id @default(cuid())
-  activityDataId String             @unique
-  activityData   SteelActivityData  @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
-  companyId      String
-  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  status         VerificationStatus @default(PENDING)
-  verifierId     String?
-  verifier       User?              @relation("VerifierAssignments", fields: [verifierId], references: [id])
-  verifierOrg    String?
+  id                  String             @id @default(cuid())
+  activityDataId      String             @unique
+  activityData        ActivityData       @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  companyId           String
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status              VerificationStatus @default(PENDING)
+  verifierId          String?
+  verifier            User?              @relation("VerifierAssignments", fields: [verifierId], references: [id])
+  verifierOrg         String?
   accreditationNumber String?
-  statement      String?
-  comments       String?
-  submittedAt    DateTime           @default(now())
-  decidedAt      DateTime?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  statement           String?
+  comments            String?
+  submittedAt         DateTime           @default(now())
+  decidedAt           DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
 
   @@index([companyId])
   @@index([verifierId])
@@ -169,23 +169,33 @@ enum FacilityType {
   DRI_PLANT
   ROLLING_MILL
   PELLET_PLANT
+  CEMENT_PLANT
+  ALUMINIUM_SMELTER
+  FERTILIZER_PLANT
+  HYDROGEN_PLANT
+  POWER_PLANT
   OTHER
 }
 
-enum ProductionRoute {
-  BF_BOF
-  EAF
-  DRI_EAF
-  OTHER
+enum HydrogenRoute {
+  SMR
+  SMR_CCS
+  ELECTROLYSIS_GRID
+  ELECTROLYSIS_RENEWABLE
+  BIOMASS
 }
 
 model Facility {
-  id                   String          @id @default(cuid())
+  id                   String       @id @default(cuid())
   companyId            String
-  company              Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company              Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name                 String
   facilityType         FacilityType
-  productionRoute      ProductionRoute
+  // Free-text production-route key (e.g. "BF_BOF", "CLINKER_PRODUCTION",
+  // "HALL_HEROULT") validated app-side against a per-sector option list —
+  // not a Prisma enum, since each new CBAM sector adds its own route set and
+  // a shared enum would need a migration every time one changes.
+  productionRoute      String
   address              String?
   state                String?
   district             String?
@@ -195,11 +205,11 @@ model Facility {
   installedCapacityTpa Float?
   commissioningYear    Int?
   productsManufactured String[]
-  cnCodes              String[]        @default([])
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
+  cnCodes              String[]     @default([])
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 
-  activityData SteelActivityData[]
+  activityData ActivityData[]
 
   @@index([companyId])
   @@map("facilities")
@@ -210,10 +220,13 @@ enum DataEntryStatus {
   SUBMITTED
 }
 
-model SteelActivityData {
+model ActivityData {
   id                  String   @id @default(cuid())
   facilityId          String
   facility            Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  // Denormalised from the owning Company at creation time — lets the
+  // calculation engine and reports branch per sector without an extra join.
+  sector              Sector   @default(STEEL)
   periodStart         DateTime
   periodEnd           DateTime
   productCategory     String
@@ -225,6 +238,33 @@ model SteelActivityData {
 
   steamImportedGj             Float  @default(0)
   steamEmissionFactorOverride Float?
+
+  // --- Cement (calcination) ---
+  limestoneInputTonnes      Float?
+  clinkerProducedTonnes     Float?
+  clinkerConversionFraction Float?
+
+  // --- Aluminium (PFC — perfluorocarbons from anode effects) ---
+  cf4EmissionsTonnes  Float?
+  c2f6EmissionsTonnes Float?
+  anodeEffectMinutes  Float?
+
+  // --- Fertilizer (N2O from nitric acid production + gas feedstock carbon) ---
+  n2oProcessEmissionsTonnes Float?
+  n2oAbatementFactorPct     Float?
+  naturalGasFeedstockNm3    Float?
+
+  // --- Hydrogen ---
+  hydrogenRoute         HydrogenRoute?
+  ccsCaptureRatePct     Float?
+  hydrogenPurityPct     Float?
+  byproductOxygenTonnes Float?
+
+  // --- Electricity (CBAM SEE is per MWh exported to the EU, not per tonne) ---
+  electricityGeneratedMwh  Float?
+  electricityExportedEuMwh Float?
+  ownUseElectricityMwh     Float?
+  lineLossMwh              Float?
 
   // CBAM Article 9 deduction input — carbon price effectively paid in the
   // country of origin, expressed directly in EUR/tCO2e.
@@ -246,59 +286,68 @@ model SteelActivityData {
   verificationRequest    VerificationRequest?
 
   @@index([facilityId])
-  @@map("steel_activity_data")
+  @@map("activity_data")
 }
 
 model FuelEntry {
-  id                        String            @id @default(cuid())
+  id                        String       @id @default(cuid())
   activityDataId            String
-  activityData              SteelActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  activityData              ActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
   fuelType                  String
   quantity                  Float
   unit                      String
   emissionFactorOverrideCo2 Float?
-  createdAt                 DateTime          @default(now())
+  createdAt                 DateTime     @default(now())
 
   @@index([activityDataId])
   @@map("fuel_entries")
 }
 
 model ProcessMaterialEntry {
-  id                     String            @id @default(cuid())
+  id                     String       @id @default(cuid())
   activityDataId         String
-  activityData           SteelActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  activityData           ActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
   materialType           String
   quantityTonnes         Float
   emissionFactorOverride Float?
-  createdAt              DateTime          @default(now())
+  createdAt              DateTime     @default(now())
 
   @@index([activityDataId])
   @@map("process_material_entries")
 }
 
 model PrecursorEntry {
-  id                             String            @id @default(cuid())
+  id                             String       @id @default(cuid())
   activityDataId                 String
-  activityData                   SteelActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  activityData                   ActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
   materialType                   String
   quantityTonnes                 Float
   embeddedEmissionFactorOverride Float?
   sourceLabel                    String?
-  createdAt                      DateTime          @default(now())
+  createdAt                      DateTime     @default(now())
 
   @@index([activityDataId])
   @@map("precursor_entries")
 }
 
 model EmissionCalculationResult {
-  id             String            @id @default(cuid())
-  activityDataId String            @unique
-  activityData   SteelActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  id             String       @id @default(cuid())
+  activityDataId String       @unique
+  activityData   ActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
 
   directCombustionCo2eAr5 Float
   directCombustionCo2eAr4 Float
   directProcessCo2e       Float
   directPrecursorCo2e     Float
+
+  // PFC (aluminium) and process N2O (fertilizer nitric acid) need dual-GWP
+  // treatment like combustion CH4/N2O, so — unlike calcination/feedstock
+  // carbon, which are CO2-only and fold into directProcessCo2e — they get
+  // their own AR5/AR2-BUR3 columns.
+  directPfcCo2eAr5        Float @default(0)
+  directPfcCo2eAr4        Float @default(0)
+  directN2oProcessCo2eAr5 Float @default(0)
+  directN2oProcessCo2eAr4 Float @default(0)
 
   indirectElectricityCo2e Float
   indirectSteamCo2e       Float

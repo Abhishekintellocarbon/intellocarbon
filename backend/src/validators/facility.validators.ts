@@ -1,12 +1,13 @@
-import { FacilityType, ProductionRoute } from "@prisma/client";
+import { FacilityType } from "@prisma/client";
 import { z } from "zod";
 
 export const facilitySchema = z.object({
   name: z.string().trim().min(2, "Facility name must be at least 2 characters").max(150),
   facilityType: z.nativeEnum(FacilityType, { errorMap: () => ({ message: "Select a valid facility type" }) }),
-  productionRoute: z.nativeEnum(ProductionRoute, {
-    errorMap: () => ({ message: "Select a valid production route" }),
-  }),
+  // Free-text route key, validated against the sector's option list in
+  // `data/cbamReferenceData.ts` at the service layer (not a Prisma enum —
+  // see the schema comment on Facility.productionRoute).
+  productionRoute: z.string().trim().min(1, "Select a production route").max(50),
   address: z.string().trim().max(250).optional().or(z.literal("")),
   state: z.string().trim().max(100).optional().or(z.literal("")),
   district: z.string().trim().max(100).optional().or(z.literal("")),

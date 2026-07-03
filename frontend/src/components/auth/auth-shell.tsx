@@ -41,9 +41,8 @@ export function AuthShell({
 
         <div className="relative z-10 max-w-md space-y-8">
           <h2 className="text-3xl font-semibold leading-tight text-balance">
-            India&apos;s first unified{" "}
-            <span className="text-gradient">Environmental Compliance</span> and Climate
-            Intelligence Platform
+            Environmental compliance and{" "}
+            <span className="text-gradient">climate intelligence</span>, unified
           </h2>
           <div className="space-y-5">
             {features.map((feature) => (

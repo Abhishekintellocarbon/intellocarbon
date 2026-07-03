@@ -2,14 +2,14 @@ import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { requireOwnedFacility } from "./facility.service";
 import { calculateEmissionsForActivityData } from "./emissionCalculation.service";
-import type { SteelActivityDataInput } from "../validators/steelActivityData.validators";
+import type { ActivityDataInput } from "../validators/activityData.validators";
 
 const cleanOptional = (value?: string) => (value ? value : undefined);
 
 const requireOwnedActivityData = async (userId: string, facilityId: string, activityDataId: string) => {
   await requireOwnedFacility(userId, facilityId);
 
-  const activityData = await prisma.steelActivityData.findUnique({
+  const activityData = await prisma.activityData.findUnique({
     where: { id: activityDataId },
   });
 
@@ -23,7 +23,7 @@ const requireOwnedActivityData = async (userId: string, facilityId: string, acti
 export const listActivityData = async (userId: string, facilityId: string) => {
   await requireOwnedFacility(userId, facilityId);
 
-  return prisma.steelActivityData.findMany({
+  return prisma.activityData.findMany({
     where: { facilityId },
     include: { calculationResult: true },
     orderBy: { periodStart: "desc" },
@@ -33,13 +33,14 @@ export const listActivityData = async (userId: string, facilityId: string) => {
 export const createActivityData = async (
   userId: string,
   facilityId: string,
-  input: SteelActivityDataInput,
+  input: ActivityDataInput,
 ) => {
-  await requireOwnedFacility(userId, facilityId);
+  const facility = await requireOwnedFacility(userId, facilityId);
 
-  const created = await prisma.steelActivityData.create({
+  const created = await prisma.activityData.create({
     data: {
       facilityId,
+      sector: facility.company.sector,
       periodStart: input.periodStart,
       periodEnd: input.periodEnd,
       productCategory: input.productCategory,
@@ -51,6 +52,23 @@ export const createActivityData = async (
       steamEmissionFactorOverride: input.steamEmissionFactorOverride,
       carbonPricePaidEurPerTonne: input.carbonPricePaidEurPerTonne,
       cctsTargetIntensity: input.cctsTargetIntensity,
+      limestoneInputTonnes: input.limestoneInputTonnes,
+      clinkerProducedTonnes: input.clinkerProducedTonnes,
+      clinkerConversionFraction: input.clinkerConversionFraction,
+      cf4EmissionsTonnes: input.cf4EmissionsTonnes,
+      c2f6EmissionsTonnes: input.c2f6EmissionsTonnes,
+      anodeEffectMinutes: input.anodeEffectMinutes,
+      n2oProcessEmissionsTonnes: input.n2oProcessEmissionsTonnes,
+      n2oAbatementFactorPct: input.n2oAbatementFactorPct,
+      naturalGasFeedstockNm3: input.naturalGasFeedstockNm3,
+      hydrogenRoute: input.hydrogenRoute,
+      ccsCaptureRatePct: input.ccsCaptureRatePct,
+      hydrogenPurityPct: input.hydrogenPurityPct,
+      byproductOxygenTonnes: input.byproductOxygenTonnes,
+      electricityGeneratedMwh: input.electricityGeneratedMwh,
+      electricityExportedEuMwh: input.electricityExportedEuMwh,
+      ownUseElectricityMwh: input.ownUseElectricityMwh,
+      lineLossMwh: input.lineLossMwh,
       notes: cleanOptional(input.notes),
       status: "SUBMITTED",
       fuelEntries: {
@@ -81,7 +99,7 @@ export const createActivityData = async (
 
   await calculateEmissionsForActivityData(created.id);
 
-  return prisma.steelActivityData.findUniqueOrThrow({
+  return prisma.activityData.findUniqueOrThrow({
     where: { id: created.id },
     include: {
       fuelEntries: true,
@@ -95,7 +113,7 @@ export const createActivityData = async (
 export const getActivityData = async (userId: string, facilityId: string, activityDataId: string) => {
   await requireOwnedActivityData(userId, facilityId, activityDataId);
 
-  return prisma.steelActivityData.findUniqueOrThrow({
+  return prisma.activityData.findUniqueOrThrow({
     where: { id: activityDataId },
     include: {
       fuelEntries: true,
@@ -110,7 +128,7 @@ export const getActivityData = async (userId: string, facilityId: string, activi
 
 export const deleteActivityData = async (userId: string, facilityId: string, activityDataId: string) => {
   await requireOwnedActivityData(userId, facilityId, activityDataId);
-  await prisma.steelActivityData.delete({ where: { id: activityDataId } });
+  await prisma.activityData.delete({ where: { id: activityDataId } });
 };
 
 export { requireOwnedActivityData };
