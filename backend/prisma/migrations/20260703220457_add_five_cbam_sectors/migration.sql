@@ -1,10 +1,3 @@
-/*
-  Warnings:
-
-  - You are about to drop the `steel_activity_data` table. If the table is not empty, all the data it contains will be lost.
-  - Changed the type of `productionRoute` on the `facilities` table. No cast exists, the column would be dropped and recreated, which cannot be done if there is data, since the column is required.
-
-*/
 -- CreateEnum
 CREATE TYPE "HydrogenRoute" AS ENUM ('SMR', 'SMR_CCS', 'ELECTROLYSIS_GRID', 'ELECTROLYSIS_RENEWABLE', 'BIOMASS');
 
@@ -47,58 +40,41 @@ ADD COLUMN     "directPfcCo2eAr4" DOUBLE PRECISION NOT NULL DEFAULT 0,
 ADD COLUMN     "directPfcCo2eAr5" DOUBLE PRECISION NOT NULL DEFAULT 0;
 
 -- AlterTable
-ALTER TABLE "facilities" DROP COLUMN "productionRoute",
-ADD COLUMN     "productionRoute" TEXT NOT NULL;
-
--- DropTable
-DROP TABLE "steel_activity_data";
+-- Safe in-place type change (was DROP COLUMN + ADD COLUMN NOT NULL with no
+-- default, which fails on any non-empty facilities table). USING preserves
+-- the existing enum value as text instead of destroying it.
+ALTER TABLE "facilities" ALTER COLUMN "productionRoute" TYPE TEXT USING "productionRoute"::TEXT;
 
 -- DropEnum
 DROP TYPE "ProductionRoute";
 
--- CreateTable
-CREATE TABLE "activity_data" (
-    "id" TEXT NOT NULL,
-    "facilityId" TEXT NOT NULL,
-    "sector" "Sector" NOT NULL DEFAULT 'STEEL',
-    "periodStart" TIMESTAMP(3) NOT NULL,
-    "periodEnd" TIMESTAMP(3) NOT NULL,
-    "productCategory" TEXT NOT NULL,
-    "productionQuantityT" DOUBLE PRECISION NOT NULL,
-    "gridElectricityMwh" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "renewableElectricityMwh" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "gridEmissionFactorOverride" DOUBLE PRECISION,
-    "steamImportedGj" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "steamEmissionFactorOverride" DOUBLE PRECISION,
-    "limestoneInputTonnes" DOUBLE PRECISION,
-    "clinkerProducedTonnes" DOUBLE PRECISION,
-    "clinkerConversionFraction" DOUBLE PRECISION,
-    "cf4EmissionsTonnes" DOUBLE PRECISION,
-    "c2f6EmissionsTonnes" DOUBLE PRECISION,
-    "anodeEffectMinutes" DOUBLE PRECISION,
-    "n2oProcessEmissionsTonnes" DOUBLE PRECISION,
-    "n2oAbatementFactorPct" DOUBLE PRECISION,
-    "naturalGasFeedstockNm3" DOUBLE PRECISION,
-    "hydrogenRoute" "HydrogenRoute",
-    "ccsCaptureRatePct" DOUBLE PRECISION,
-    "hydrogenPurityPct" DOUBLE PRECISION,
-    "byproductOxygenTonnes" DOUBLE PRECISION,
-    "electricityGeneratedMwh" DOUBLE PRECISION,
-    "electricityExportedEuMwh" DOUBLE PRECISION,
-    "ownUseElectricityMwh" DOUBLE PRECISION,
-    "lineLossMwh" DOUBLE PRECISION,
-    "carbonPricePaidEurPerTonne" DOUBLE PRECISION,
-    "cctsTargetIntensity" DOUBLE PRECISION,
-    "status" "DataEntryStatus" NOT NULL DEFAULT 'DRAFT',
-    "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+-- RenameTable
+-- Was DROP TABLE + CREATE TABLE, which would have destroyed existing
+-- steel_activity_data rows. Renaming preserves data; new sector-specific
+-- columns are added as nullable/defaulted so existing rows stay valid.
+ALTER TABLE "steel_activity_data" RENAME TO "activity_data";
+ALTER TABLE "activity_data" RENAME CONSTRAINT "steel_activity_data_pkey" TO "activity_data_pkey";
+ALTER INDEX "steel_activity_data_facilityId_idx" RENAME TO "activity_data_facilityId_idx";
 
-    CONSTRAINT "activity_data_pkey" PRIMARY KEY ("id")
-);
-
--- CreateIndex
-CREATE INDEX "activity_data_facilityId_idx" ON "activity_data"("facilityId");
+ALTER TABLE "activity_data"
+ADD COLUMN     "sector" "Sector" NOT NULL DEFAULT 'STEEL',
+ADD COLUMN     "limestoneInputTonnes" DOUBLE PRECISION,
+ADD COLUMN     "clinkerProducedTonnes" DOUBLE PRECISION,
+ADD COLUMN     "clinkerConversionFraction" DOUBLE PRECISION,
+ADD COLUMN     "cf4EmissionsTonnes" DOUBLE PRECISION,
+ADD COLUMN     "c2f6EmissionsTonnes" DOUBLE PRECISION,
+ADD COLUMN     "anodeEffectMinutes" DOUBLE PRECISION,
+ADD COLUMN     "n2oProcessEmissionsTonnes" DOUBLE PRECISION,
+ADD COLUMN     "n2oAbatementFactorPct" DOUBLE PRECISION,
+ADD COLUMN     "naturalGasFeedstockNm3" DOUBLE PRECISION,
+ADD COLUMN     "hydrogenRoute" "HydrogenRoute",
+ADD COLUMN     "ccsCaptureRatePct" DOUBLE PRECISION,
+ADD COLUMN     "hydrogenPurityPct" DOUBLE PRECISION,
+ADD COLUMN     "byproductOxygenTonnes" DOUBLE PRECISION,
+ADD COLUMN     "electricityGeneratedMwh" DOUBLE PRECISION,
+ADD COLUMN     "electricityExportedEuMwh" DOUBLE PRECISION,
+ADD COLUMN     "ownUseElectricityMwh" DOUBLE PRECISION,
+ADD COLUMN     "lineLossMwh" DOUBLE PRECISION;
 
 -- AddForeignKey
 ALTER TABLE "verification_requests" ADD CONSTRAINT "verification_requests_activityDataId_fkey" FOREIGN KEY ("activityDataId") REFERENCES "activity_data"("id") ON DELETE CASCADE ON UPDATE CASCADE;
