@@ -216,7 +216,7 @@ export const buildCctsReportPdf = (doc: PDFKit.PDFDocument, ctx: ReportContext) 
 
   c.heading("Methodology");
   c.paragraph(
-    "GHG intensity is calculated as total direct and indirect emissions (Scope 1 + Scope 2), plus embedded emissions from precursor materials, divided by production quantity. Non-CO2 gases are converted to CO2e using IPCC AR4 100-year Global Warming Potentials, consistent with India's PAT scheme / GHG Programme convention (CH4 = 25, N2O = 298).",
+    "GHG intensity is calculated as total direct and indirect emissions (Scope 1 + Scope 2), plus embedded emissions from precursor materials, divided by production quantity. Non-CO2 gases are converted to CO2e using IPCC AR2 / BUR3 100-year Global Warming Potentials, as gazetted for CCTS under S.O. 2825(E) 2023 and India's Third Biennial Update Report (CH4 = 21, N2O = 310).",
   );
 
   c.scoreBox(
@@ -225,7 +225,7 @@ export const buildCctsReportPdf = (doc: PDFKit.PDFDocument, ctx: ReportContext) 
     `Total emissions for period: ${result.totalEmissionsCctsAr4.toLocaleString("en-IN", { maximumFractionDigits: 1 })} tCO2e`,
   );
 
-  c.heading("Emissions breakdown (AR4 GWP)");
+  c.heading("Emissions breakdown (AR2/BUR3 GWP)");
   c.table(
     ["Category", "tCO2e"],
     [

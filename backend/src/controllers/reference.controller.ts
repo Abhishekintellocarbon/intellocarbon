@@ -7,7 +7,7 @@ import {
   PRECURSOR_LIBRARY,
   PROCESS_MATERIAL_LIBRARY,
 } from "../data/emissionFactors";
-import { GWP_AR4, GWP_AR5 } from "../data/gwpTables";
+import { GWP_AR2_BUR3, GWP_AR5 } from "../data/gwpTables";
 
 const enumOptions = (values: Record<string, string>) =>
   Object.values(values).map((value) => ({
@@ -26,7 +26,7 @@ export const getEmissionFactorReference = asyncHandler(async (_req, res) => {
     precursors: Object.values(PRECURSOR_LIBRARY),
     defaultGridEmissionFactor: DEFAULT_GRID_EMISSION_FACTOR,
     defaultSteamEmissionFactor: DEFAULT_STEAM_EMISSION_FACTOR,
-    gwpTables: { ar4: GWP_AR4, ar5: GWP_AR5 },
+    gwpTables: { ar4: GWP_AR2_BUR3, ar5: GWP_AR5 },
     enums: {
       sector: enumOptions(Sector),
       facilityType: enumOptions(FacilityType),

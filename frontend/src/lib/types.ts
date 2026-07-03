@@ -82,12 +82,14 @@ export interface PrecursorEntry {
 }
 
 export interface GwpTable {
-  scheme: "AR4" | "AR5";
+  scheme: "AR2_BUR3" | "AR5";
   label: string;
   source: string;
   co2: number;
   ch4: number;
   n2o: number;
+  cf4?: number;
+  c2f6?: number;
 }
 
 export interface EmissionBreakdownLine {

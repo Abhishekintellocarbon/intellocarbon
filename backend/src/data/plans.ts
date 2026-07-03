@@ -74,7 +74,7 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
       "Everything in CBAM Compliance",
       "Article 9 deduction calculated automatically",
       "Both reports generated from a single data entry",
-      "Dual GWP tables — AR5 for CBAM, AR4 for CCTS",
+      "Dual GWP tables — AR5 for CBAM, AR2/BUR3 for CCTS",
       "Complete India + EU compliance in one platform",
     ],
     highlight: true,

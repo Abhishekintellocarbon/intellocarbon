@@ -144,7 +144,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
               value={result.ghgIntensityCcts}
               unit="tCO2e / t product"
               total={result.totalEmissionsCctsAr4}
-              gwp="IPCC AR4"
+              gwp="IPCC AR2/BUR3"
               accent="blue"
             />
           </div>
@@ -169,7 +169,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
           <Card className="p-6">
             <h2 className="font-medium">Emissions by category</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              Direct combustion is shown under both GWP tables — CBAM (AR5) and CCTS (AR4).
+              Direct combustion is shown under both GWP tables — CBAM (AR5) and CCTS (AR2/BUR3).
             </p>
             <div className="mt-5 space-y-4">
               <CategoryBar
@@ -188,7 +188,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
                 <span className="h-2 w-2 rounded-full bg-teal-500" /> CBAM (AR5)
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-blue-400" /> CCTS (AR4)
+                <span className="h-2 w-2 rounded-full bg-blue-400" /> CCTS (AR2/BUR3)
               </span>
             </div>
           </Card>
@@ -214,7 +214,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
                       <th className="px-3 py-2.5 font-medium">CH4 (kg)</th>
                       <th className="px-3 py-2.5 font-medium">N2O (kg)</th>
                       <th className="px-3 py-2.5 font-medium">CO2e AR5 (t)</th>
-                      <th className="px-6 py-2.5 font-medium">CO2e AR4 (t)</th>
+                      <th className="px-6 py-2.5 font-medium">CO2e AR2/BUR3 (t)</th>
                     </tr>
                   </thead>
                   <tbody>

@@ -8,7 +8,7 @@ import {
   PRECURSOR_LIBRARY,
   PROCESS_MATERIAL_LIBRARY,
 } from "../data/emissionFactors";
-import { GWP_AR4, GWP_AR5 } from "../data/gwpTables";
+import { GWP_AR2_BUR3, GWP_AR5 } from "../data/gwpTables";
 
 const round = (value: number, decimals = 4) => {
   const factor = 10 ** decimals;
@@ -86,7 +86,7 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
       ch4Kg,
       n2oKg,
       co2eAr5: co2Tonnes + (ch4Kg / 1000) * GWP_AR5.ch4 + (n2oKg / 1000) * GWP_AR5.n2o,
-      co2eAr4: co2Tonnes + (ch4Kg / 1000) * GWP_AR4.ch4 + (n2oKg / 1000) * GWP_AR4.n2o,
+      co2eAr4: co2Tonnes + (ch4Kg / 1000) * GWP_AR2_BUR3.ch4 + (n2oKg / 1000) * GWP_AR2_BUR3.n2o,
     };
   });
 
@@ -173,7 +173,7 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
       isOverride: activityData.steamEmissionFactorOverride != null,
       co2eTonnes: round(indirectSteamCo2e),
     },
-    gwpTables: { ar4: GWP_AR4, ar5: GWP_AR5 },
+    gwpTables: { ar4: GWP_AR2_BUR3, ar5: GWP_AR5 },
   };
 
   const result = await prisma.emissionCalculationResult.upsert({

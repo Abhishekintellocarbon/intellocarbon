@@ -127,7 +127,7 @@ function ReviewContent() {
           <Card className="p-6">
             <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-400">CCTS</span>
             <p className="mt-3 text-2xl font-semibold">{fmt(result.ghgIntensityCcts)}</p>
-            <p className="text-xs text-muted-foreground">tCO2e / t product (GHG intensity, AR4 GWP)</p>
+            <p className="text-xs text-muted-foreground">tCO2e / t product (GHG intensity, AR2/BUR3 GWP)</p>
           </Card>
         </div>
       )}
