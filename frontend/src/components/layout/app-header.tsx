@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
+import { LiveClock } from "@/components/layout/live-clock";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,7 @@ export function AppHeader() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          <LiveClock />
           <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
           <Button variant="secondary" size="sm" onClick={handleLogout}>
             <LogOut className="h-3.5 w-3.5" />

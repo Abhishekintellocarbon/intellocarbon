@@ -338,7 +338,20 @@ function BillingContent() {
         </div>
       )}
 
-      {/* Section 3 — enterprise callout */}
+      {/* Section 3 — FAQ */}
+      <div id="faq" className="mt-14 scroll-mt-24">
+        <h2 className="text-lg font-semibold">Frequently asked questions</h2>
+        <div className="mt-4 grid gap-5 sm:grid-cols-3">
+          {FAQS.map((faq) => (
+            <Card key={faq.question} className="rounded-[12px] p-5">
+              <p className="text-sm font-semibold text-foreground">{faq.question}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{faq.answer}</p>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 4 — enterprise callout */}
       <Card className="mt-14 flex flex-col items-start justify-between gap-4 rounded-[12px] border-teal-500/20 bg-gradient-radial-glow p-6 sm:flex-row sm:items-center">
         <p className="text-sm text-foreground/90 sm:max-w-2xl">
           For companies with more than 5 facilities or needing EPR modules, ESG reporting, or custom
@@ -351,7 +364,7 @@ function BillingContent() {
         </a>
       </Card>
 
-      {/* Section 4 — trust signals */}
+      {/* Section 5 — trust signals */}
       <div className="mt-14 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 border-y border-surface-border py-6 text-center">
         {TRUST_SIGNALS.map((signal) => (
           <span key={signal} className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -359,19 +372,6 @@ function BillingContent() {
             {signal}
           </span>
         ))}
-      </div>
-
-      {/* Section 5 — FAQ */}
-      <div className="mt-14 pb-4">
-        <h2 className="text-lg font-semibold">Frequently asked questions</h2>
-        <div className="mt-4 grid gap-5 sm:grid-cols-3">
-          {FAQS.map((faq) => (
-            <Card key={faq.question} className="rounded-[12px] p-5">
-              <p className="text-sm font-semibold text-foreground">{faq.question}</p>
-              <p className="mt-2 text-sm text-muted-foreground">{faq.answer}</p>
-            </Card>
-          ))}
-        </div>
       </div>
     </main>
   );

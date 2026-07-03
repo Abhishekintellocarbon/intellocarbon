@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { InactivityGuard } from "./inactivity-guard";
 
 /** Like ProtectedRoute, but only admits users with the VERIFIER role. */
 export function VerifierRoute({ children }: { children: React.ReactNode }) {
@@ -27,5 +28,5 @@ export function VerifierRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return <InactivityGuard>{children}</InactivityGuard>;
 }

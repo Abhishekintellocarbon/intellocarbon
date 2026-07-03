@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { InactivityGuard } from "./inactivity-guard";
 
 /** Like ProtectedRoute, but only admits users on the SUPER_ADMIN_EMAILS allowlist. */
 export function SuperAdminRoute({ children }: { children: React.ReactNode }) {
@@ -27,5 +28,5 @@ export function SuperAdminRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return <InactivityGuard>{children}</InactivityGuard>;
 }

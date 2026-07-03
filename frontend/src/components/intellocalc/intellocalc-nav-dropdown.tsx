@@ -44,8 +44,8 @@ export function IntelloCalcNavDropdown() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-          open ? "bg-surface-raised text-foreground" : "text-muted-foreground hover:text-foreground",
+          "inline-flex items-center gap-1 rounded-[6px] border border-teal-500 bg-teal-500/15 px-[10px] py-1 text-sm font-semibold text-teal-500 shadow-[0_0_8px_rgba(0,212,170,0.4)] transition-colors",
+          open && "bg-teal-500/25",
         )}
       >
         IntelloCalc
