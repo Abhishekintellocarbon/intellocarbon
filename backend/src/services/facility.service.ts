@@ -47,6 +47,7 @@ export const createFacility = async (userId: string, input: FacilityInput) => {
       installedCapacityTpa: input.installedCapacityTpa,
       commissioningYear: input.commissioningYear,
       productsManufactured: input.productsManufactured,
+      cnCodes: input.cnCodes,
     },
   });
 };
@@ -74,6 +75,7 @@ export const updateFacility = async (userId: string, facilityId: string, input: 
       installedCapacityTpa: input.installedCapacityTpa,
       commissioningYear: input.commissioningYear,
       productsManufactured: input.productsManufactured,
+      cnCodes: input.cnCodes,
     },
   });
 };

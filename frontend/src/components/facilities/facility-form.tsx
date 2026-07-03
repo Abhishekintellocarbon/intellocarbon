@@ -15,11 +15,13 @@ import { Card } from "@/components/ui/card";
 import { facilitySchema, type FacilityFormValues } from "@/lib/validations/facility";
 import { FACILITY_TYPE_OPTIONS, PRODUCTION_ROUTE_OPTIONS } from "@/lib/constants";
 import { facilityApi, ApiError } from "@/lib/api";
+import type { Facility } from "@/lib/types";
 
-export function FacilityForm() {
+export function FacilityForm({ facility }: { facility?: Facility }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isOnboarding = searchParams.get("onboarding") === "1";
+  const isEditing = Boolean(facility);
 
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -27,24 +29,52 @@ export function FacilityForm() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FacilityFormValues>({ resolver: zodResolver(facilitySchema) });
+  } = useForm<FacilityFormValues>({
+    resolver: zodResolver(facilitySchema),
+    defaultValues: facility
+      ? {
+          name: facility.name,
+          facilityType: facility.facilityType,
+          productionRoute: facility.productionRoute,
+          address: facility.address ?? "",
+          state: facility.state ?? "",
+          district: facility.district ?? "",
+          pincode: facility.pincode ?? "",
+          latitude: facility.latitude != null ? String(facility.latitude) : "",
+          longitude: facility.longitude != null ? String(facility.longitude) : "",
+          installedCapacityTpa: facility.installedCapacityTpa != null ? String(facility.installedCapacityTpa) : "",
+          commissioningYear: facility.commissioningYear != null ? String(facility.commissioningYear) : "",
+          productsManufactured: facility.productsManufactured.join(", "),
+          cnCodes: facility.cnCodes.join(", "),
+        }
+      : undefined,
+  });
 
   const onSubmit = async (data: FacilityFormValues) => {
     setServerError(null);
     try {
-      const { facility } = await facilityApi.create({
+      const payload = {
         ...data,
         address: data.address || undefined,
         state: data.state || undefined,
         district: data.district || undefined,
         pincode: data.pincode || undefined,
+        latitude: data.latitude ? Number(data.latitude) : undefined,
+        longitude: data.longitude ? Number(data.longitude) : undefined,
         installedCapacityTpa: data.installedCapacityTpa ? Number(data.installedCapacityTpa) : undefined,
         commissioningYear: data.commissioningYear ? Number(data.commissioningYear) : undefined,
         productsManufactured: data.productsManufactured
           ? data.productsManufactured.split(",").map((p) => p.trim()).filter(Boolean)
           : [],
-      });
-      router.push(`/facilities/${facility.id}`);
+        cnCodes: data.cnCodes
+          ? data.cnCodes.split(",").map((c) => c.trim()).filter(Boolean)
+          : [],
+      };
+
+      const result = facility
+        ? await facilityApi.update(facility.id, payload)
+        : await facilityApi.create(payload);
+      router.push(`/facilities/${result.facility.id}`);
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     }
@@ -58,12 +88,14 @@ export function FacilityForm() {
         </span>
         <div>
           <h1 className="text-xl font-semibold">
-            {isOnboarding ? "Add your first facility" : "Add a facility"}
+            {isEditing ? "Edit facility" : isOnboarding ? "Add your first facility" : "Add a facility"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {isOnboarding
-              ? "One more step — tell us about the plant you want to track."
-              : "Facilities are where activity data and emissions are tracked."}
+            {isEditing
+              ? "Update facility details, including data used on your CBAM reports."
+              : isOnboarding
+                ? "One more step — tell us about the plant you want to track."
+                : "Facilities are where activity data and emissions are tracked."}
           </p>
         </div>
       </div>
@@ -130,6 +162,21 @@ export function FacilityForm() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <Label htmlFor="latitude">
+                GPS latitude <span className="text-muted">(optional)</span>
+              </Label>
+              <Input id="latitude" type="number" step="any" placeholder="22.8046" {...register("latitude")} />
+            </div>
+            <div>
+              <Label htmlFor="longitude">
+                GPS longitude <span className="text-muted">(optional)</span>
+              </Label>
+              <Input id="longitude" type="number" step="any" placeholder="86.2029" {...register("longitude")} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
               <Label htmlFor="installedCapacityTpa">
                 Installed capacity (tonnes/year) <span className="text-muted">(optional)</span>
               </Label>
@@ -155,9 +202,19 @@ export function FacilityForm() {
             />
           </div>
 
+          <div>
+            <Label htmlFor="cnCodes">
+              CN code(s) <span className="text-muted">(comma-separated, optional)</span>
+            </Label>
+            <Input id="cnCodes" placeholder="7208 10, 7208 25" {...register("cnCodes")} />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Customs (CN) codes for goods produced here — shown on your CBAM report.
+            </p>
+          </div>
+
           <div className="flex justify-end pt-2">
             <Button type="submit" isLoading={isSubmitting}>
-              {isOnboarding ? "Finish setup" : "Add facility"}
+              {isEditing ? "Save changes" : isOnboarding ? "Finish setup" : "Add facility"}
             </Button>
           </div>
         </form>

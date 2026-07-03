@@ -24,6 +24,13 @@ export const companySchema = z.object({
   appliesCbam: z.boolean().default(false),
   appliesCcts: z.boolean().default(false),
   isPatDesignatedConsumer: z.boolean().default(false),
+
+  // EU declarant / importer of record — CBAM report page 4
+  euImporterName: z.string().trim().max(150).optional().or(z.literal("")),
+  euImporterEori: z.string().trim().max(30).optional().or(z.literal("")),
+  euImporterCountry: z.string().trim().max(100).optional().or(z.literal("")),
+  euImporterContactEmail: z.string().trim().email("Enter a valid email").max(150).optional().or(z.literal("")),
+  euImporterContactPhone: z.string().trim().max(30).optional().or(z.literal("")),
 });
 
 export type CompanyInput = z.infer<typeof companySchema>;

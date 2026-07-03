@@ -47,6 +47,11 @@ export const createCompany = async (userId: string, input: CompanyInput) => {
       appliesCcts: input.appliesCcts,
       isPatDesignatedConsumer: input.isPatDesignatedConsumer,
       onboardingCompletedAt: new Date(),
+      euImporterName: cleanOptional(input.euImporterName),
+      euImporterEori: cleanOptional(input.euImporterEori),
+      euImporterCountry: cleanOptional(input.euImporterCountry),
+      euImporterContactEmail: cleanOptional(input.euImporterContactEmail),
+      euImporterContactPhone: cleanOptional(input.euImporterContactPhone),
     },
   });
 };
@@ -71,6 +76,11 @@ export const updateCompany = async (userId: string, input: CompanyInput) => {
       appliesCbam: input.appliesCbam,
       appliesCcts: input.appliesCcts,
       isPatDesignatedConsumer: input.isPatDesignatedConsumer,
+      euImporterName: cleanOptional(input.euImporterName),
+      euImporterEori: cleanOptional(input.euImporterEori),
+      euImporterCountry: cleanOptional(input.euImporterCountry),
+      euImporterContactEmail: cleanOptional(input.euImporterContactEmail),
+      euImporterContactPhone: cleanOptional(input.euImporterContactPhone),
     },
   });
 };

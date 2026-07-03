@@ -35,6 +35,9 @@ export const steelActivityDataSchema = z
     steamImportedGj: z.coerce.number().nonnegative().default(0),
     steamEmissionFactorOverride: z.coerce.number().nonnegative().optional(),
 
+    carbonPricePaidEurPerTonne: z.coerce.number().nonnegative().optional(),
+    cctsTargetIntensity: z.coerce.number().nonnegative().optional(),
+
     notes: z.string().trim().max(1000).optional().or(z.literal("")),
 
     fuelEntries: z.array(fuelEntrySchema).default([]),

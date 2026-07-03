@@ -16,7 +16,13 @@ const sendEmail = async ({ to, subject, html }: SendEmailParams): Promise<void> 
     return;
   }
 
-  const { error } = await resend.emails.send({ from: env.RESEND_FROM, to, subject, html });
+  const { error } = await resend.emails.send({
+    from: env.RESEND_FROM,
+    to,
+    subject,
+    html,
+    replyTo: env.RESEND_REPLY_TO,
+  });
   if (error) {
     logger.error(`Resend failed to send email to ${to}`, error);
     throw new Error(`Failed to send email: ${error.message}`);

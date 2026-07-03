@@ -12,6 +12,7 @@ const COMPANY_NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/facilities", label: "Facilities" },
   { href: "/billing", label: "Billing" },
+  { href: "/company/settings", label: "Company" },
 ];
 
 const VERIFIER_NAV_LINKS = [{ href: "/verifier/dashboard", label: "Verifier dashboard" }];

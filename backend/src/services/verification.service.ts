@@ -119,6 +119,7 @@ export const decideRequest = async (
     data: {
       status: input.status,
       verifierOrg: input.verifierOrg || null,
+      accreditationNumber: input.accreditationNumber || null,
       statement: input.statement || null,
       comments: input.comments || null,
       decidedAt: new Date(),

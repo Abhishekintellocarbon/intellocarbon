@@ -26,9 +26,12 @@ export const facilitySchema = z.object({
     .regex(/^\d{6}$/, "Enter a valid 6-digit PIN code")
     .optional()
     .or(z.literal("")),
+  latitude: optionalNumericString,
+  longitude: optionalNumericString,
   installedCapacityTpa: optionalNumericString,
   commissioningYear: optionalNumericString,
   productsManufactured: z.string().trim().optional().or(z.literal("")),
+  cnCodes: z.string().trim().optional().or(z.literal("")),
 });
 
 export type FacilityFormValues = z.infer<typeof facilitySchema>;

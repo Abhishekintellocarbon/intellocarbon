@@ -27,6 +27,11 @@ export interface Company {
   appliesCcts: boolean;
   isPatDesignatedConsumer: boolean;
   onboardingCompletedAt: string | null;
+  euImporterName: string | null;
+  euImporterEori: string | null;
+  euImporterCountry: string | null;
+  euImporterContactEmail: string | null;
+  euImporterContactPhone: string | null;
   createdAt: string;
   updatedAt: string;
   _count?: { facilities: number };
@@ -47,6 +52,7 @@ export interface Facility {
   installedCapacityTpa: number | null;
   commissioningYear: number | null;
   productsManufactured: string[];
+  cnCodes: string[];
   createdAt: string;
   updatedAt: string;
   _count?: { activityData: number };
@@ -164,6 +170,8 @@ export interface SteelActivityData {
   gridEmissionFactorOverride: number | null;
   steamImportedGj: number;
   steamEmissionFactorOverride: number | null;
+  carbonPricePaidEurPerTonne: number | null;
+  cctsTargetIntensity: number | null;
   status: "DRAFT" | "SUBMITTED";
   notes: string | null;
   createdAt: string;
@@ -259,6 +267,7 @@ export interface VerificationRequest {
   verifierId: string | null;
   verifier: { id: string; name: string } | null;
   verifierOrg: string | null;
+  accreditationNumber: string | null;
   statement: string | null;
   comments: string | null;
   submittedAt: string;

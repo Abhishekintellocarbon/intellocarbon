@@ -21,6 +21,7 @@ const formatDate = (iso: string) =>
 
 interface DecisionForm {
   verifierOrg: string;
+  accreditationNumber: string;
   statement: string;
   comments: string;
 }
@@ -33,7 +34,7 @@ function ReviewContent() {
   const [deciding, setDeciding] = useState<"APPROVED" | "REJECTED" | null>(null);
 
   const { register, getValues } = useForm<DecisionForm>({
-    defaultValues: { verifierOrg: "", statement: "", comments: "" },
+    defaultValues: { verifierOrg: "", accreditationNumber: "", statement: "", comments: "" },
   });
 
   useEffect(() => {
@@ -51,6 +52,7 @@ function ReviewContent() {
       await verifierApi.decide(params.id, {
         status,
         verifierOrg: values.verifierOrg || undefined,
+        accreditationNumber: values.accreditationNumber || undefined,
         statement: values.statement || undefined,
         comments: values.comments || undefined,
       });
@@ -198,6 +200,12 @@ function ReviewContent() {
                 Your organization <span className="text-muted">(optional)</span>
               </Label>
               <Input id="verifierOrg" placeholder="e.g. TÜV SÜD India" {...register("verifierOrg")} />
+            </div>
+            <div>
+              <Label htmlFor="accreditationNumber">
+                Accreditation number <span className="text-muted">(optional)</span>
+              </Label>
+              <Input id="accreditationNumber" placeholder="e.g. TSI-ACC-2024-0198" {...register("accreditationNumber")} />
             </div>
             <div>
               <Label htmlFor="statement">

@@ -103,6 +103,11 @@ function FacilityDetailContent() {
               <Trash2 className="h-3.5 w-3.5" />
               Delete
             </Button>
+            <Link href={`/facilities/${facility.id}/edit`}>
+              <Button variant="secondary" size="sm">
+                Edit
+              </Button>
+            </Link>
             <Link href={`/facilities/${facility.id}/data-entry/new`}>
               <Button size="sm">
                 <Plus className="h-4 w-4" />

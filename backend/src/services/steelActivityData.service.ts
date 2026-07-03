@@ -49,6 +49,8 @@ export const createActivityData = async (
       gridEmissionFactorOverride: input.gridEmissionFactorOverride,
       steamImportedGj: input.steamImportedGj,
       steamEmissionFactorOverride: input.steamEmissionFactorOverride,
+      carbonPricePaidEurPerTonne: input.carbonPricePaidEurPerTonne,
+      cctsTargetIntensity: input.cctsTargetIntensity,
       notes: cleanOptional(input.notes),
       status: "SUBMITTED",
       fuelEntries: {

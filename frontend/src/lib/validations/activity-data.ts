@@ -44,6 +44,9 @@ export const activityDataSchema = z
     steamImportedGj: optionalNumericString,
     steamEmissionFactorOverride: optionalNumericString,
 
+    carbonPricePaidEurPerTonne: optionalNumericString,
+    cctsTargetIntensity: optionalNumericString,
+
     notes: z.string().trim().max(1000).optional().or(z.literal("")),
 
     fuelEntries: z.array(fuelRowSchema),

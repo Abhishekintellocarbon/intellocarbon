@@ -21,6 +21,7 @@ export const facilitySchema = z.object({
   installedCapacityTpa: z.coerce.number().nonnegative().optional(),
   commissioningYear: z.coerce.number().int().min(1900).max(2100).optional(),
   productsManufactured: z.array(z.string().trim().min(1)).default([]),
+  cnCodes: z.array(z.string().trim().min(1)).default([]),
 });
 
 export type FacilityInput = z.infer<typeof facilitySchema>;

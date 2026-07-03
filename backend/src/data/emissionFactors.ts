@@ -112,8 +112,9 @@ export const PRECURSOR_LIBRARY: Record<string, PrecursorDefinition> = {
   FERRO_ALLOY: { key: "FERRO_ALLOY", label: "Ferro-alloys", defaultEmbeddedFactor: 3.5 },
 };
 
-/** tCO2 per MWh — indicative India grid average; override per facility/period where a verified CEA baseline figure is available. */
-export const DEFAULT_GRID_EMISSION_FACTOR = 0.71;
+/** tCO2 per MWh — India grid average emission factor; override per facility/period where a verified CEA baseline figure is available. */
+export const DEFAULT_GRID_EMISSION_FACTOR = 0.716;
+export const DEFAULT_GRID_EMISSION_FACTOR_SOURCE = "CEA Grid Emission Factor Report FY2025-26";
 
 /** tCO2 per GJ of imported steam — indicative default for a natural-gas-fired boiler. */
 export const DEFAULT_STEAM_EMISSION_FACTOR = 0.07;

@@ -69,6 +69,14 @@ model Company {
   appliesCcts             Boolean   @default(false)
   isPatDesignatedConsumer Boolean   @default(false)
   onboardingCompletedAt   DateTime?
+
+  // EU declarant / importer of record — CBAM report page 4
+  euImporterName         String?
+  euImporterEori         String?
+  euImporterCountry      String?
+  euImporterContactEmail String?
+  euImporterContactPhone String?
+
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
@@ -142,6 +150,7 @@ model VerificationRequest {
   verifierId     String?
   verifier       User?              @relation("VerifierAssignments", fields: [verifierId], references: [id])
   verifierOrg    String?
+  accreditationNumber String?
   statement      String?
   comments       String?
   submittedAt    DateTime           @default(now())
@@ -186,6 +195,7 @@ model Facility {
   installedCapacityTpa Float?
   commissioningYear    Int?
   productsManufactured String[]
+  cnCodes              String[]        @default([])
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
@@ -215,6 +225,13 @@ model SteelActivityData {
 
   steamImportedGj             Float  @default(0)
   steamEmissionFactorOverride Float?
+
+  // CBAM Article 9 deduction input — carbon price effectively paid in the
+  // country of origin, expressed directly in EUR/tCO2e.
+  carbonPricePaidEurPerTonne Float?
+  // BEE-notified CCTS GHG emission intensity target for this sub-sector/cycle,
+  // tCO2e per tonne product — left null until BEE actually notifies one.
+  cctsTargetIntensity        Float?
 
   status DataEntryStatus @default(DRAFT)
   notes  String?

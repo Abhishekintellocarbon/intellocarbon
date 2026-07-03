@@ -13,7 +13,8 @@ const envSchema = z.object({
   PASSWORD_RESET_TOKEN_EXPIRES_MIN: z.coerce.number().default(60),
   COOKIE_DOMAIN: z.string().default("localhost"),
   RESEND_API_KEY: z.string().optional().default(""),
-  RESEND_FROM: z.string().default("Intellocarbon <no-reply@intellocarbon.com>"),
+  RESEND_FROM: z.string().default("Intellocarbon <notifications@intellocarbon.com>"),
+  RESEND_REPLY_TO: z.string().default("abhishek@intellocarbon.com"),
 
   RAZORPAY_KEY_ID: z.string().optional().default(""),
   RAZORPAY_KEY_SECRET: z.string().optional().default(""),

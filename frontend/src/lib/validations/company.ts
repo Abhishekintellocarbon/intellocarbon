@@ -46,3 +46,16 @@ export const companyStepFields: Record<number, (keyof CompanyWizardValues)[]> = 
   2: ["sector", "subSector", "annualTurnoverInr", "employeeCount"],
   3: ["reportingFyStartMonth", "appliesCbam", "appliesCcts", "isPatDesignatedConsumer"],
 };
+
+// EU declarant / importer of record — used on the CBAM report's Installation
+// and Declarant Details page.
+export const euDeclarantSchema = z.object({
+  euImporterName: optionalString(150),
+  euImporterEori: optionalString(30),
+  euImporterCountry: optionalString(100),
+  euImporterContactEmail: z.string().trim().email("Enter a valid email").max(150).optional().or(z.literal("")),
+  euImporterContactPhone: optionalString(30),
+});
+
+export const companySettingsSchema = companyWizardSchema.merge(euDeclarantSchema);
+export type CompanySettingsValues = z.infer<typeof companySettingsSchema>;

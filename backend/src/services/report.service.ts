@@ -1,6 +1,8 @@
 import PDFDocument from "pdfkit";
 import { prisma } from "../config/prisma";
 import { requireOwnedActivityData } from "./steelActivityData.service";
+import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
+import { buildCbamCommunicationPackage } from "./cbamReport/build";
 
 const TEAL = "#00A886";
 const NAVY = "#0F1923";
@@ -15,7 +17,7 @@ export const getReportContext = async (userId: string, facilityId: string, activ
   const activityData = await prisma.steelActivityData.findUniqueOrThrow({
     where: { id: activityDataId },
     include: {
-      facility: { include: { company: true } },
+      facility: { include: { company: { include: { owner: true } } } },
       fuelEntries: true,
       processMaterialEntries: true,
       precursorEntries: true,
@@ -31,7 +33,7 @@ export const getReportContext = async (userId: string, facilityId: string, activ
   return activityData;
 };
 
-type ReportContext = Awaited<ReturnType<typeof getReportContext>>;
+export type ReportContext = Awaited<ReturnType<typeof getReportContext>>;
 
 const fmt = (n: number, digits = 3) =>
   n.toLocaleString("en-IN", { maximumFractionDigits: digits, minimumFractionDigits: digits });
@@ -201,54 +203,8 @@ const writeVerificationBlock = (c: Cursor, ctx: ReportContext) => {
 };
 
 export const buildCbamReportPdf = (doc: PDFKit.PDFDocument, ctx: ReportContext) => {
-  const result = ctx.calculationResult!;
-  drawHeader(doc, "CBAM Specific Embedded Emissions Report", "EU Carbon Border Adjustment Mechanism");
-
-  const c = new Cursor(doc, 110);
-  writeCompanyAndFacility(c, ctx);
-
-  c.heading("Methodology");
-  c.paragraph(
-    "Specific Embedded Emissions (SEE) are calculated as total direct and indirect emissions (Scope 1 + Scope 2), plus embedded emissions from precursor materials, divided by production quantity. Non-CO2 gases are converted to CO2e using IPCC AR5 100-year Global Warming Potentials, per the EU CBAM Implementing Regulation 2023/1773 Annex III (CH4 = 28, N2O = 265).",
-  );
-
-  c.scoreBox(
-    "SPECIFIC EMBEDDED EMISSIONS (SEE)",
-    `${fmt(result.specificEmbeddedEmissionsCbam)} tCO2e / t product`,
-    `Total emissions for period: ${result.totalEmissionsCbamAr5.toLocaleString("en-IN", { maximumFractionDigits: 1 })} tCO2e`,
-  );
-
-  c.heading("Emissions breakdown (AR5 GWP)");
-  c.table(
-    ["Category", "tCO2e"],
-    [
-      ["Direct combustion (fuels)", fmt(result.directCombustionCo2eAr5, 2)],
-      ["Process emissions", fmt(result.directProcessCo2e, 2)],
-      ["Precursor materials (embedded)", fmt(result.directPrecursorCo2e, 2)],
-      ["Electricity (indirect)", fmt(result.indirectElectricityCo2e, 2)],
-      ["Steam (indirect)", fmt(result.indirectSteamCo2e, 2)],
-    ],
-    [350, 145],
-  );
-
-  if (ctx.fuelEntries.length > 0) {
-    c.heading("Fuel & precursor detail");
-    c.table(
-      ["Fuel", "Quantity", "Unit"],
-      ctx.fuelEntries.map((f) => [f.fuelType.replace(/_/g, " "), f.quantity.toLocaleString("en-IN"), f.unit]),
-      [250, 150, 95],
-    );
-  }
-  if (ctx.precursorEntries.length > 0) {
-    c.table(
-      ["Precursor material", "Quantity (t)", ""],
-      ctx.precursorEntries.map((p) => [p.materialType.replace(/_/g, " "), p.quantityTonnes.toLocaleString("en-IN"), ""]),
-      [250, 150, 95],
-    );
-  }
-
-  writeVerificationBlock(c, ctx);
-  drawFooter(doc);
+  const financials = computeCbamFinancialImpact(ctx);
+  buildCbamCommunicationPackage(doc, ctx, financials);
 };
 
 export const buildCctsReportPdf = (doc: PDFKit.PDFDocument, ctx: ReportContext) => {

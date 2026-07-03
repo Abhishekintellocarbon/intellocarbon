@@ -64,6 +64,10 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
         steamEmissionFactorOverride: data.steamEmissionFactorOverride
           ? Number(data.steamEmissionFactorOverride)
           : undefined,
+        carbonPricePaidEurPerTonne: data.carbonPricePaidEurPerTonne
+          ? Number(data.carbonPricePaidEurPerTonne)
+          : undefined,
+        cctsTargetIntensity: data.cctsTargetIntensity ? Number(data.cctsTargetIntensity) : undefined,
         notes: data.notes || undefined,
         fuelEntries: data.fuelEntries.map((f) => ({
           fuelType: f.fuelType,
@@ -363,7 +367,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
               Grid emission factor override (tCO2/MWh){" "}
               <span className="text-muted">(default {reference.defaultGridEmissionFactor})</span>
             </Label>
-            <Input id="gridEmissionFactorOverride" type="number" step="any" placeholder="0.71" {...register("gridEmissionFactorOverride")} />
+            <Input id="gridEmissionFactorOverride" type="number" step="any" placeholder={String(reference.defaultGridEmissionFactor)} {...register("gridEmissionFactorOverride")} />
           </div>
           <div>
             <Label htmlFor="steamImportedGj">Steam imported (GJ)</Label>
@@ -375,6 +379,42 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
               <span className="text-muted">(default {reference.defaultSteamEmissionFactor})</span>
             </Label>
             <Input id="steamEmissionFactorOverride" type="number" step="any" placeholder="0.07" {...register("steamEmissionFactorOverride")} />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <h2 className="font-medium">CBAM &amp; CCTS reporting inputs</h2>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="carbonPricePaidEurPerTonne">
+              Carbon price paid in India (EUR/tCO2e) <span className="text-muted">(optional)</span>
+            </Label>
+            <Input
+              id="carbonPricePaidEurPerTonne"
+              type="number"
+              step="any"
+              placeholder="4.50"
+              {...register("carbonPricePaidEurPerTonne")}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Used for the CBAM Article 9 deduction — the carbon price effectively paid in the country of origin.
+            </p>
+          </div>
+          <div>
+            <Label htmlFor="cctsTargetIntensity">
+              CCTS notified GHG intensity target (tCO2e/t) <span className="text-muted">(optional)</span>
+            </Label>
+            <Input
+              id="cctsTargetIntensity"
+              type="number"
+              step="any"
+              placeholder="1.85"
+              {...register("cctsTargetIntensity")}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Your BEE-notified target for this reporting cycle, if known — used for the CCTS CCC surplus/deficit position.
+            </p>
           </div>
         </div>
       </Card>

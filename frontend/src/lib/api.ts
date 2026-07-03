@@ -260,7 +260,13 @@ export const verifierApi = {
 
   decide: (
     id: string,
-    input: { status: "APPROVED" | "REJECTED"; verifierOrg?: string; statement?: string; comments?: string },
+    input: {
+      status: "APPROVED" | "REJECTED";
+      verifierOrg?: string;
+      accreditationNumber?: string;
+      statement?: string;
+      comments?: string;
+    },
   ): Promise<{ request: VerificationRequestDetail }> =>
     apiFetch(`/api/verifier/requests/${id}/decide`, { method: "POST", body: JSON.stringify(input) }),
 };
