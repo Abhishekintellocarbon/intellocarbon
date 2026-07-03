@@ -16,6 +16,11 @@ const envSchema = z.object({
   RESEND_FROM: z.string().default("Intellocarbon <notifications@intellocarbon.com>"),
   RESEND_REPLY_TO: z.string().default("abhishek@intellocarbon.com"),
 
+  // Comma-separated list of emails allowed to view the IntelloCalc leads admin
+  // dashboard. Checked against the authenticated user's email, independent of
+  // their `Role` (which governs the normal company/verifier product, not this).
+  SUPER_ADMIN_EMAILS: z.string().default("abhishek@intellocarbon.com"),
+
   RAZORPAY_KEY_ID: z.string().optional().default(""),
   RAZORPAY_KEY_SECRET: z.string().optional().default(""),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(""),

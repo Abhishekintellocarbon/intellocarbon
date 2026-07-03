@@ -347,3 +347,26 @@ model PasswordResetToken {
   @@index([userId])
   @@map("password_reset_tokens")
 }
+
+enum LeadTool {
+  BORDER
+  INDIA
+  COMPLY
+}
+
+model LeadCapture {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  company     String
+  phone       String?
+  toolUsed    LeadTool
+  inputsJson  Json
+  resultsJson Json
+  followedUp  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([toolUsed])
+  @@index([createdAt])
+  @@map("lead_captures")
+}

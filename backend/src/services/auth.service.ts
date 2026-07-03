@@ -21,6 +21,10 @@ interface RequestMeta {
   userAgent?: string;
 }
 
+const superAdminEmails = env.SUPER_ADMIN_EMAILS.split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 const publicUser = (user: { id: string; name: string; email: string; companyName: string | null; role: string; emailVerified: boolean; createdAt: Date }) => ({
   id: user.id,
   name: user.name,
@@ -29,6 +33,7 @@ const publicUser = (user: { id: string; name: string; email: string; companyName
   role: user.role,
   emailVerified: user.emailVerified,
   createdAt: user.createdAt,
+  isSuperAdmin: superAdminEmails.includes(user.email.toLowerCase()),
 });
 
 const issueTokenPair = async (

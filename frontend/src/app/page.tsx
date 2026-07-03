@@ -3,6 +3,7 @@ import { ArrowRight, BarChart3, ShieldCheck, Sparkles } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { IntelloCalcNavDropdown } from "@/components/intellocalc/intellocalc-nav-dropdown";
 
 const pillars = [
   {
@@ -33,7 +34,8 @@ export default function Home() {
 
       <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <Logo size="lg" />
-        <nav className="flex items-center gap-3">
+        <nav className="flex items-center gap-1 sm:gap-3">
+          <IntelloCalcNavDropdown />
           <Link href="/login">
             <Button variant="ghost" size="sm">
               Log in

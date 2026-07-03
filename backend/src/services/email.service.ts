@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 import { env } from "../config/env";
 import { logger } from "../utils/logger";
+import type { BorderResults, ComplyResults, IndiaResults } from "./intellocalcCalculations";
+import { buildComplyPdf } from "./complyPdf.service";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
@@ -8,11 +10,12 @@ interface SendEmailParams {
   to: string;
   subject: string;
   html: string;
+  attachments?: { filename: string; content: Buffer }[];
 }
 
-const sendEmail = async ({ to, subject, html }: SendEmailParams): Promise<void> => {
+const sendEmail = async ({ to, subject, html, attachments }: SendEmailParams): Promise<void> => {
   if (!resend) {
-    logger.info(`[email:dev] Would send email to ${to}`, { subject, html });
+    logger.info(`[email:dev] Would send email to ${to}`, { subject, html, attachments: attachments?.map((a) => a.filename) });
     return;
   }
 
@@ -22,12 +25,22 @@ const sendEmail = async ({ to, subject, html }: SendEmailParams): Promise<void> 
     subject,
     html,
     replyTo: env.RESEND_REPLY_TO,
+    attachments,
   });
   if (error) {
     logger.error(`Resend failed to send email to ${to}`, error);
     throw new Error(`Failed to send email: ${error.message}`);
   }
 };
+
+const pdfToBuffer = (doc: PDFKit.PDFDocument): Promise<Buffer> =>
+  new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+    doc.end();
+  });
 
 const emailShell = (title: string, bodyHtml: string) => `
   <div style="background:#0F1923;padding:32px;font-family:Inter,Arial,sans-serif;">
@@ -106,6 +119,112 @@ export const sendVerificationDecidedEmail = async (
     to,
     subject: approved ? "Your emissions data has been verified" : "Your emissions data was not verified",
     html,
+  });
+};
+
+const fmtNum = (n: number, digits = 2) => n.toLocaleString("en-IN", { maximumFractionDigits: digits });
+const fmtEur = (n: number) => `€${fmtNum(n)}`;
+const fmtInr = (n: number) => `₹${fmtNum(n)}`;
+
+const row = (label: string, value: string) => `
+  <tr>
+    <td style="padding:6px 0;color:#8AA0B4;font-size:13px;">${label}</td>
+    <td style="padding:6px 0;color:#E8F0F7;font-size:13px;font-weight:600;text-align:right;">${value}</td>
+  </tr>
+`;
+
+export const sendLeadBorderEmail = async (to: string, name: string, results: BorderResults): Promise<void> => {
+  const rows = [
+    row("EU Default Embedded Emissions Rate", `${fmtNum(results.seeValue, 3)} tCO2e/tonne`),
+    row("Total Embedded Emissions for EU Exports", `${fmtNum(results.totalEmbeddedEmissionsTco2e)} tCO2e`),
+    row("Estimated CBAM Certificates Required", fmtNum(results.certificatesRequired)),
+    row("Estimated CBAM Exposure", `${fmtEur(results.cbamLiabilityEur)} (approx. ${fmtInr(results.cbamLiabilityInr)})`),
+  ];
+  if (results.article9DeductionEur !== undefined) {
+    rows.push(row("Article 9 Deduction (CCTS)", fmtEur(results.article9DeductionEur)));
+  }
+  if (results.netLiabilityEur !== undefined) {
+    rows.push(row("Net CBAM Exposure After CCTS Deduction", fmtEur(results.netLiabilityEur)));
+  }
+
+  const html = emailShell(
+    `Hi ${name}, here's your CBAM exposure estimate`,
+    `<p>Thanks for using <strong>IntelloCalc Border</strong>. Here's your instant CBAM exposure estimate:</p>
+     <table style="width:100%;border-collapse:collapse;margin-top:8px;">${rows.join("")}</table>
+     <p style="margin-top:16px;font-size:12px;color:#8AA0B4;">This estimate uses EU default values per EU 2025/2621. Certificate price used: EUR 75.36 (Q1 2026).</p>
+     ${button(`${env.CLIENT_URL}/signup`, "Generate Your Verified CBAM Report")}
+     <p>Questions? Reply to this email or write to abhishek@intellocarbon.com.</p>`,
+  );
+  await sendEmail({ to, subject: "Your CBAM Exposure Estimate — Intellocarbon IntelloCalc Border", html });
+};
+
+export const sendLeadIndiaEmail = async (to: string, name: string, results: IndiaResults): Promise<void> => {
+  const positionLabel: Record<string, string> = {
+    SURPLUS_LIKELY: "Surplus likely — you may be eligible to earn Carbon Credit Certificates",
+    NEAR_TARGET: "Near target — precise calculation needed",
+    DEFICIT_LIKELY: "Deficit likely — you may need to purchase CCCs",
+    NO_REFERENCE: "Sector-specific target required from BEE",
+  };
+
+  const rows = [
+    row("Your Estimated GHG Intensity", `${fmtNum(results.ghgIntensity, 3)} tCO2e/tonne`),
+    row(
+      "Sector Reference Intensity",
+      results.referenceIntensity !== null ? `${fmtNum(results.referenceIntensity, 3)} tCO2e/tonne` : "Not available",
+    ),
+    row("Your Position", positionLabel[results.position]),
+  ];
+  if (results.estimatedCccImpact !== null) {
+    rows.push(row("Estimated Annual CCC Impact", `${fmtNum(results.estimatedCccImpact)} CCCs`));
+  }
+
+  const html = emailShell(
+    `Hi ${name}, here's your CCTS position check`,
+    `<p>Thanks for using <strong>IntelloCalc India</strong>. Here's your instant CCTS GHG intensity check:</p>
+     <table style="width:100%;border-collapse:collapse;margin-top:8px;">${rows.join("")}</table>
+     <p style="margin-top:16px;font-size:12px;color:#8AA0B4;">This is an indicative estimate based on sector reference benchmarks. GWP values used: AR2/BUR3 as per S.O. 2825(E) 2023.</p>
+     ${button(`${env.CLIENT_URL}/signup`, "Get Your Full CCTS Compliance Report")}
+     <p>Questions? Reply to this email or write to abhishek@intellocarbon.com.</p>`,
+  );
+  await sendEmail({ to, subject: "Your CCTS Position Check — Intellocarbon IntelloCalc India", html });
+};
+
+export const sendLeadComplyEmail = async (
+  to: string,
+  name: string,
+  results: ComplyResults,
+  leadId: string,
+): Promise<void> => {
+  let bodyHtml: string;
+  if (results.nonManufacturer) {
+    bodyHtml = `<p>Most carbon compliance frameworks apply to manufacturers. You may still have EPR obligations if you import or sell packaged goods. Contact us to assess.</p>`;
+  } else if (results.noneApplicable) {
+    bodyHtml = `<p>Great news — based on your answers, you may not have mandatory carbon compliance obligations right now. However UK CBAM starts 2027 and India CCTS is expanding. Stay ahead with Intellocarbon monitoring.</p>`;
+  } else {
+    const items = results.frameworks
+      .map(
+        (f) =>
+          `<li style="margin-bottom:10px;"><strong style="color:#E8F0F7;">${f.name}</strong> — <span style="color:#00D4AA;">${f.status}</span><br/><span style="color:#8AA0B4;font-size:12px;">${f.deadline}</span></li>`,
+      )
+      .join("");
+    bodyHtml = `<p>Here are the frameworks that apply to your business:</p><ul style="padding-left:18px;">${items}</ul>`;
+  }
+
+  const attachments = !results.nonManufacturer && !results.noneApplicable
+    ? [{ filename: "intellocalc-compliance-map.pdf", content: await pdfToBuffer(buildComplyPdf(name, "", results)) }]
+    : undefined;
+
+  const html = emailShell(
+    `Hi ${name}, here's your personalised compliance map`,
+    `${bodyHtml}
+     ${button(`${env.CLIENT_URL}/signup`, "Get Started on Intellocarbon")}
+     <p style="font-size:12px;color:#8AA0B4;">Reference: ${leadId.slice(-8)}. Questions? Reply to this email or write to abhishek@intellocarbon.com.</p>`,
+  );
+  await sendEmail({
+    to,
+    subject: "Your Personalised Compliance Map — Intellocarbon IntelloCalc Comply",
+    html,
+    attachments,
   });
 };
 

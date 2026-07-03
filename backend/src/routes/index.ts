@@ -5,6 +5,8 @@ import facilityRoutes from "./facility.routes";
 import referenceRoutes from "./reference.routes";
 import billingRoutes from "./billing.routes";
 import verifierRoutes from "./verifier.routes";
+import leadCaptureRoutes from "./leadCapture.routes";
+import adminRoutes from "./admin.routes";
 
 const router = Router();
 
@@ -18,5 +20,7 @@ router.use("/facilities", facilityRoutes);
 router.use("/reference", referenceRoutes);
 router.use("/billing", billingRoutes);
 router.use("/verifier", verifierRoutes);
+router.use("/leads", leadCaptureRoutes);
+router.use("/admin", adminRoutes);
 
 export default router;

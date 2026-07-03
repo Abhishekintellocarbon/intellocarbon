@@ -11,6 +11,16 @@ import type {
   VerificationRequest,
   VerificationRequestDetail,
 } from "./types";
+import type {
+  BorderInputs,
+  BorderResults,
+  ComplyInputs,
+  ComplyResults,
+  IndiaInputs,
+  IndiaResults,
+  LeadCapture,
+  LeadContact,
+} from "./intellocalc-types";
 
 export interface ApiUser {
   id: string;
@@ -20,6 +30,7 @@ export interface ApiUser {
   role: string;
   emailVerified: boolean;
   createdAt: string;
+  isSuperAdmin: boolean;
 }
 
 export class ApiError extends Error {
@@ -245,6 +256,50 @@ export const billingApi = {
     apiFetch("/api/billing/checkout", { method: "POST", body: JSON.stringify({ tier }) }),
 
   cancel: (): Promise<{ subscription: Subscription }> => apiFetch("/api/billing/cancel", { method: "POST" }),
+};
+
+export const intellocalcApi = {
+  submitBorder: (contact: LeadContact, inputs: BorderInputs): Promise<{ results: BorderResults }> =>
+    apiFetch("/api/leads", {
+      method: "POST",
+      body: JSON.stringify({ tool: "BORDER", ...contact, inputs }),
+      skipAuth: true,
+    }),
+
+  submitIndia: (contact: LeadContact, inputs: IndiaInputs): Promise<{ results: IndiaResults }> =>
+    apiFetch("/api/leads", {
+      method: "POST",
+      body: JSON.stringify({ tool: "INDIA", ...contact, inputs }),
+      skipAuth: true,
+    }),
+
+  submitComply: (
+    contact: LeadContact,
+    inputs: ComplyInputs,
+  ): Promise<{ results: ComplyResults; leadId?: string }> =>
+    apiFetch("/api/leads", {
+      method: "POST",
+      body: JSON.stringify({ tool: "COMPLY", ...contact, inputs }),
+      skipAuth: true,
+    }),
+
+  complianceMapPdfUrl: (leadId: string) => `${API_URL}/api/leads/${leadId}/compliance-map.pdf`,
+};
+
+export const adminApi = {
+  listLeads: (filters: {
+    tool?: string;
+    sector?: string;
+    from?: string;
+    to?: string;
+  }): Promise<{ leads: LeadCapture[] }> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    const qs = params.toString();
+    return apiFetch(`/api/admin/leads${qs ? `?${qs}` : ""}`);
+  },
 };
 
 export const verifierApi = {

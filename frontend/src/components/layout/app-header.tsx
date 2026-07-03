@@ -23,6 +23,9 @@ export function AppHeader() {
   const pathname = usePathname();
 
   const navLinks = user?.role === "VERIFIER" ? VERIFIER_NAV_LINKS : COMPANY_NAV_LINKS;
+  const allNavLinks = user?.isSuperAdmin
+    ? [...navLinks, { href: "/admin/leads", label: "IntelloCalc Leads" }]
+    : navLinks;
 
   const handleLogout = async () => {
     await logout();
@@ -37,7 +40,7 @@ export function AppHeader() {
             <Logo />
           </Link>
           <nav className="hidden items-center gap-1 sm:flex">
-            {navLinks.map((link) => {
+            {allNavLinks.map((link) => {
               const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
               return (
                 <Link
