@@ -88,9 +88,9 @@ model Company {
 }
 
 enum SubscriptionTier {
-  STARTER
-  GROWTH
-  ENTERPRISE
+  CCTS_COMPLIANCE
+  CBAM_COMPLIANCE
+  CBAM_PLUS_CCTS
 }
 
 enum SubscriptionStatus {
@@ -104,7 +104,7 @@ model Subscription {
   id                     String             @id @default(cuid())
   companyId              String             @unique
   company                Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  tier                   SubscriptionTier   @default(STARTER)
+  tier                   SubscriptionTier   @default(CCTS_COMPLIANCE)
   status                 SubscriptionStatus @default(INCOMPLETE)
   razorpayCustomerId     String?
   razorpaySubscriptionId String?            @unique

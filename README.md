@@ -150,12 +150,17 @@ npm run dev                 # http://localhost:3000
 ## Reports, verification, and billing
 
 - **PDF reports** — `GET /api/facilities/:facilityId/activity-data/:dataId/report/{cbam,ccts}`
-  streams a branded PDF (company/facility details, methodology, emissions
-  breakdown, headline SEE/GHG-intensity figure, and the verification statement if
-  one exists) built with `pdfkit` in `backend/src/services/report.service.ts`.
-  Downloaded from the results page in the frontend via an authenticated blob
-  fetch (the endpoint needs the bearer access token, so a plain `<a href>` won't
-  work — see `activityDataApi.downloadReport` in `frontend/src/lib/api.ts`).
+  streams a PDF built with `pdfkit`. The CBAM report
+  (`backend/src/services/cbamReport/`) is a 14-page Communication Package —
+  cover, table of contents, executive summary, installation/declarant details,
+  goods & production data, SEE results, financial impact analysis, direct/
+  indirect emissions detail, precursor emissions, methodology, verification
+  statement, and declaration/annexures. The CCTS report
+  (`backend/src/services/report.service.ts`) is a simpler single-topic
+  GHG-intensity report. Downloaded from the results page in the frontend via an
+  authenticated blob fetch (the endpoint needs the bearer access token, so a
+  plain `<a href>` won't work — see `activityDataApi.downloadReport` in
+  `frontend/src/lib/api.ts`).
 - **Verification workflow** — a `VERIFIER`-role account (toggle at signup, no
   company required) claims `PENDING` verification requests from
   `/verifier/dashboard`, reviews the submitted activity data at
@@ -164,13 +169,15 @@ npm run dev                 # http://localhost:3000
   one verification request per activity data entry (resubmission after
   rejection means creating a new activity data entry, not reopening the old
   request).
-- **Billing** — 3 Razorpay-billed tiers defined in `backend/src/data/plans.ts`:
-  Starter (1 facility, ₹9,999/mo), Growth (5 facilities, ₹19,999/mo), Enterprise
-  (unlimited, contact sales — no self-serve checkout). An active subscription is
-  required to create facilities; the limit is enforced server-side in
-  `facility.service.ts` via `billing.service.ts`'s `requireCapacityForNewFacility`,
-  not just in the UI. Company onboarding routes through `/billing` before
-  `/facilities/new` for exactly this reason.
+- **Billing** — 3 Razorpay-billed, per-facility-priced tiers defined in
+  `backend/src/data/plans.ts`: CCTS Compliance (₹4,999/facility/mo, domestic
+  CCTS obligation only), CBAM Compliance (₹9,999/facility/mo, EU exporters),
+  and CBAM + CCTS (₹19,999/facility/mo, both). None of the three plans enforce
+  a facility cap server-side (`facilityLimit: null`) — pricing is a straight
+  per-facility multiplication shown live on `/billing`'s facility calculator,
+  not a tiered limit. Enterprise (>5 facilities, custom modules) is a
+  contact-sales callout on the pricing page, not a purchasable tier. Company
+  onboarding routes through `/billing` before `/facilities/new`.
 
 ## Deployment
 
@@ -204,7 +211,8 @@ wired up; the steps below are what's needed to stand one up.
    `DIRECT_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CLIENT_URL` (your
    Vercel frontend URL), `RESEND_API_KEY`, `RAZORPAY_KEY_ID`,
    `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`,
-   `RAZORPAY_PLAN_ID_STARTER`, `RAZORPAY_PLAN_ID_GROWTH`, `NODE_ENV=production`.
+   `RAZORPAY_PLAN_ID_CCTS_COMPLIANCE`, `RAZORPAY_PLAN_ID_CBAM_COMPLIANCE`,
+   `RAZORPAY_PLAN_ID_CBAM_PLUS_CCTS`, `NODE_ENV=production`.
 3. Note the deployed URL (e.g. `https://api-intellocarbon.up.railway.app`) —
    you'll need it for the frontend's `NEXT_PUBLIC_API_URL`.
 4. **CORS is a hardcoded allowlist**, not just `CLIENT_URL` — see
@@ -247,9 +255,11 @@ static pages but 404s on dynamic ones — don't reach for that instead.
 
 ### 4. Razorpay
 
-1. Create a **Subscriptions → Plan** for Starter and one for Growth (Enterprise
-   has no self-serve plan). Copy each Plan ID into `RAZORPAY_PLAN_ID_STARTER` /
-   `RAZORPAY_PLAN_ID_GROWTH` on the backend host.
+1. Create a **Subscriptions → Plan** for each of the three tiers — CCTS
+   Compliance, CBAM Compliance, CBAM + CCTS (Enterprise has no self-serve
+   plan). Copy each Plan ID into `RAZORPAY_PLAN_ID_CCTS_COMPLIANCE` /
+   `RAZORPAY_PLAN_ID_CBAM_COMPLIANCE` / `RAZORPAY_PLAN_ID_CBAM_PLUS_CCTS` on
+   the backend host.
 2. Add a webhook (**Settings → Webhooks**) pointing at
    `https://<backend-host>/api/billing/webhook`, subscribed to
    `subscription.activated`, `subscription.charged`, `subscription.cancelled`,

@@ -224,17 +224,19 @@ export interface EmissionFactorReference {
   };
 }
 
-export type SubscriptionTier = "STARTER" | "GROWTH" | "ENTERPRISE";
+export type SubscriptionTier = "CCTS_COMPLIANCE" | "CBAM_COMPLIANCE" | "CBAM_PLUS_CCTS";
 export type SubscriptionStatus = "INCOMPLETE" | "ACTIVE" | "PAST_DUE" | "CANCELED";
 
 export interface PlanDefinition {
   tier: SubscriptionTier;
   name: string;
+  forWhom: string;
   facilityLimit: number | null;
   priceInr: number | null;
   priceLabel: string;
   description: string;
   features: string[];
+  highlight?: boolean;
 }
 
 export interface Subscription {

@@ -19,8 +19,9 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional().default(""),
   RAZORPAY_KEY_SECRET: z.string().optional().default(""),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(""),
-  RAZORPAY_PLAN_ID_STARTER: z.string().optional().default(""),
-  RAZORPAY_PLAN_ID_GROWTH: z.string().optional().default(""),
+  RAZORPAY_PLAN_ID_CCTS_COMPLIANCE: z.string().optional().default(""),
+  RAZORPAY_PLAN_ID_CBAM_COMPLIANCE: z.string().optional().default(""),
+  RAZORPAY_PLAN_ID_CBAM_PLUS_CCTS: z.string().optional().default(""),
 });
 
 const parsed = envSchema.safeParse(process.env);
