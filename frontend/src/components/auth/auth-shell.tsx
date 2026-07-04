@@ -1,8 +1,15 @@
+import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { BarChart3, ShieldCheck, Sparkles } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 
-const features = [
+interface AuthShellFeature {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}
+
+const DEFAULT_FEATURES: AuthShellFeature[] = [
   {
     icon: ShieldCheck,
     title: "Automated compliance",
@@ -20,14 +27,26 @@ const features = [
   },
 ];
 
+const DEFAULT_HEADLINE = (
+  <>
+    Environmental compliance and <span className="text-gradient">climate intelligence</span>, unified
+  </>
+);
+
 export function AuthShell({
   children,
   title,
   subtitle,
+  headline = DEFAULT_HEADLINE,
+  features = DEFAULT_FEATURES,
+  statLine,
 }: {
   children: React.ReactNode;
   title: string;
   subtitle: string;
+  headline?: React.ReactNode;
+  features?: AuthShellFeature[];
+  statLine?: React.ReactNode;
 }) {
   return (
     <div className="grid min-h-screen bg-background lg:grid-cols-2">
@@ -40,10 +59,7 @@ export function AuthShell({
         </Link>
 
         <div className="relative z-10 max-w-md space-y-8">
-          <h2 className="text-3xl font-semibold leading-tight text-balance">
-            Environmental compliance and{" "}
-            <span className="text-gradient">climate intelligence</span>, unified
-          </h2>
+          <h2 className="text-3xl font-semibold leading-tight text-balance">{headline}</h2>
           <div className="space-y-5">
             {features.map((feature) => (
               <div key={feature.title} className="flex items-start gap-3.5">
@@ -57,6 +73,11 @@ export function AuthShell({
               </div>
             ))}
           </div>
+          {statLine && (
+            <div className="rounded-[12px] border border-teal-500/30 bg-teal-500/10 px-4 py-3 text-sm font-medium text-teal-500">
+              {statLine}
+            </div>
+          )}
         </div>
 
         <p className="relative z-10 text-xs text-muted">
