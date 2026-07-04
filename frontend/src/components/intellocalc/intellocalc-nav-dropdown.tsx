@@ -53,7 +53,7 @@ export function IntelloCalcNavDropdown() {
       </button>
 
       {open && (
-        <div className="absolute left-1/2 top-full z-50 mt-2 w-80 -translate-x-1/2 rounded-2xl border border-surface-border bg-surface p-2 shadow-card animate-fade-in">
+        <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-2xl border border-surface-border bg-surface p-2 shadow-card animate-fade-in sm:left-1/2 sm:right-auto sm:w-80 sm:-translate-x-1/2">
           {TOOLS.map((tool) => (
             <Link
               key={tool.href}
