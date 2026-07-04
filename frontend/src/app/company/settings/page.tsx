@@ -293,11 +293,10 @@ function CompanySettingsContent() {
               description="You're an obligated entity under India's Carbon Credit Trading Scheme"
               {...register("appliesCcts")}
             />
-            <Switch
-              label="PAT designated consumer"
-              description="You're a designated consumer under the Perform, Achieve & Trade scheme"
-              {...register("isPatDesignatedConsumer")}
-            />
+            {/* PAT (Perform, Achieve & Trade) toggle removed from UI — out of current
+                product scope (CBAM + CCTS only). The field is still read/written via
+                reset()/onSubmit so existing values round-trip unchanged; not deleted
+                from the schema or backend. */}
           </div>
         </Card>
 

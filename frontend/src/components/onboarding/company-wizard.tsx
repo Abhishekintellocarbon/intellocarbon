@@ -206,11 +206,9 @@ export function CompanyWizard() {
                 description="You're an obligated entity under India's Carbon Credit Trading Scheme"
                 {...register("appliesCcts")}
               />
-              <Switch
-                label="PAT designated consumer"
-                description="You're a designated consumer under the Perform, Achieve & Trade scheme"
-                {...register("isPatDesignatedConsumer")}
-              />
+              {/* PAT toggle removed from UI — out of current product scope. Field
+                  stays in defaultValues/schema so it still submits (as false) and
+                  round-trips; not deleted from the schema or backend. */}
             </div>
           )}
 
@@ -231,11 +229,7 @@ export function CompanyWizard() {
               )}
               <ReviewRow label="Reporting FY">{fyLabel}</ReviewRow>
               <ReviewRow label="Applicable schemes">
-                {[
-                  values.appliesCbam && "EU CBAM",
-                  values.appliesCcts && "India CCTS",
-                  values.isPatDesignatedConsumer && "PAT",
-                ]
+                {[values.appliesCbam && "EU CBAM", values.appliesCcts && "India CCTS"]
                   .filter(Boolean)
                   .join(", ") || "None selected"}
               </ReviewRow>

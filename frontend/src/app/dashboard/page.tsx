@@ -87,7 +87,7 @@ function DashboardContent() {
                 <div className="flex gap-2">
                   {company.appliesCbam && <SchemeBadge label="EU CBAM" />}
                   {company.appliesCcts && <SchemeBadge label="India CCTS" />}
-                  {company.isPatDesignatedConsumer && <SchemeBadge label="PAT" />}
+                  {/* PAT badge removed from UI — out of current product scope. */}
                 </div>
               </div>
             </Card>

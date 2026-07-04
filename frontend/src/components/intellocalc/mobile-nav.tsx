@@ -56,7 +56,7 @@ export function MobileNav() {
           />
           <div className="fixed inset-y-0 right-0 z-50 flex w-[85%] max-w-sm animate-slide-in-right flex-col overflow-y-auto border-l border-surface-border bg-background p-6">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-[#E8F0F7]">Menu</span>
+              <span className="text-xl font-bold text-[#E8F0F7]">Menu</span>
               <button
                 type="button"
                 aria-label="Close menu"

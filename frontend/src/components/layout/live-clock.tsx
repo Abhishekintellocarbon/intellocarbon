@@ -15,17 +15,13 @@ function getTimeZone(): string {
 function formatParts(date: Date, timeZone: string) {
   const dateParts = new Intl.DateTimeFormat("en-GB", {
     timeZone,
-    weekday: "long",
     day: "numeric",
     month: "short",
-    year: "numeric",
   }).formatToParts(date);
 
-  const weekday = dateParts.find((p) => p.type === "weekday")?.value ?? "";
   const day = dateParts.find((p) => p.type === "day")?.value ?? "";
   const month = dateParts.find((p) => p.type === "month")?.value ?? "";
-  const year = dateParts.find((p) => p.type === "year")?.value ?? "";
-  const dateLabel = `${weekday}, ${day} ${month} ${year}`;
+  const dateLabel = `${day} ${month}`;
 
   const timeParts = new Intl.DateTimeFormat("en-US", {
     timeZone,
@@ -60,10 +56,10 @@ export function LiveClock() {
   if (!display) return null;
 
   return (
-    <div className="font-sans text-[13px] leading-tight text-[#8AA0B4]">
+    <div className="font-sans text-[13px] leading-tight text-[#8AA0B4]" title={display.tzName}>
       <span className="sm:hidden">{display.dateLabel}</span>
       <span className="hidden sm:inline">
-        {display.dateLabel} — {display.timeLabel} {display.tzName}
+        {display.dateLabel}, {display.timeLabel}
       </span>
     </div>
   );

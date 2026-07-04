@@ -1,11 +1,9 @@
-import { ShieldCheck, Award, ScrollText, LockKeyhole } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
-const ITEMS = [
-  { icon: ShieldCheck, label: "ISO 14064-aligned verification methodology" },
-  { icon: Award, label: "DPIIT Recognised Startup" },
-  { icon: ScrollText, label: "Regulatory Basis: EU 2023/956 & S.O. 2825(E) 2023" },
-  { icon: LockKeyhole, label: "Data Secured in India" },
-];
+// Only claims that are currently true and verifiable belong here — this is a
+// credibility badge row, not a features list. DPIIT registration is pending
+// (not yet filed), so it must not appear until it's actually granted.
+const ITEMS = [{ icon: ShieldCheck, label: "ISO 14064-aligned verification methodology" }];
 
 export function TrustStrip({ className }: { className?: string }) {
   return (
