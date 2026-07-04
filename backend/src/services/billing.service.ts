@@ -168,7 +168,14 @@ export const verifyWebhookSignature = (rawBody: string, signature: string): bool
     .createHmac("sha256", env.RAZORPAY_WEBHOOK_SECRET)
     .update(rawBody)
     .digest("hex");
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature || ""));
+  const expectedBuf = Buffer.from(expected);
+  const candidateBuf = Buffer.from(signature || "");
+  // timingSafeEqual throws on length mismatch rather than returning false —
+  // an attacker-controlled header of the wrong length must still fail
+  // closed, not 500. Lengths are compared in the open first since the
+  // expected digest is fixed-length and not itself secret.
+  if (expectedBuf.length !== candidateBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, candidateBuf);
 };
 
 interface RazorpaySubscriptionEntity {
