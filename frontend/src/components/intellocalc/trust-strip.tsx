@@ -1,7 +1,7 @@
 import { ShieldCheck, Award, ScrollText, LockKeyhole } from "lucide-react";
 
 const ITEMS = [
-  { icon: ShieldCheck, label: "ISO 14064 Lead Verifier Founded" },
+  { icon: ShieldCheck, label: "ISO 14064-aligned verification methodology" },
   { icon: Award, label: "DPIIT Recognised Startup" },
   { icon: ScrollText, label: "Regulatory Basis: EU 2023/956 & S.O. 2825(E) 2023" },
   { icon: LockKeyhole, label: "Data Secured in India" },

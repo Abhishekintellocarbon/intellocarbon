@@ -9,16 +9,14 @@ import { ToolFooter } from "@/components/intellocalc/tool-footer";
 export const metadata: Metadata = {
   title: "About Us — Intellocarbon",
   description:
-    "Intellocarbon is compliance infrastructure for Indian industrial exporters — built in Raipur, Chhattisgarh, by an ISO 14064 Lead Verifier and Validator.",
+    "Intellocarbon is compliance infrastructure for Indian industrial exporters — built in Raipur, Chhattisgarh, on ISO 14064-aligned verification methodology.",
 };
 
-const CREDENTIALS = [
-  "ISO 14064 Lead Verifier and Validator — SGS certified",
-  "MA Public Policy — University of York, United Kingdom",
-  "Masters in Government — MIT World Peace University, Pune",
-  "B.E. Mechanical Engineering — CSVTU",
-  "PRINCE2 Foundation certified",
-  "GHG Protocol certified",
+const METHODOLOGY = [
+  "ISO 14064-1 aligned GHG inventory design",
+  "ISO 14064-3 aligned independent verification workflow",
+  "Built on primary-source EU and Indian regulatory text",
+  "Accredited verifier review built into the platform",
 ];
 
 const WHY_CARDS = [
@@ -90,29 +88,28 @@ export default function AboutPage() {
           </p>
         </section>
 
-        {/* Section 2 — The Founder */}
+        {/* Section 2 — Our Approach */}
         <section className="grid gap-8 border-t border-surface-border py-14 sm:grid-cols-2">
           <Card className="rounded-[12px] border-teal-500 p-6">
-            <h3 className="text-lg font-semibold text-[#E8F0F7]">Abhishek Dwivedi</h3>
-            <p className="mt-1 text-sm text-teal-500">
-              Founder and CEO, Intellocarbon Solutions Private Limited
-            </p>
+            <h3 className="text-lg font-semibold text-[#E8F0F7]">Verification-first, by design</h3>
+            <p className="mt-1 text-sm text-teal-500">Intellocarbon Solutions Private Limited</p>
             <ul className="mt-5 space-y-2.5">
-              {CREDENTIALS.map((credential) => (
-                <li key={credential} className="flex items-start gap-2 text-sm text-[#8AA0B4]">
+              {METHODOLOGY.map((item) => (
+                <li key={item} className="flex items-start gap-2 text-sm text-[#8AA0B4]">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
-                  {credential}
+                  {item}
                 </li>
               ))}
             </ul>
           </Card>
           <p className="text-[#8AA0B4]">
-            Abhishek Dwivedi is an ISO 14064 Lead Verifier and Validator — one of the few professionals in India
-            certified to both design and verify GHG inventories under the international standard. With a
-            background spanning mechanical engineering, public policy, and program management across government
-            and development organisations, he identified a critical gap in India&apos;s carbon compliance market —
-            and built Intellocarbon to fill it. Based in Raipur, Chhattisgarh, Intellocarbon is built from the
-            heartland of Indian steel and cement production — not from a metro co-working space.
+            Most compliance tools available to Indian industrial exporters are either too expensive for MSMEs,
+            too focused on large corporations, or built by teams without direct exposure to how GHG inventories
+            are actually verified. Intellocarbon closes that gap — our verification workflows are built on ISO
+            14064-1 and ISO 14064-3, the international standard for GHG inventory design and independent
+            verification, reviewed by accredited verifiers inside the platform. Based in Raipur, Chhattisgarh,
+            Intellocarbon is built from the heartland of Indian steel and cement production — not from a metro
+            co-working space.
           </p>
         </section>
 

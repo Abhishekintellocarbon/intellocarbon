@@ -46,7 +46,7 @@ const COMPARISON_FEATURES: ComparisonRow[] = [
 ];
 
 const TRUST_SIGNALS = [
-  "Founded by an ISO 14064 Lead Verifier",
+  "Built on ISO 14064-aligned verification methodology",
   "DPIIT-recognised startup",
   "Regulatory basis: EU 2023/956 & S.O. 2825(E) 2023",
   "Data hosted in India — Supabase Mumbai (ap-south-1)",
