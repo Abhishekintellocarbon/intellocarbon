@@ -114,7 +114,7 @@ export function BorderTool() {
               error={Boolean(errors.euExportQuantityTonnes)}
             />
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Enter only what goes to EU, not your total exports. Minimum 50 tonnes for CBAM to apply.
+              Enter only what goes to the EU, not your total exports. Minimum 50 tonnes for CBAM to apply.
             </p>
             <FieldError message={errors.euExportQuantityTonnes?.message} />
             {showDeMinimis && (
@@ -196,7 +196,8 @@ export function BorderTool() {
           <div className="mt-5 rounded-xl border border-surface-border bg-surface-raised p-4 text-xs text-muted-foreground">
             This estimate uses EU default values per EU 2025/2621. Your actual liability depends on verified
             facility-specific embedded emissions, which are typically lower than defaults. Certificate price
-            used: EUR {fmtNum(results.certificatePriceEur)} (Q1 2026). Q2 2026 price publishes 6 July 2026.
+            used: EUR {fmtNum(results.certificatePriceEur)} (Q1 2026). The Q2 2026 price will be published on 6
+            July 2026.
           </div>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">

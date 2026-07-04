@@ -197,7 +197,7 @@ export function ComplyTool() {
 
         {screen === "q3" && (
           <QuestionScreen
-            title="Which goods do you export or plan to export to EU?"
+            title="Which goods do you export or plan to export to the EU?"
             subtitle="Select all that apply."
             onBack={() => back("q2")}
           >
@@ -223,7 +223,7 @@ export function ComplyTool() {
 
         {screen === "q3b" && (
           <QuestionScreen
-            title="What is your estimated annual export quantity to EU in tonnes?"
+            title="What is your estimated annual export quantity to the EU in tonnes?"
             onBack={() => back("q3")}
           >
             {EU_EXPORT_VOLUME_OPTIONS.map((o) => (
@@ -242,7 +242,7 @@ export function ComplyTool() {
 
         {screen === "q4" && (
           <QuestionScreen
-            title="Is your facility covered under India's CCTS Carbon Credit Trading Scheme?"
+            title="Is your facility covered under India's CCTS (Carbon Credit Trading Scheme)?"
             subtitle="CCTS covers aluminium, cement, iron and steel, chlor-alkali, fertilizer, paper and pulp, petrochemical, petroleum refinery, and textile sectors with facilities above BEE thresholds."
             onBack={() => back(answers.exportsToEu === "NO" ? "q2" : answers.euGoods.includes("NONE") ? "q3" : "q3b")}
           >
@@ -347,7 +347,8 @@ function ComplyResultsView({ results, leadId }: { results: ComplyResults; leadId
         <h2 className="text-lg font-semibold">You&apos;re in good shape — for now</h2>
         <p className="mt-3 text-sm text-muted-foreground">
           Great news — based on your answers, you may not have mandatory carbon compliance obligations right
-          now. However UK CBAM starts 2027 and India CCTS is expanding. Stay ahead with Intellocarbon monitoring.
+          now. However, UK CBAM starts in 2027 and India CCTS is expanding. Stay ahead with Intellocarbon
+          monitoring.
         </p>
         <Link href="/signup" className="mt-6 inline-block">
           <Button>
@@ -391,14 +392,15 @@ function ComplyResultsView({ results, leadId }: { results: ComplyResults; leadId
 
       {results.cbamDeMinimisNote && (
         <div className="mt-4 rounded-xl border border-surface-border bg-surface-raised p-4 text-xs text-muted-foreground">
-          Your export volume may be below the 50-tonne threshold. CBAM may not apply. We will confirm for you.
+          Your export volume may be below the 50-tonne threshold. CBAM may not apply. We will confirm this for
+          you.
         </div>
       )}
 
       {results.combinedNote && (
         <div className="mt-4 rounded-xl border border-surface-border bg-surface-raised p-4 text-xs text-muted-foreground">
-          You qualify for Article 9 deduction — your CCTS carbon price paid in India reduces your CBAM exposure.
-          Only Intellocarbon calculates this automatically.
+          You qualify for the Article 9 deduction — your CCTS carbon price paid in India reduces your CBAM
+          exposure. Only Intellocarbon calculates this automatically.
         </div>
       )}
 

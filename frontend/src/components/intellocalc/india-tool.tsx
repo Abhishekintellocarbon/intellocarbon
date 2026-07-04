@@ -125,7 +125,7 @@ export function IndiaTool() {
               error={Boolean(errors.totalFuelConsumptionGj)}
             />
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Sum all fuels in gigajoules. Convert: 1 tonne coal ≈ 26 GJ. 1 tonne natural gas ≈ 48 GJ.
+              Sum all fuels in gigajoules. Convert: 1 tonne of coal ≈ 26 GJ. 1 tonne of natural gas ≈ 48 GJ.
             </p>
             <FieldError message={errors.totalFuelConsumptionGj?.message} />
           </div>
@@ -215,8 +215,8 @@ export function IndiaTool() {
           )}
 
           <div className="mt-5 rounded-xl border border-surface-border bg-surface-raised p-4 text-xs text-muted-foreground">
-            CCTS also reduces your CBAM exposure — if you export to EU, the carbon price you pay under CCTS can
-            be deducted from your CBAM liability under Article 9 of EU 2023/956.
+            CCTS also reduces your CBAM exposure — if you export to the EU, the carbon price you pay under CCTS
+            can be deducted from your CBAM liability under Article 9 of EU 2023/956.
           </div>
 
           <div className="mt-4 rounded-xl border border-surface-border bg-surface-raised p-4 text-xs text-muted-foreground">
