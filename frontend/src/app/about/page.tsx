@@ -9,7 +9,7 @@ import { ToolFooter } from "@/components/intellocalc/tool-footer";
 export const metadata: Metadata = {
   title: "About Us — Intellocarbon",
   description:
-    "Intellocarbon is compliance infrastructure for Indian industrial exporters — built in Raipur, Chhattisgarh, on ISO 14064-aligned verification methodology.",
+    "Intellocarbon is compliance infrastructure for Indian industrial exporters, built on ISO 14064-aligned verification methodology.",
 };
 
 const METHODOLOGY = [
@@ -39,9 +39,9 @@ const WHY_CARDS = [
   },
   {
     icon: MapPinned,
-    title: "Central India first",
+    title: "Built for Indian industry",
     description:
-      "Based in Raipur. Built for the steel and cement belt of Chhattisgarh, Jharkhand, Odisha and Madhya Pradesh. We understand your operations.",
+      "Serving Indian industrial exporters nationwide — across steel, cement, aluminium, fertilizers, hydrogen and electricity. We understand your operations.",
   },
 ];
 
@@ -107,9 +107,8 @@ export default function AboutPage() {
             too focused on large corporations, or built by teams without direct exposure to how GHG inventories
             are actually verified. Intellocarbon closes that gap — our verification workflows are built on ISO
             14064-1 and ISO 14064-3, the international standard for GHG inventory design and independent
-            verification, reviewed by accredited verifiers inside the platform. Based in Raipur, Chhattisgarh,
-            Intellocarbon is built from the heartland of Indian steel and cement production — not from a metro
-            co-working space.
+            verification, reviewed by accredited verifiers inside the platform. Built in India, for
+            India&apos;s industrial compliance needs.
           </p>
         </section>
 
@@ -156,7 +155,6 @@ export default function AboutPage() {
           <div className="mt-4 space-y-1.5 text-[#8AA0B4]">
             <p>abhishek@intellocarbon.com</p>
             <p>intellocarbon.com</p>
-            <p>Raipur, Chhattisgarh, India</p>
           </div>
           <Link href="/signup" className="mt-6 inline-block">
             <Button>
