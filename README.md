@@ -170,9 +170,9 @@ npm run dev                 # http://localhost:3000
   rejection means creating a new activity data entry, not reopening the old
   request).
 - **Billing** — 3 Razorpay-billed, per-facility-priced tiers defined in
-  `backend/src/data/plans.ts`: CCTS Compliance (₹4,999/facility/mo, domestic
-  CCTS obligation only), CBAM Compliance (₹9,999/facility/mo, EU exporters),
-  and CBAM + CCTS (₹19,999/facility/mo, both). None of the three plans enforce
+  `backend/src/data/plans.ts`: CCTS Compliance (₹14,999/facility/mo, domestic
+  CCTS obligation only), CBAM Compliance (₹19,999/facility/mo, EU exporters),
+  and CBAM + CCTS (₹29,999/facility/mo, both). None of the three plans enforce
   a facility cap server-side (`facilityLimit: null`) — pricing is a straight
   per-facility multiplication shown live on `/billing`'s facility calculator,
   not a tiered limit. Enterprise (>5 facilities, custom modules) is a

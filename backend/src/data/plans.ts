@@ -24,8 +24,8 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
     name: "CCTS Compliance",
     forWhom: "Indian companies with a domestic CCTS obligation only — not exporting to the EU.",
     facilityLimit: null,
-    priceInr: 4999,
-    priceLabel: "₹4,999/facility/mo",
+    priceInr: 14999,
+    priceLabel: "₹14,999/facility/mo",
     description: "India's Carbon Credit Trading Scheme — GHG intensity monitoring and BEE-format reporting.",
     features: [
       "GHG intensity monitoring",
@@ -43,8 +43,8 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
     name: "CBAM Compliance",
     forWhom: "Indian companies exporting to the EU.",
     facilityLimit: null,
-    priceInr: 9999,
-    priceLabel: "₹9,999/facility/mo",
+    priceInr: 19999,
+    priceLabel: "₹19,999/facility/mo",
     description: "EU Carbon Border Adjustment Mechanism — Communication Package reporting and financial impact.",
     features: [
       "CBAM Communication Package (14-page PDF)",
@@ -66,8 +66,8 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
     name: "CBAM + CCTS",
     forWhom: "Indian companies that both export to the EU and have a domestic CCTS obligation.",
     facilityLimit: null,
-    priceInr: 19999,
-    priceLabel: "₹19,999/facility/mo",
+    priceInr: 29999,
+    priceLabel: "₹29,999/facility/mo",
     description: "Complete India + EU compliance — both reports generated from a single data entry.",
     features: [
       "Everything in CCTS Compliance",
