@@ -70,10 +70,11 @@ export default function AboutPage() {
           <h2 className="text-2xl font-semibold text-[#E8F0F7]">Our Mission</h2>
           <p className="text-[#8AA0B4]">
             India&apos;s industrial exporters face mandatory carbon compliance obligations on two fronts
-            simultaneously — EU CBAM from 2026 and India CCTS from Q3 2026. Most compliance tools available are
-            either too expensive for MSMEs, too focused on large corporations, or only serve one framework at a
-            time. Intellocarbon was built to change this. One platform. One data entry. Every compliance output —
-            CBAM Communication Package, CCTS BEE Forms, ESG reports — generated automatically.
+            simultaneously — EU CBAM from 2026 and India CCTS from Q3 2026 — alongside growing EPR and ESG
+            reporting requirements. Most compliance tools available are either too expensive for MSMEs, too
+            focused on large corporations, or only serve one framework at a time. Intellocarbon was built to
+            change this. One platform. One data entry. Every compliance output — CBAM Communication Package,
+            CCTS BEE Forms, EPR filings, ESG reports — generated automatically.
           </p>
         </section>
 

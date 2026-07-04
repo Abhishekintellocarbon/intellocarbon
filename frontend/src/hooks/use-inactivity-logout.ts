@@ -6,16 +6,16 @@ const ACTIVITY_EVENTS = ["mousemove", "keydown", "click", "scroll"] as const;
 const ACTIVITY_THROTTLE_MS = 1000;
 
 export interface UseInactivityLogoutOptions {
-  /** Time of inactivity after which the warning modal appears. Defaults to 25 minutes. */
+  /** Time of inactivity after which the warning modal appears. Defaults to 10 minutes. */
   warningAfterMs?: number;
-  /** Time of inactivity after which the user is logged out. Defaults to 30 minutes. */
+  /** Time of inactivity after which the user is logged out. Defaults to 15 minutes. */
   logoutAfterMs?: number;
   onLogout: () => void;
 }
 
 export function useInactivityLogout({
-  warningAfterMs = 25 * 60_000,
-  logoutAfterMs = 30 * 60_000,
+  warningAfterMs = 10 * 60_000,
+  logoutAfterMs = 15 * 60_000,
   onLogout,
 }: UseInactivityLogoutOptions) {
   const [showWarning, setShowWarning] = useState(false);

@@ -50,8 +50,8 @@ const TRUST_SIGNALS = [
   // DPIIT Startup India registration is still pending — do not re-add this claim
   // until it's actually filed and granted.
   "Fully aligned with current CBAM and CCTS regulations — updated automatically as rules change",
-  "Data hosted in India — Supabase Mumbai (ap-south-1)",
-  "7-year data retention as per EU 2024/3210",
+  "Data hosted securely in India",
+  "Long-term data retention as per regulatory requirements",
 ];
 
 const FAQS = [
