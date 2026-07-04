@@ -181,8 +181,14 @@ export default function Home() {
         </Card>
       </section>
 
-      <footer className="relative z-10 border-t border-surface-border py-6 text-center text-xs text-muted">
-        © {new Date().getFullYear()} Intellocarbon Solutions. All rights reserved.
+      <footer className="relative z-10 border-t border-surface-border px-6 py-6 text-center text-xs text-muted">
+        <p>© {new Date().getFullYear()} Intellocarbon Solutions. All rights reserved.</p>
+        <p className="mx-auto mt-3 max-w-3xl">
+          Intellocarbon provides calculation and reporting tools based on data you provide and applicable
+          regulations at the time of use. Final compliance responsibility rests with the client and their
+          appointed verifier/auditor. Intellocarbon is not liable for penalties arising from inaccurate
+          client-submitted data or regulatory changes not yet reflected in the platform.
+        </p>
       </footer>
     </div>
   );

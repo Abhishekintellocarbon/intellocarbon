@@ -45,17 +45,6 @@ const WHY_CARDS = [
   },
 ];
 
-const REGULATIONS = [
-  "EU 2023/956",
-  "EU 2025/2547",
-  "EU 2023/1773",
-  "EU 2025/2546",
-  "S.O. 2825(E) CCTS 2023",
-  "CEA Grid Emission Factor FY2025-26",
-  "ISO 14064-1",
-  "ISO 14064-3",
-];
-
 export default function AboutPage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -136,16 +125,9 @@ export default function AboutPage() {
               Every calculation, every report, and every workflow in Intellocarbon is built on primary source
               regulations — not assumptions.
             </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {REGULATIONS.map((reg) => (
-                <span
-                  key={reg}
-                  className="rounded-full border border-teal-500/40 bg-teal-500/10 px-3 py-1 text-xs font-medium text-teal-500"
-                >
-                  {reg}
-                </span>
-              ))}
-            </div>
+            <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-teal-500/40 bg-teal-500/10 px-4 py-2 text-sm font-medium text-teal-500">
+              Fully aligned with current CBAM and CCTS regulations — updated automatically as rules change.
+            </p>
           </Card>
         </section>
 

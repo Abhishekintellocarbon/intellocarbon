@@ -49,7 +49,7 @@ const TRUST_SIGNALS = [
   "Built on ISO 14064-aligned verification methodology",
   // DPIIT Startup India registration is still pending — do not re-add this claim
   // until it's actually filed and granted.
-  "Regulatory basis: EU 2023/956 & S.O. 2825(E) 2023",
+  "Fully aligned with current CBAM and CCTS regulations — updated automatically as rules change",
   "Data hosted in India — Supabase Mumbai (ap-south-1)",
   "7-year data retention as per EU 2024/3210",
 ];
