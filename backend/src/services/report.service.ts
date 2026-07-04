@@ -27,11 +27,31 @@ export const getReportContext = async (userId: string, facilityId: string, activ
     },
   });
 
+  // Drafts never reach here in practice — they never have a
+  // calculationResult, since that's only ever produced by submitting —
+  // but this gives a clearer error than the generic one below, and lets us
+  // narrow away the nullability that drafts require on these columns.
+  if (activityData.status !== "SUBMITTED") {
+    throw new Error("Cannot generate a report for a draft entry — submit it first");
+  }
+  if (activityData.facility.isDraft) {
+    throw new Error("Cannot generate a report for a facility that hasn't been marked complete yet");
+  }
   if (!activityData.calculationResult) {
     throw new Error("Activity data has not been calculated yet");
   }
 
-  return activityData;
+  return activityData as typeof activityData & {
+    periodStart: Date;
+    periodEnd: Date;
+    productCategory: string;
+    productionQuantityT: number;
+    facility: typeof activityData.facility & {
+      facilityType: NonNullable<(typeof activityData.facility)["facilityType"]>;
+      productionRoute: NonNullable<(typeof activityData.facility)["productionRoute"]>;
+    };
+    calculationResult: NonNullable<typeof activityData.calculationResult>;
+  };
 };
 
 export type ReportContext = Awaited<ReturnType<typeof getReportContext>>;

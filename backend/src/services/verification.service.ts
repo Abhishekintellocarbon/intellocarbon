@@ -25,6 +25,13 @@ const detailInclude = {
 export const submitForVerification = async (userId: string, facilityId: string, activityDataId: string) => {
   const activityData = await requireOwnedActivityData(userId, facilityId, activityDataId);
 
+  if (activityData.status !== "SUBMITTED") {
+    throw AppError.badRequest(
+      "Complete and submit this activity data entry before requesting verification",
+      "ACTIVITY_DATA_NOT_SUBMITTED",
+    );
+  }
+
   const existing = await prisma.verificationRequest.findUnique({ where: { activityDataId } });
   if (existing) {
     throw AppError.conflict("This activity data entry has already been submitted for verification", "ALREADY_SUBMITTED");

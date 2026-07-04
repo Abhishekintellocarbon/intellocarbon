@@ -4,7 +4,7 @@ import { requireMyCompany } from "./company.service";
 import { requireCapacityForNewFacility } from "./billing.service";
 import { SECTOR_FACILITY_TYPES, SECTOR_PRODUCTION_ROUTES } from "../data/cbamReferenceData";
 import type { Sector } from "@prisma/client";
-import type { FacilityInput } from "../validators/facility.validators";
+import type { FacilityInput, FacilityDraftInput } from "../validators/facility.validators";
 
 const cleanOptional = (value?: string) => (value ? value : undefined);
 
@@ -104,6 +104,88 @@ export const updateFacility = async (userId: string, facilityId: string, input: 
 export const deleteFacility = async (userId: string, facilityId: string) => {
   await requireOwnedFacility(userId, facilityId);
   await prisma.facility.delete({ where: { id: facilityId } });
+};
+
+// Autosave — permissive, never touches isDraft. `facilityId` is undefined
+// on the very first blur of a brand-new form, which creates the draft row;
+// every blur after that PATCHes it. Never validates facilityType/
+// productionRoute against the sector's allowed list, since either may
+// still be empty mid-draft — that check only runs at completeFacility.
+export const autosaveFacility = async (
+  userId: string,
+  facilityId: string | undefined,
+  input: FacilityDraftInput,
+) => {
+  const company = await requireMyCompany(userId);
+
+  const data = {
+    facilityType: input.facilityType ?? null,
+    productionRoute: input.productionRoute ?? null,
+    address: input.address ?? null,
+    state: input.state ?? null,
+    district: input.district ?? null,
+    pincode: input.pincode ?? null,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+    installedCapacityTpa: input.installedCapacityTpa ?? null,
+    commissioningYear: input.commissioningYear ?? null,
+    productsManufactured: input.productsManufactured ?? [],
+    cnCodes: input.cnCodes ?? [],
+  };
+
+  if (!facilityId) {
+    await requireCapacityForNewFacility(company.id);
+    return prisma.facility.create({
+      data: {
+        companyId: company.id,
+        name: input.name?.trim() || "Untitled facility",
+        isDraft: true,
+        ...data,
+      },
+    });
+  }
+
+  const facility = await requireOwnedFacility(userId, facilityId);
+  if (!facility.isDraft) {
+    throw AppError.badRequest(
+      "This facility is already complete — edit it from the facility page instead",
+      "FACILITY_NOT_DRAFT",
+    );
+  }
+
+  return prisma.facility.update({
+    where: { id: facilityId },
+    data: { name: input.name?.trim() || facility.name, ...data },
+  });
+};
+
+// The explicit "Mark as complete" action — validates the full strict
+// schema (so facilityType/productionRoute are guaranteed non-null and
+// valid for the sector) and flips isDraft to false. This is the only path
+// that does so; autosave above never touches it.
+export const completeFacility = async (userId: string, facilityId: string, input: FacilityInput) => {
+  const facility = await requireOwnedFacility(userId, facilityId);
+  validateFacilityTypeAndRoute(facility.company.sector, input);
+
+  return prisma.facility.update({
+    where: { id: facilityId },
+    data: {
+      name: input.name,
+      facilityType: input.facilityType,
+      productionRoute: input.productionRoute,
+      address: cleanOptional(input.address),
+      state: cleanOptional(input.state),
+      district: cleanOptional(input.district),
+      pincode: cleanOptional(input.pincode),
+      latitude: input.latitude,
+      longitude: input.longitude,
+      installedCapacityTpa: input.installedCapacityTpa,
+      commissioningYear: input.commissioningYear,
+      productsManufactured: input.productsManufactured,
+      cnCodes: input.cnCodes,
+      isDraft: false,
+    },
+  });
 };
 
 export { requireOwnedFacility };

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { HydrogenRoute } from "@prisma/client";
 import { FUEL_LIBRARY, PRECURSOR_LIBRARY, PROCESS_MATERIAL_LIBRARY } from "../data/emissionFactors";
+import { draftString, draftNumber, draftNativeEnum, draftDate } from "./draft";
 
 const fuelEntrySchema = z.object({
   fuelType: z.string().refine((v) => v in FUEL_LIBRARY, "Select a valid fuel type"),
@@ -85,3 +86,75 @@ export const activityDataSchema = z
   });
 
 export type ActivityDataInput = z.infer<typeof activityDataSchema>;
+
+// Permissive schema for autosave — every field optional/nullable, no
+// required dates/quantities or library-membership checks on entry rows (a
+// half-filled fuel row with no fuelType selected yet is a valid draft
+// state). Used only while status is DRAFT; the strict activityDataSchema
+// above still gates the explicit "submit" action that triggers calculation.
+const draftFuelEntrySchema = z.object({
+  fuelType: draftString(100),
+  quantity: draftNumber(),
+  unit: draftString(20),
+  emissionFactorOverrideCo2: draftNumber(),
+});
+
+const draftProcessMaterialEntrySchema = z.object({
+  materialType: draftString(100),
+  quantityTonnes: draftNumber(),
+  emissionFactorOverride: draftNumber(),
+});
+
+const draftPrecursorEntrySchema = z.object({
+  materialType: draftString(100),
+  quantityTonnes: draftNumber(),
+  embeddedEmissionFactorOverride: draftNumber(),
+  sourceLabel: draftString(150),
+});
+
+export const activityDataDraftSchema = z.object({
+  periodStart: draftDate(),
+  periodEnd: draftDate(),
+  productCategory: draftString(150),
+  productionQuantityT: draftNumber(),
+
+  gridElectricityMwh: draftNumber(),
+  renewableElectricityMwh: draftNumber(),
+  gridEmissionFactorOverride: draftNumber(),
+
+  steamImportedGj: draftNumber(),
+  steamEmissionFactorOverride: draftNumber(),
+
+  carbonPricePaidEurPerTonne: draftNumber(),
+  cctsTargetIntensity: draftNumber(),
+
+  limestoneInputTonnes: draftNumber(),
+  clinkerProducedTonnes: draftNumber(),
+  clinkerConversionFraction: draftNumber(),
+
+  cf4EmissionsTonnes: draftNumber(),
+  c2f6EmissionsTonnes: draftNumber(),
+  anodeEffectMinutes: draftNumber(),
+
+  n2oProcessEmissionsTonnes: draftNumber(),
+  n2oAbatementFactorPct: draftNumber(),
+  naturalGasFeedstockNm3: draftNumber(),
+
+  hydrogenRoute: draftNativeEnum(HydrogenRoute),
+  ccsCaptureRatePct: draftNumber(),
+  hydrogenPurityPct: draftNumber(),
+  byproductOxygenTonnes: draftNumber(),
+
+  electricityGeneratedMwh: draftNumber(),
+  electricityExportedEuMwh: draftNumber(),
+  ownUseElectricityMwh: draftNumber(),
+  lineLossMwh: draftNumber(),
+
+  notes: draftString(1000),
+
+  fuelEntries: z.array(draftFuelEntrySchema).optional(),
+  processMaterialEntries: z.array(draftProcessMaterialEntrySchema).optional(),
+  precursorEntries: z.array(draftPrecursorEntrySchema).optional(),
+});
+
+export type ActivityDataDraftInput = z.infer<typeof activityDataDraftSchema>;

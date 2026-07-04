@@ -186,16 +186,18 @@ enum HydrogenRoute {
 }
 
 model Facility {
-  id                   String       @id @default(cuid())
-  companyId            String
-  company              Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name                 String
-  facilityType         FacilityType
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  // Nullable to support autosaved drafts, which may not have these set yet —
+  // both are required by app-layer validation before isDraft can flip false.
+  facilityType         FacilityType?
   // Free-text production-route key (e.g. "BF_BOF", "CLINKER_PRODUCTION",
   // "HALL_HEROULT") validated app-side against a per-sector option list —
   // not a Prisma enum, since each new CBAM sector adds its own route set and
   // a shared enum would need a migration every time one changes.
-  productionRoute      String
+  productionRoute      String?
   address              String?
   state                String?
   district             String?
@@ -206,6 +208,11 @@ model Facility {
   commissioningYear    Int?
   productsManufactured String[]
   cnCodes              String[]     @default([])
+  // True until the user explicitly clicks "Mark as complete" — autosave
+  // never sets this to false. Incomplete facilities are still visible (with
+  // a Draft badge) but should be treated as not-yet-real by anything that
+  // isn't the setup form itself.
+  isDraft              Boolean      @default(true)
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 
@@ -226,11 +233,13 @@ model ActivityData {
   facility            Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   // Denormalised from the owning Company at creation time — lets the
   // calculation engine and reports branch per sector without an extra join.
-  sector              Sector   @default(STEEL)
-  periodStart         DateTime
-  periodEnd           DateTime
-  productCategory     String
-  productionQuantityT Float
+  sector Sector @default(STEEL)
+  // Nullable to support autosaved drafts — all four are required by
+  // app-layer validation before status can flip to SUBMITTED.
+  periodStart         DateTime?
+  periodEnd           DateTime?
+  productCategory     String?
+  productionQuantityT Float?
 
   gridElectricityMwh         Float  @default(0)
   renewableElectricityMwh    Float  @default(0)

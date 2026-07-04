@@ -61,12 +61,26 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
     throw AppError.notFound("Activity data entry not found");
   }
 
+  // Belt-and-braces: the only caller of this function (submitActivityData)
+  // always sets status to SUBMITTED in the same request before invoking it,
+  // which is also what guarantees productionQuantityT/periodStart/periodEnd
+  // are non-null (submitActivityData validates the full strict schema
+  // first). This guard exists so a future caller can never accidentally run
+  // the calculation engine — and therefore reports and CCTS/CBAM numbers —
+  // against an incomplete draft.
+  if (activityData.status !== "SUBMITTED") {
+    throw AppError.badRequest(
+      "Cannot calculate emissions for a draft entry — submit it first",
+      "ACTIVITY_DATA_NOT_SUBMITTED",
+    );
+  }
+
   // Electricity's CBAM SEE is per MWh exported to the EU, not per tonne of
   // product — every other sector divides by production quantity.
   const isElectricitySector = activityData.sector === "ELECTRICITY";
   const denominator = isElectricitySector
     ? activityData.electricityExportedEuMwh ?? 0
-    : activityData.productionQuantityT;
+    : activityData.productionQuantityT ?? 0;
 
   if (denominator <= 0) {
     throw AppError.badRequest(

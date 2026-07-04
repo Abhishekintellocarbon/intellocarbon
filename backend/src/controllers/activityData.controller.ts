@@ -16,6 +16,36 @@ export const createActivityData = asyncHandler(async (req, res) => {
   res.status(201).json({ entry });
 });
 
+export const autosaveNewActivityData = asyncHandler(async (req, res) => {
+  const entry = await activityDataService.autosaveActivityData(
+    req.user!.sub,
+    req.params.facilityId,
+    undefined,
+    req.body,
+  );
+  res.status(201).json({ entry });
+});
+
+export const autosaveActivityData = asyncHandler(async (req, res) => {
+  const entry = await activityDataService.autosaveActivityData(
+    req.user!.sub,
+    req.params.facilityId,
+    req.params.dataId,
+    req.body,
+  );
+  res.status(200).json({ entry });
+});
+
+export const submitActivityData = asyncHandler(async (req, res) => {
+  const entry = await activityDataService.submitActivityData(
+    req.user!.sub,
+    req.params.facilityId,
+    req.params.dataId,
+    req.body,
+  );
+  res.status(200).json({ entry });
+});
+
 export const getActivityData = asyncHandler(async (req, res) => {
   const entry = await activityDataService.getActivityData(
     req.user!.sub,

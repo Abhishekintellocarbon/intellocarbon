@@ -1,5 +1,27 @@
 import { FacilityType } from "@prisma/client";
 import { z } from "zod";
+import { draftString, draftNumber, draftNativeEnum } from "./draft";
+
+// Permissive schema for autosave — every field optional/nullable, no min-
+// length or format checks. Used only while isDraft is true; the strict
+// facilitySchema below still gates the explicit "mark complete" action.
+export const facilityDraftSchema = z.object({
+  name: draftString(150),
+  facilityType: draftNativeEnum(FacilityType),
+  productionRoute: draftString(50),
+  address: draftString(250),
+  state: draftString(100),
+  district: draftString(100),
+  pincode: draftString(6),
+  latitude: draftNumber(),
+  longitude: draftNumber(),
+  installedCapacityTpa: draftNumber(),
+  commissioningYear: draftNumber(),
+  productsManufactured: z.array(z.string().trim()).optional(),
+  cnCodes: z.array(z.string().trim()).optional(),
+});
+
+export type FacilityDraftInput = z.infer<typeof facilityDraftSchema>;
 
 export const facilitySchema = z.object({
   name: z.string().trim().min(2, "Facility name must be at least 2 characters").max(150),

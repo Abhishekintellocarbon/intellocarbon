@@ -25,3 +25,18 @@ export const deleteFacility = asyncHandler(async (req, res) => {
   await facilityService.deleteFacility(req.user!.sub, req.params.facilityId);
   res.status(204).send();
 });
+
+export const autosaveFacility = asyncHandler(async (req, res) => {
+  const facility = await facilityService.autosaveFacility(req.user!.sub, req.params.facilityId, req.body);
+  res.status(200).json({ facility });
+});
+
+export const autosaveNewFacility = asyncHandler(async (req, res) => {
+  const facility = await facilityService.autosaveFacility(req.user!.sub, undefined, req.body);
+  res.status(201).json({ facility });
+});
+
+export const completeFacility = asyncHandler(async (req, res) => {
+  const facility = await facilityService.completeFacility(req.user!.sub, req.params.facilityId, req.body);
+  res.status(200).json({ facility });
+});
