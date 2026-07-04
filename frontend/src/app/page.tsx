@@ -70,13 +70,13 @@ export default function Home() {
 
       <MarketingHeader />
 
-      <main className="relative z-10 mx-auto max-w-4xl px-6 pb-24 pt-16 text-center sm:pt-24">
-        <span className="inline-flex items-center gap-2 rounded-full border border-surface-border bg-surface px-3.5 py-1.5 text-xs font-medium text-muted-foreground">
-          <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+      <main className="relative z-10 mx-auto max-w-4xl px-6 pb-24 pt-10 text-center sm:pt-14">
+        <span className="mx-auto flex w-full max-w-md items-center justify-center gap-2.5 rounded-full border border-surface-border bg-surface px-6 py-3 text-center text-sm font-medium leading-snug text-muted-foreground sm:max-w-xl sm:px-8 sm:py-3.5 sm:text-base md:max-w-2xl md:text-lg">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-teal-500" />
           CBAM &middot; CCTS &middot; EPR &middot; ESG &mdash; one platform.
         </span>
 
-        <h1 className="mt-6 text-[44px] font-semibold leading-tight text-balance sm:text-[60px]">
+        <h1 className="mt-5 text-[44px] font-semibold leading-tight text-balance sm:text-[60px]">
           Environmental compliance and{" "}
           <span className="text-gradient">climate intelligence</span>, unified
         </h1>

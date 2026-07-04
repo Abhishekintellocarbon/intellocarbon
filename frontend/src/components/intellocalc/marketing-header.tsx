@@ -3,6 +3,7 @@ import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { IntelloCalcNavDropdown } from "./intellocalc-nav-dropdown";
 import { FaqNavLink } from "./faq-nav-link";
+import { MobileNav } from "./mobile-nav";
 
 export function MarketingHeader() {
   return (
@@ -10,7 +11,8 @@ export function MarketingHeader() {
       <Link href="/">
         <Logo size="lg" />
       </Link>
-      <nav className="flex items-center gap-1 sm:gap-3">
+      <MobileNav />
+      <nav className="hidden items-center gap-3 md:flex">
         <IntelloCalcNavDropdown />
         <Link
           href="/about"
