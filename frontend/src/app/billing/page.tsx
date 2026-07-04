@@ -55,21 +55,26 @@ const TRUST_SIGNALS = [
 
 const FAQS = [
   {
-    question: "What is CBAM and do I need it?",
+    question: "Can I change plans later?",
     answer:
-      "CBAM applies if your company exports steel, cement, aluminium, fertilizers, hydrogen, or electricity to the European Union. From January 2026, your EU buyer needs verified emissions data from you.",
+      "Yes — switch between CCTS Compliance, CBAM Compliance, or CBAM + CCTS at any time from this page. Your new plan takes effect immediately, and billing is prorated for the current cycle.",
   },
   {
-    question: "What is CCTS and do I need it?",
+    question: "What happens if I add a facility mid-month?",
     answer:
-      "CCTS is India's Carbon Credit Trading Scheme under S.O. 2825(E) 2023. If your facility falls under BEE's obligated sectors — steel, cement, aluminium, fertilizers, and others — you must monitor and report GHG intensity from Q3 2026.",
+      "Pricing is per facility, per month. Adding a facility increases your monthly charge starting from your next billing cycle — no separate contract or approval needed.",
   },
   {
-    question: "What if I need both?",
-    answer:
-      "Choose CBAM + CCTS. One data entry powers both compliance outputs simultaneously. Your Article 9 deduction is calculated automatically — carbon price paid in India reduces your CBAM certificate obligation.",
+    question: "Do prices include GST?",
+    answer: "Listed prices are exclusive of GST. Applicable GST is added at checkout and shown on your invoice.",
   },
 ];
+
+const PLAN_ORDER_CLASS: Record<string, string> = {
+  CCTS_COMPLIANCE: "sm:order-1",
+  CBAM_PLUS_CCTS: "sm:order-2",
+  CBAM_COMPLIANCE: "sm:order-3",
+};
 
 function ComparisonMark({ ok }: { ok: boolean }) {
   return ok ? (
@@ -100,12 +105,13 @@ function PlanCard({
     <Card
       className={cn(
         "relative flex flex-col rounded-[12px] p-6",
-        plan.highlight ? "border-teal-500/60 shadow-glow" : "",
+        PLAN_ORDER_CLASS[plan.tier],
+        plan.highlight ? "border-teal-500/60 shadow-glow sm:z-10 sm:-translate-y-2 sm:p-7" : "",
       )}
     >
       {plan.highlight && (
         <span className="absolute -top-3 left-6 inline-flex items-center gap-1 rounded-full bg-gradient-teal-blue px-3 py-1 text-xs font-semibold text-[#06120F]">
-          <Sparkles className="h-3 w-3" /> Most Popular
+          <Sparkles className="h-3 w-3" /> Most Recommended
         </span>
       )}
       {isCurrent && (
@@ -283,24 +289,35 @@ function BillingContent() {
 
       {/* Section 1 — plan cards */}
       {plans && (
-        <div className="mt-8 grid gap-6 sm:grid-cols-3">
-          {plans.map((plan) => {
-            const isCurrent = subscription?.tier === plan.tier && subscription.status === "ACTIVE";
-            const isSwitchable = Boolean(subscription?.status === "ACTIVE" && !isCurrent);
-            return (
-              <PlanCard
-                key={plan.tier}
-                plan={plan}
-                quantity={quantities[plan.tier] ?? 1}
-                onQuantityChange={(q) => setQuantities((prev) => ({ ...prev, [plan.tier]: q }))}
-                isCurrent={isCurrent}
-                isSwitchable={isSwitchable}
-                isLoading={checkingOutTier === plan.tier}
-                onSubscribe={() => handleSubscribe(plan.tier)}
-              />
-            );
-          })}
-        </div>
+        <>
+          <div className="mt-8 grid gap-6 sm:grid-cols-3">
+            {plans.map((plan) => {
+              const isCurrent = subscription?.tier === plan.tier && subscription.status === "ACTIVE";
+              const isSwitchable = Boolean(subscription?.status === "ACTIVE" && !isCurrent);
+              return (
+                <PlanCard
+                  key={plan.tier}
+                  plan={plan}
+                  quantity={quantities[plan.tier] ?? 1}
+                  onQuantityChange={(q) => setQuantities((prev) => ({ ...prev, [plan.tier]: q }))}
+                  isCurrent={isCurrent}
+                  isSwitchable={isSwitchable}
+                  isLoading={checkingOutTier === plan.tier}
+                  onSubscribe={() => handleSubscribe(plan.tier)}
+                />
+              );
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-surface-border bg-surface-raised/40 px-5 py-3 text-sm">
+            <span className="text-muted-foreground">
+              Have more than 5 facilities? Get in touch — custom enterprise pricing available.
+            </span>
+            <a href="mailto:sales@intellocarbon.com" className="shrink-0 font-medium text-teal-500 hover:underline">
+              Contact us
+            </a>
+          </div>
+        </>
       )}
 
       {/* Section 2 — feature comparison table */}
@@ -351,20 +368,7 @@ function BillingContent() {
         </div>
       </div>
 
-      {/* Section 4 — enterprise callout */}
-      <Card className="mt-14 flex flex-col items-start justify-between gap-4 rounded-[12px] border-teal-500/20 bg-gradient-radial-glow p-6 sm:flex-row sm:items-center">
-        <p className="text-sm text-foreground/90 sm:max-w-2xl">
-          For companies with more than 5 facilities or needing EPR modules, ESG reporting, or custom
-          integrations — contact us for Enterprise pricing.
-        </p>
-        <a href="mailto:sales@intellocarbon.com" className="shrink-0">
-          <Button variant="secondary" className="rounded-[8px]">
-            Contact Us
-          </Button>
-        </a>
-      </Card>
-
-      {/* Section 5 — trust signals */}
+      {/* Section 4 — trust signals */}
       <div className="mt-14 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 border-y border-surface-border py-6 text-center">
         {TRUST_SIGNALS.map((signal) => (
           <span key={signal} className="flex items-center gap-2 text-xs text-muted-foreground">
