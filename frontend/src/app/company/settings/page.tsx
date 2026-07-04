@@ -17,6 +17,68 @@ import { AppHeader } from "@/components/layout/app-header";
 import { companySettingsSchema, type CompanySettingsValues } from "@/lib/validations/company";
 import { SECTOR_OPTIONS, FY_START_MONTH_OPTIONS } from "@/lib/constants";
 import { companyApi, ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
+
+function DeclarantPreviewCard({
+  name,
+  registrationNumber,
+  sectorLabel,
+  appliesCbam,
+  appliesCcts,
+}: {
+  name?: string;
+  registrationNumber?: string;
+  sectorLabel: string;
+  appliesCbam?: boolean;
+  appliesCcts?: boolean;
+}) {
+  return (
+    <Card className="rounded-[12px] p-6">
+      <h2 className="font-medium">Your CBAM Declarant Profile</h2>
+      <p className="mt-1 text-xs text-muted-foreground">Live preview — updates as you fill in the form.</p>
+
+      <div className="mt-5 space-y-4">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Company</p>
+          <p className="mt-1 text-sm font-medium text-foreground">{name || "Your company name"}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">CIN / registration number</p>
+          <p className="mt-1 text-sm text-foreground/90">{registrationNumber || "—"}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Sector</p>
+          <p className="mt-1 text-sm text-foreground/90">{sectorLabel}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Compliance modules</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-semibold",
+                appliesCbam
+                  ? "border-teal-500/40 bg-teal-500/10 text-teal-500"
+                  : "border-surface-border text-muted-foreground/50",
+              )}
+            >
+              CBAM
+            </span>
+            <span
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-semibold",
+                appliesCcts
+                  ? "border-teal-500/40 bg-teal-500/10 text-teal-500"
+                  : "border-surface-border text-muted-foreground/50",
+              )}
+            >
+              CCTS
+            </span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 function CompanySettingsContent() {
   const [loading, setLoading] = useState(true);
@@ -28,8 +90,16 @@ function CompanySettingsContent() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CompanySettingsValues>({ resolver: zodResolver(companySettingsSchema) });
+
+  const watchedName = watch("name");
+  const watchedRegistrationNumber = watch("registrationNumber");
+  const watchedSector = watch("sector");
+  const watchedAppliesCbam = watch("appliesCbam");
+  const watchedAppliesCcts = watch("appliesCcts");
+  const watchedSectorLabel = SECTOR_OPTIONS.find((s) => s.value === watchedSector)?.label ?? "—";
 
   useEffect(() => {
     companyApi
@@ -105,7 +175,7 @@ function CompanySettingsContent() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="mx-auto w-full max-w-6xl">
       <div className="mb-8 flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-teal-blue">
           <Building2 className="h-5 w-5 text-[#06120F]" />
@@ -118,6 +188,7 @@ function CompanySettingsContent() {
         </div>
       </div>
 
+      <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:items-start">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
         {serverError && <Alert variant="error">{serverError}</Alert>}
         {saved && <Alert variant="success">Company settings saved.</Alert>}
@@ -281,6 +352,17 @@ function CompanySettingsContent() {
           </Button>
         </div>
       </form>
+
+      <div className="lg:sticky lg:top-24">
+        <DeclarantPreviewCard
+          name={watchedName}
+          registrationNumber={watchedRegistrationNumber}
+          sectorLabel={watchedSectorLabel}
+          appliesCbam={watchedAppliesCbam}
+          appliesCcts={watchedAppliesCcts}
+        />
+      </div>
+      </div>
     </div>
   );
 }
