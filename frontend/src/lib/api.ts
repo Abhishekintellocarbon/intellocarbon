@@ -191,6 +191,18 @@ export const facilityApi = {
     apiFetch(`/api/facilities/${facilityId}`, { method: "PUT", body: JSON.stringify(input) }),
 
   remove: (facilityId: string) => apiFetch(`/api/facilities/${facilityId}`, { method: "DELETE" }),
+
+  // Autosave — permissive, always keeps isDraft true. Create the draft on
+  // first blur (no id yet), then PATCH it on every blur after.
+  autosaveNew: (input: Record<string, unknown>): Promise<{ facility: Facility }> =>
+    apiFetch("/api/facilities/draft", { method: "POST", body: JSON.stringify(input) }),
+
+  autosave: (facilityId: string, input: Record<string, unknown>): Promise<{ facility: Facility }> =>
+    apiFetch(`/api/facilities/${facilityId}/draft`, { method: "PATCH", body: JSON.stringify(input) }),
+
+  // Explicit "Mark as complete" — strict validation, flips isDraft to false.
+  complete: (facilityId: string, input: Record<string, unknown>): Promise<{ facility: Facility }> =>
+    apiFetch(`/api/facilities/${facilityId}/complete`, { method: "POST", body: JSON.stringify(input) }),
 };
 
 export const activityDataApi = {
@@ -208,6 +220,37 @@ export const activityDataApi = {
 
   remove: (facilityId: string, dataId: string) =>
     apiFetch(`/api/facilities/${facilityId}/activity-data/${dataId}`, { method: "DELETE" }),
+
+  // Autosave — permissive, always keeps status DRAFT and never calculates.
+  // Create the draft on first blur (no id yet), then PATCH it on every
+  // blur after.
+  autosaveNew: (facilityId: string, input: Record<string, unknown>): Promise<{ entry: ActivityData }> =>
+    apiFetch(`/api/facilities/${facilityId}/activity-data/draft`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  autosave: (
+    facilityId: string,
+    dataId: string,
+    input: Record<string, unknown>,
+  ): Promise<{ entry: ActivityData }> =>
+    apiFetch(`/api/facilities/${facilityId}/activity-data/${dataId}/draft`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }),
+
+  // Explicit "Submit" — strict validation, flips status to SUBMITTED and
+  // runs the calculation engine.
+  submit: (
+    facilityId: string,
+    dataId: string,
+    input: Record<string, unknown>,
+  ): Promise<{ entry: ActivityData }> =>
+    apiFetch(`/api/facilities/${facilityId}/activity-data/${dataId}/submit`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
 
   downloadReport: async (facilityId: string, dataId: string, type: "cbam" | "ccts"): Promise<void> => {
     const reportUrl = `${API_URL}/api/facilities/${facilityId}/activity-data/${dataId}/report/${type}`;

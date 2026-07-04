@@ -48,8 +48,11 @@ export interface Facility {
   id: string;
   companyId: string;
   name: string;
-  facilityType: FacilityType;
-  productionRoute: ProductionRoute;
+  // Null until the facility's autosaved draft has these fields filled in —
+  // both are required (and validated against the sector) before isDraft
+  // can flip to false.
+  facilityType: FacilityType | null;
+  productionRoute: ProductionRoute | null;
   address: string | null;
   state: string | null;
   district: string | null;
@@ -60,6 +63,7 @@ export interface Facility {
   commissioningYear: number | null;
   productsManufactured: string[];
   cnCodes: string[];
+  isDraft: boolean;
   createdAt: string;
   updatedAt: string;
   _count?: { activityData: number };
@@ -216,10 +220,12 @@ export interface ActivityData {
   id: string;
   facilityId: string;
   sector: Sector;
-  periodStart: string;
-  periodEnd: string;
-  productCategory: string;
-  productionQuantityT: number;
+  // Null until the autosaved draft has these fields filled in — all four
+  // are required before status can flip from DRAFT to SUBMITTED.
+  periodStart: string | null;
+  periodEnd: string | null;
+  productCategory: string | null;
+  productionQuantityT: number | null;
   gridElectricityMwh: number;
   renewableElectricityMwh: number;
   gridEmissionFactorOverride: number | null;

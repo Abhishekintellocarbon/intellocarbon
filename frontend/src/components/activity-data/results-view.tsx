@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils";
 
 const fmt = (n: number, digits = 3) => n.toLocaleString("en-IN", { maximumFractionDigits: digits, minimumFractionDigits: digits });
 const fmtInt = (n: number) => n.toLocaleString("en-IN", { maximumFractionDigits: 1 });
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+const formatDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId: string }) {
   const router = useRouter();
@@ -89,7 +89,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
             {entry.productCategory} · {formatDate(entry.periodStart)} – {formatDate(entry.periodEnd)}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {entry.productionQuantityT.toLocaleString("en-IN")} tonnes produced
+            {(entry.productionQuantityT ?? 0).toLocaleString("en-IN")} tonnes produced
           </p>
         </div>
         <div className="flex gap-2">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Factory, Loader2, MapPin, Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DraftBadge } from "@/components/ui/draft-badge";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { facilityApi } from "@/lib/api";
@@ -76,15 +77,18 @@ function FacilitiesContent() {
             {facilities.map((facility) => (
               <Link key={facility.id} href={`/facilities/${facility.id}`}>
                 <Card className="h-full p-6 transition-colors hover:border-teal-500/40">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-surface-border bg-surface-raised">
-                    <Factory className="h-5 w-5 text-teal-500" />
-                  </span>
+                  <div className="flex items-start justify-between">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-surface-border bg-surface-raised">
+                      <Factory className="h-5 w-5 text-teal-500" />
+                    </span>
+                    {facility.isDraft && <DraftBadge />}
+                  </div>
                   <h3 className="mt-4 font-medium">{facility.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {labelFor(FACILITY_TYPE_OPTIONS, facility.facilityType)}
+                    {facility.facilityType ? labelFor(FACILITY_TYPE_OPTIONS, facility.facilityType) : "—"}
                   </p>
                   <p className="mt-0.5 text-xs text-muted">
-                    {labelFor(PRODUCTION_ROUTE_OPTIONS, facility.productionRoute)}
+                    {facility.productionRoute ? labelFor(PRODUCTION_ROUTE_OPTIONS, facility.productionRoute) : "—"}
                   </p>
                   {(facility.district || facility.state) && (
                     <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">

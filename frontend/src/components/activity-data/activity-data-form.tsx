@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, type UseFormRegisterReturn, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Flame, Loader2, Package, Plus, Recycle, Trash2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,24 +12,30 @@ import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/ui/field-error";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
+import { useAutosave } from "@/hooks/use-autosave";
 import { activityDataSchema, type ActivityDataFormValues } from "@/lib/validations/activity-data";
 import { activityDataApi, companyApi, referenceApi, ApiError } from "@/lib/api";
-import type { EmissionFactorReference, Sector } from "@/lib/types";
+import type { ActivityData, EmissionFactorReference, Sector } from "@/lib/types";
 import { FUEL_UNIT_LABELS, HYDROGEN_ROUTE_OPTIONS } from "@/lib/constants";
 
-export function ActivityDataForm({ facilityId }: { facilityId: string }) {
+const toDateInputValue = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
+
+export function ActivityDataForm({ facilityId, existingEntry }: { facilityId: string; existingEntry?: ActivityData }) {
   const router = useRouter();
   const [reference, setReference] = useState<EmissionFactorReference | null>(null);
-  const [sector, setSector] = useState<Sector>("STEEL");
+  const [sector, setSector] = useState<Sector>(existingEntry?.sector ?? "STEEL");
   const [serverError, setServerError] = useState<string | null>(null);
+  const savedDataId = useRef<string | undefined>(existingEntry?.id);
 
   useEffect(() => {
     Promise.all([referenceApi.emissionFactors(), companyApi.getMine()])
       .then(([ref, { company }]) => {
         setReference(ref);
-        if (company) setSector(company.sector);
+        if (company && !existingEntry) setSector(company.sector);
       })
       .catch(() => setServerError("Couldn't load emission factor reference data."));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const {
@@ -37,14 +43,58 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
     control,
     handleSubmit,
     watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<ActivityDataFormValues>({
     resolver: zodResolver(activityDataSchema),
-    defaultValues: {
-      fuelEntries: [],
-      processMaterialEntries: [],
-      precursorEntries: [],
-    },
+    defaultValues: existingEntry
+      ? {
+          periodStart: toDateInputValue(existingEntry.periodStart),
+          periodEnd: toDateInputValue(existingEntry.periodEnd),
+          productCategory: existingEntry.productCategory ?? "",
+          productionQuantityT:
+            existingEntry.productionQuantityT != null ? String(existingEntry.productionQuantityT) : "",
+          gridElectricityMwh: String(existingEntry.gridElectricityMwh ?? ""),
+          renewableElectricityMwh: String(existingEntry.renewableElectricityMwh ?? ""),
+          gridEmissionFactorOverride: existingEntry.gridEmissionFactorOverride != null ? String(existingEntry.gridEmissionFactorOverride) : "",
+          steamImportedGj: String(existingEntry.steamImportedGj ?? ""),
+          steamEmissionFactorOverride: existingEntry.steamEmissionFactorOverride != null ? String(existingEntry.steamEmissionFactorOverride) : "",
+          carbonPricePaidEurPerTonne: existingEntry.carbonPricePaidEurPerTonne != null ? String(existingEntry.carbonPricePaidEurPerTonne) : "",
+          cctsTargetIntensity: existingEntry.cctsTargetIntensity != null ? String(existingEntry.cctsTargetIntensity) : "",
+          limestoneInputTonnes: existingEntry.limestoneInputTonnes != null ? String(existingEntry.limestoneInputTonnes) : "",
+          clinkerProducedTonnes: existingEntry.clinkerProducedTonnes != null ? String(existingEntry.clinkerProducedTonnes) : "",
+          clinkerConversionFraction: existingEntry.clinkerConversionFraction != null ? String(existingEntry.clinkerConversionFraction) : "",
+          cf4EmissionsTonnes: existingEntry.cf4EmissionsTonnes != null ? String(existingEntry.cf4EmissionsTonnes) : "",
+          c2f6EmissionsTonnes: existingEntry.c2f6EmissionsTonnes != null ? String(existingEntry.c2f6EmissionsTonnes) : "",
+          anodeEffectMinutes: existingEntry.anodeEffectMinutes != null ? String(existingEntry.anodeEffectMinutes) : "",
+          n2oProcessEmissionsTonnes: existingEntry.n2oProcessEmissionsTonnes != null ? String(existingEntry.n2oProcessEmissionsTonnes) : "",
+          n2oAbatementFactorPct: existingEntry.n2oAbatementFactorPct != null ? String(existingEntry.n2oAbatementFactorPct) : "",
+          naturalGasFeedstockNm3: existingEntry.naturalGasFeedstockNm3 != null ? String(existingEntry.naturalGasFeedstockNm3) : "",
+          hydrogenRoute: existingEntry.hydrogenRoute ?? "",
+          ccsCaptureRatePct: existingEntry.ccsCaptureRatePct != null ? String(existingEntry.ccsCaptureRatePct) : "",
+          hydrogenPurityPct: existingEntry.hydrogenPurityPct != null ? String(existingEntry.hydrogenPurityPct) : "",
+          byproductOxygenTonnes: existingEntry.byproductOxygenTonnes != null ? String(existingEntry.byproductOxygenTonnes) : "",
+          electricityGeneratedMwh: existingEntry.electricityGeneratedMwh != null ? String(existingEntry.electricityGeneratedMwh) : "",
+          electricityExportedEuMwh: existingEntry.electricityExportedEuMwh != null ? String(existingEntry.electricityExportedEuMwh) : "",
+          ownUseElectricityMwh: existingEntry.ownUseElectricityMwh != null ? String(existingEntry.ownUseElectricityMwh) : "",
+          lineLossMwh: existingEntry.lineLossMwh != null ? String(existingEntry.lineLossMwh) : "",
+          notes: existingEntry.notes ?? "",
+          fuelEntries: existingEntry.fuelEntries.map((f) => ({ fuelType: f.fuelType, quantity: String(f.quantity) })),
+          processMaterialEntries: existingEntry.processMaterialEntries.map((m) => ({
+            materialType: m.materialType,
+            quantityTonnes: String(m.quantityTonnes),
+          })),
+          precursorEntries: existingEntry.precursorEntries.map((p) => ({
+            materialType: p.materialType,
+            quantityTonnes: String(p.quantityTonnes),
+            sourceLabel: p.sourceLabel ?? "",
+          })),
+        }
+      : {
+          fuelEntries: [],
+          processMaterialEntries: [],
+          precursorEntries: [],
+        },
   });
 
   const fuelArray = useFieldArray({ control, name: "fuelEntries" });
@@ -60,11 +110,77 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
   const sectorMaterials = reference?.processMaterials.filter((m) => m.sectors.includes(sector)) ?? [];
   const sectorPrecursors = reference?.precursors.filter((p) => p.sectors.includes(sector)) ?? [];
 
+  const buildAutosavePayload = (data: Partial<ActivityDataFormValues>) => ({
+    periodStart: data.periodStart || undefined,
+    periodEnd: data.periodEnd || undefined,
+    productCategory: data.productCategory || undefined,
+    productionQuantityT: data.productionQuantityT || undefined,
+    gridElectricityMwh: data.gridElectricityMwh || undefined,
+    renewableElectricityMwh: data.renewableElectricityMwh || undefined,
+    gridEmissionFactorOverride: data.gridEmissionFactorOverride || undefined,
+    steamImportedGj: data.steamImportedGj || undefined,
+    steamEmissionFactorOverride: data.steamEmissionFactorOverride || undefined,
+    carbonPricePaidEurPerTonne: data.carbonPricePaidEurPerTonne || undefined,
+    cctsTargetIntensity: data.cctsTargetIntensity || undefined,
+    limestoneInputTonnes: data.limestoneInputTonnes || undefined,
+    clinkerProducedTonnes: data.clinkerProducedTonnes || undefined,
+    clinkerConversionFraction: data.clinkerConversionFraction || undefined,
+    cf4EmissionsTonnes: data.cf4EmissionsTonnes || undefined,
+    c2f6EmissionsTonnes: data.c2f6EmissionsTonnes || undefined,
+    anodeEffectMinutes: data.anodeEffectMinutes || undefined,
+    n2oProcessEmissionsTonnes: data.n2oProcessEmissionsTonnes || undefined,
+    n2oAbatementFactorPct: data.n2oAbatementFactorPct || undefined,
+    naturalGasFeedstockNm3: data.naturalGasFeedstockNm3 || undefined,
+    hydrogenRoute: data.hydrogenRoute || undefined,
+    ccsCaptureRatePct: data.ccsCaptureRatePct || undefined,
+    hydrogenPurityPct: data.hydrogenPurityPct || undefined,
+    byproductOxygenTonnes: data.byproductOxygenTonnes || undefined,
+    electricityGeneratedMwh: data.electricityGeneratedMwh || undefined,
+    electricityExportedEuMwh: data.electricityExportedEuMwh || undefined,
+    ownUseElectricityMwh: data.ownUseElectricityMwh || undefined,
+    lineLossMwh: data.lineLossMwh || undefined,
+    notes: data.notes || undefined,
+    fuelEntries: (data.fuelEntries ?? []).map((f) => ({ fuelType: f.fuelType || undefined, quantity: f.quantity || undefined })),
+    processMaterialEntries: (data.processMaterialEntries ?? []).map((m) => ({
+      materialType: m.materialType || undefined,
+      quantityTonnes: m.quantityTonnes || undefined,
+    })),
+    precursorEntries: (data.precursorEntries ?? []).map((p) => ({
+      materialType: p.materialType || undefined,
+      quantityTonnes: p.quantityTonnes || undefined,
+      sourceLabel: p.sourceLabel || undefined,
+    })),
+  });
+
+  const { status: autosaveStatus, triggerAutosave } = useAutosave(async () => {
+    const payload = buildAutosavePayload(getValues());
+    if (!savedDataId.current) {
+      const { entry } = await activityDataApi.autosaveNew(facilityId, payload);
+      savedDataId.current = entry.id;
+    } else {
+      await activityDataApi.autosave(facilityId, savedDataId.current, payload);
+    }
+  });
+
+  // Drop-in replacement for `register(name)` that also triggers a debounced
+  // autosave on blur.
+  const autosaveField = (name: Path<ActivityDataFormValues>): UseFormRegisterReturn => {
+    const field = register(name);
+    return {
+      ...field,
+      onBlur: (e) => {
+        const result = field.onBlur(e);
+        triggerAutosave();
+        return result;
+      },
+    };
+  };
+
   const onSubmit = async (data: ActivityDataFormValues) => {
     setServerError(null);
     try {
       const isElectricity = sector === "ELECTRICITY";
-      const { entry } = await activityDataApi.create(facilityId, {
+      const payload = {
         periodStart: data.periodStart,
         periodEnd: data.periodEnd,
         productCategory: data.productCategory,
@@ -128,7 +244,11 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           quantityTonnes: Number(p.quantityTonnes),
           sourceLabel: p.sourceLabel || undefined,
         })),
-      });
+      };
+
+      const { entry } = savedDataId.current
+        ? await activityDataApi.submit(facilityId, savedDataId.current, payload)
+        : await activityDataApi.create(facilityId, payload);
       router.push(`/facilities/${facilityId}/data-entry/${entry.id}`);
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
@@ -148,6 +268,10 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+      <div className="flex justify-end">
+        <AutosaveIndicator status={autosaveStatus} />
+      </div>
+
       {serverError && <Alert variant="error">{serverError}</Alert>}
 
       <Card className="p-6">
@@ -155,12 +279,12 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="periodStart">Period start</Label>
-            <Input id="periodStart" type="date" error={Boolean(errors.periodStart)} {...register("periodStart")} />
+            <Input id="periodStart" type="date" error={Boolean(errors.periodStart)} {...autosaveField("periodStart")} />
             <FieldError message={errors.periodStart?.message} />
           </div>
           <div>
             <Label htmlFor="periodEnd">Period end</Label>
-            <Input id="periodEnd" type="date" error={Boolean(errors.periodEnd)} {...register("periodEnd")} />
+            <Input id="periodEnd" type="date" error={Boolean(errors.periodEnd)} {...autosaveField("periodEnd")} />
             <FieldError message={errors.periodEnd?.message} />
           </div>
           <div>
@@ -169,7 +293,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
               id="productCategory"
               placeholder={sector === "FERTILIZER" ? "Ammonia, Urea, Nitric Acid..." : "Crude Steel"}
               error={Boolean(errors.productCategory)}
-              {...register("productCategory")}
+              {...autosaveField("productCategory")}
             />
             <FieldError message={errors.productCategory?.message} />
           </div>
@@ -182,7 +306,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
                 step="any"
                 placeholder="100000"
                 error={Boolean(errors.productionQuantityT)}
-                {...register("productionQuantityT")}
+                {...autosaveField("productionQuantityT")}
               />
               <FieldError message={errors.productionQuantityT?.message} />
             </div>
@@ -201,18 +325,18 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="limestoneInputTonnes">Raw limestone input (tonnes)</Label>
-              <Input id="limestoneInputTonnes" type="number" step="any" placeholder="150000" {...register("limestoneInputTonnes")} />
+              <Input id="limestoneInputTonnes" type="number" step="any" placeholder="150000" {...autosaveField("limestoneInputTonnes")} />
             </div>
             <div>
               <Label htmlFor="clinkerConversionFraction">
                 Fraction converted to clinker <span className="text-muted">(0-1, default 1)</span>
               </Label>
-              <Input id="clinkerConversionFraction" type="number" step="any" min="0" max="1" placeholder="1" {...register("clinkerConversionFraction")} />
+              <Input id="clinkerConversionFraction" type="number" step="any" min="0" max="1" placeholder="1" {...autosaveField("clinkerConversionFraction")} />
               <FieldError message={errors.clinkerConversionFraction?.message} />
             </div>
             <div>
               <Label htmlFor="clinkerProducedTonnes">Clinker produced (tonnes)</Label>
-              <Input id="clinkerProducedTonnes" type="number" step="any" placeholder="95000" {...register("clinkerProducedTonnes")} />
+              <Input id="clinkerProducedTonnes" type="number" step="any" placeholder="95000" {...autosaveField("clinkerProducedTonnes")} />
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
@@ -255,7 +379,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
             return (
               <div key={field.id} className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[1fr_auto_auto]">
                 <div>
-                  <Select error={Boolean(errors.fuelEntries?.[index]?.fuelType)} {...register(`fuelEntries.${index}.fuelType`)}>
+                  <Select error={Boolean(errors.fuelEntries?.[index]?.fuelType)} {...autosaveField(`fuelEntries.${index}.fuelType`)}>
                     <option value="">Select fuel</option>
                     {sectorFuels.map((f) => (
                       <option key={f.key} value={f.key}>
@@ -272,7 +396,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
                       step="any"
                       placeholder="Qty"
                       error={Boolean(errors.fuelEntries?.[index]?.quantity)}
-                      {...register(`fuelEntries.${index}.quantity`)}
+                      {...autosaveField(`fuelEntries.${index}.quantity`)}
                     />
                     <FieldError message={errors.fuelEntries?.[index]?.quantity?.message} />
                   </div>
@@ -304,7 +428,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           </p>
           <div className="mt-4">
             <Label htmlFor="naturalGasFeedstockNm3">Natural gas feedstock (&apos;000 Nm3)</Label>
-            <Input id="naturalGasFeedstockNm3" type="number" step="any" placeholder="500" {...register("naturalGasFeedstockNm3")} />
+            <Input id="naturalGasFeedstockNm3" type="number" step="any" placeholder="500" {...autosaveField("naturalGasFeedstockNm3")} />
           </div>
         </Card>
       )}
@@ -325,13 +449,13 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="n2oProcessEmissionsTonnes">N2O emitted (tonnes)</Label>
-              <Input id="n2oProcessEmissionsTonnes" type="number" step="any" placeholder="45" {...register("n2oProcessEmissionsTonnes")} />
+              <Input id="n2oProcessEmissionsTonnes" type="number" step="any" placeholder="45" {...autosaveField("n2oProcessEmissionsTonnes")} />
             </div>
             <div>
               <Label htmlFor="n2oAbatementFactorPct">
                 Abatement factor <span className="text-muted">(%, if N2O catalyst installed)</span>
               </Label>
-              <Input id="n2oAbatementFactorPct" type="number" step="any" min="0" max="100" placeholder="0" {...register("n2oAbatementFactorPct")} />
+              <Input id="n2oAbatementFactorPct" type="number" step="any" min="0" max="100" placeholder="0" {...autosaveField("n2oAbatementFactorPct")} />
             </div>
           </div>
           {watchedN2o && (
@@ -377,7 +501,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
               <div>
                 <Select
                   error={Boolean(errors.processMaterialEntries?.[index]?.materialType)}
-                  {...register(`processMaterialEntries.${index}.materialType`)}
+                  {...autosaveField(`processMaterialEntries.${index}.materialType`)}
                 >
                   <option value="">Select material</option>
                   {sectorMaterials.map((m) => (
@@ -394,7 +518,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
                   step="any"
                   placeholder="Tonnes"
                   error={Boolean(errors.processMaterialEntries?.[index]?.quantityTonnes)}
-                  {...register(`processMaterialEntries.${index}.quantityTonnes`)}
+                  {...autosaveField(`processMaterialEntries.${index}.quantityTonnes`)}
                 />
                 <FieldError message={errors.processMaterialEntries?.[index]?.quantityTonnes?.message} />
               </div>
@@ -423,17 +547,17 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <Label htmlFor="cf4EmissionsTonnes">CF4 emissions (tonnes)</Label>
-              <Input id="cf4EmissionsTonnes" type="number" step="any" placeholder="0.05" {...register("cf4EmissionsTonnes")} />
+              <Input id="cf4EmissionsTonnes" type="number" step="any" placeholder="0.05" {...autosaveField("cf4EmissionsTonnes")} />
             </div>
             <div>
               <Label htmlFor="c2f6EmissionsTonnes">C2F6 emissions (tonnes)</Label>
-              <Input id="c2f6EmissionsTonnes" type="number" step="any" placeholder="0.005" {...register("c2f6EmissionsTonnes")} />
+              <Input id="c2f6EmissionsTonnes" type="number" step="any" placeholder="0.005" {...autosaveField("c2f6EmissionsTonnes")} />
             </div>
             <div>
               <Label htmlFor="anodeEffectMinutes">
                 Anode effect minutes / cell-day <span className="text-muted">(optional, for estimation)</span>
               </Label>
-              <Input id="anodeEffectMinutes" type="number" step="any" placeholder="0.3" {...register("anodeEffectMinutes")} />
+              <Input id="anodeEffectMinutes" type="number" step="any" placeholder="0.3" {...autosaveField("anodeEffectMinutes")} />
             </div>
           </div>
         </Card>
@@ -471,7 +595,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
               <div>
                 <Select
                   error={Boolean(errors.precursorEntries?.[index]?.materialType)}
-                  {...register(`precursorEntries.${index}.materialType`)}
+                  {...autosaveField(`precursorEntries.${index}.materialType`)}
                 >
                   <option value="">Select material</option>
                   {sectorPrecursors.map((p) => (
@@ -488,11 +612,11 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
                   step="any"
                   placeholder="Tonnes"
                   error={Boolean(errors.precursorEntries?.[index]?.quantityTonnes)}
-                  {...register(`precursorEntries.${index}.quantityTonnes`)}
+                  {...autosaveField(`precursorEntries.${index}.quantityTonnes`)}
                 />
                 <FieldError message={errors.precursorEntries?.[index]?.quantityTonnes?.message} />
               </div>
-              <Input placeholder="Supplier / source country (optional)" {...register(`precursorEntries.${index}.sourceLabel`)} />
+              <Input placeholder="Supplier / source country (optional)" {...autosaveField(`precursorEntries.${index}.sourceLabel`)} />
               <button
                 type="button"
                 onClick={() => precursorArray.remove(index)}
@@ -521,7 +645,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="gridElectricityMwh">Grid electricity purchased (MWh)</Label>
-            <Input id="gridElectricityMwh" type="number" step="any" placeholder="45000" {...register("gridElectricityMwh")} />
+            <Input id="gridElectricityMwh" type="number" step="any" placeholder="45000" {...autosaveField("gridElectricityMwh")} />
           </div>
           <div>
             <Label htmlFor="renewableElectricityMwh">
@@ -532,7 +656,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
               type="number"
               step="any"
               placeholder="5000"
-              {...register("renewableElectricityMwh")}
+              {...autosaveField("renewableElectricityMwh")}
             />
           </div>
           <div>
@@ -540,18 +664,18 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
               Grid emission factor override (tCO2/MWh){" "}
               <span className="text-muted">(default {reference.defaultGridEmissionFactor})</span>
             </Label>
-            <Input id="gridEmissionFactorOverride" type="number" step="any" placeholder={String(reference.defaultGridEmissionFactor)} {...register("gridEmissionFactorOverride")} />
+            <Input id="gridEmissionFactorOverride" type="number" step="any" placeholder={String(reference.defaultGridEmissionFactor)} {...autosaveField("gridEmissionFactorOverride")} />
           </div>
           <div>
             <Label htmlFor="steamImportedGj">Steam imported (GJ)</Label>
-            <Input id="steamImportedGj" type="number" step="any" placeholder="2000" {...register("steamImportedGj")} />
+            <Input id="steamImportedGj" type="number" step="any" placeholder="2000" {...autosaveField("steamImportedGj")} />
           </div>
           <div>
             <Label htmlFor="steamEmissionFactorOverride">
               Steam emission factor override (tCO2/GJ){" "}
               <span className="text-muted">(default {reference.defaultSteamEmissionFactor})</span>
             </Label>
-            <Input id="steamEmissionFactorOverride" type="number" step="any" placeholder="0.07" {...register("steamEmissionFactorOverride")} />
+            <Input id="steamEmissionFactorOverride" type="number" step="any" placeholder="0.07" {...autosaveField("steamEmissionFactorOverride")} />
           </div>
         </div>
       </Card>
@@ -567,7 +691,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="hydrogenRoute">Production route</Label>
-              <Select id="hydrogenRoute" {...register("hydrogenRoute")}>
+              <Select id="hydrogenRoute" {...autosaveField("hydrogenRoute")}>
                 <option value="">Select route</option>
                 {HYDROGEN_ROUTE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -579,20 +703,20 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
             {watchedHydrogenRoute === "SMR_CCS" && (
               <div>
                 <Label htmlFor="ccsCaptureRatePct">CCS capture rate (%)</Label>
-                <Input id="ccsCaptureRatePct" type="number" step="any" min="0" max="100" placeholder="90" {...register("ccsCaptureRatePct")} />
+                <Input id="ccsCaptureRatePct" type="number" step="any" min="0" max="100" placeholder="90" {...autosaveField("ccsCaptureRatePct")} />
               </div>
             )}
             <div>
               <Label htmlFor="hydrogenPurityPct">
                 Hydrogen purity (%) <span className="text-muted">(optional)</span>
               </Label>
-              <Input id="hydrogenPurityPct" type="number" step="any" min="0" max="100" placeholder="99.9" {...register("hydrogenPurityPct")} />
+              <Input id="hydrogenPurityPct" type="number" step="any" min="0" max="100" placeholder="99.9" {...autosaveField("hydrogenPurityPct")} />
             </div>
             <div>
               <Label htmlFor="byproductOxygenTonnes">
                 By-product oxygen (tonnes) <span className="text-muted">(optional, for records)</span>
               </Label>
-              <Input id="byproductOxygenTonnes" type="number" step="any" placeholder="8000" {...register("byproductOxygenTonnes")} />
+              <Input id="byproductOxygenTonnes" type="number" step="any" placeholder="8000" {...autosaveField("byproductOxygenTonnes")} />
             </div>
           </div>
         </Card>
@@ -612,20 +736,20 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="electricityGeneratedMwh">Total electricity generated (MWh)</Label>
-              <Input id="electricityGeneratedMwh" type="number" step="any" placeholder="500000" {...register("electricityGeneratedMwh")} />
+              <Input id="electricityGeneratedMwh" type="number" step="any" placeholder="500000" {...autosaveField("electricityGeneratedMwh")} />
             </div>
             <div>
               <Label htmlFor="electricityExportedEuMwh">Electricity exported to the EU (MWh)</Label>
-              <Input id="electricityExportedEuMwh" type="number" step="any" placeholder="10000" error={Boolean(errors.productionQuantityT)} {...register("electricityExportedEuMwh")} />
+              <Input id="electricityExportedEuMwh" type="number" step="any" placeholder="10000" error={Boolean(errors.productionQuantityT)} {...autosaveField("electricityExportedEuMwh")} />
               <FieldError message={errors.productionQuantityT?.message} />
             </div>
             <div>
               <Label htmlFor="ownUseElectricityMwh">Own use electricity (MWh)</Label>
-              <Input id="ownUseElectricityMwh" type="number" step="any" placeholder="15000" {...register("ownUseElectricityMwh")} />
+              <Input id="ownUseElectricityMwh" type="number" step="any" placeholder="15000" {...autosaveField("ownUseElectricityMwh")} />
             </div>
             <div>
               <Label htmlFor="lineLossMwh">Line losses (MWh)</Label>
-              <Input id="lineLossMwh" type="number" step="any" placeholder="5000" {...register("lineLossMwh")} />
+              <Input id="lineLossMwh" type="number" step="any" placeholder="5000" {...autosaveField("lineLossMwh")} />
             </div>
           </div>
           {!watchedElectricityExported && (
@@ -646,7 +770,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
               type="number"
               step="any"
               placeholder="4.50"
-              {...register("carbonPricePaidEurPerTonne")}
+              {...autosaveField("carbonPricePaidEurPerTonne")}
             />
             <p className="mt-1 text-xs text-muted-foreground">
               Used for the CBAM Article 9 deduction — the carbon price effectively paid in the country of origin.
@@ -661,7 +785,7 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
               type="number"
               step="any"
               placeholder="1.85"
-              {...register("cctsTargetIntensity")}
+              {...autosaveField("cctsTargetIntensity")}
             />
             <p className="mt-1 text-xs text-muted-foreground">
               Your BEE-notified target for this reporting cycle, if known — used for the CCTS CCC surplus/deficit position.
@@ -679,13 +803,16 @@ export function ActivityDataForm({ facilityId }: { facilityId: string }) {
           rows={3}
           className="w-full rounded-xl border border-surface-border bg-surface px-4 py-2.5 text-sm text-foreground outline-none transition-colors placeholder:text-muted focus:border-teal-500/60 focus:ring-2 focus:ring-teal-500/20"
           placeholder="Anything an assessor should know about this reporting period"
-          {...register("notes")}
+          {...autosaveField("notes")}
         />
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-3">
+        <p className="text-xs text-muted-foreground">
+          Your progress is saved automatically. Submitting locks this entry in and calculates emissions.
+        </p>
         <Button type="submit" size="lg" isLoading={isSubmitting}>
-          {isSubmitting ? "Calculating emissions..." : "Save & calculate emissions"}
+          {isSubmitting ? "Calculating emissions..." : "Submit & calculate emissions"}
         </Button>
       </div>
     </form>

@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Calendar, ClipboardList, Factory, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DraftBadge, SubmittedBadge } from "@/components/ui/draft-badge";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { activityDataApi, facilityApi, ApiError } from "@/lib/api";
@@ -15,8 +16,8 @@ import { FACILITY_TYPE_OPTIONS, PRODUCTION_ROUTE_OPTIONS } from "@/lib/constants
 const labelFor = (options: readonly { value: string; label: string }[], value: string) =>
   options.find((o) => o.value === value)?.label ?? value;
 
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+const formatDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 function FacilityDetailContent() {
   const params = useParams<{ id: string }>();
@@ -85,10 +86,13 @@ function FacilityDetailContent() {
               <Factory className="h-5 w-5 text-teal-500" />
             </span>
             <div>
-              <h1 className="text-2xl font-semibold">{facility.name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-semibold">{facility.name}</h1>
+                {facility.isDraft && <DraftBadge />}
+              </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {labelFor(FACILITY_TYPE_OPTIONS, facility.facilityType)} ·{" "}
-                {labelFor(PRODUCTION_ROUTE_OPTIONS, facility.productionRoute)}
+                {facility.facilityType ? labelFor(FACILITY_TYPE_OPTIONS, facility.facilityType) : "—"} ·{" "}
+                {facility.productionRoute ? labelFor(PRODUCTION_ROUTE_OPTIONS, facility.productionRoute) : "—"}
               </p>
               {(facility.district || facility.state) && (
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -145,29 +149,38 @@ function FacilityDetailContent() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {entries.map((entry) => (
-              <Link key={entry.id} href={`/facilities/${facility.id}/data-entry/${entry.id}`}>
-                <Card className="flex flex-col gap-3 p-5 transition-colors hover:border-teal-500/40 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Calendar className="h-3.5 w-3.5 text-muted" />
-                      {formatDate(entry.periodStart)} – {formatDate(entry.periodEnd)}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {entry.productCategory} · {entry.productionQuantityT.toLocaleString("en-IN")} t produced
-                    </p>
-                  </div>
-                  {entry.calculationResult ? (
-                    <div className="flex gap-6">
-                      <Metric label="CBAM SEE" value={`${entry.calculationResult.specificEmbeddedEmissionsCbam.toFixed(3)} tCO2e/t`} />
-                      <Metric label="CCTS intensity" value={`${entry.calculationResult.ghgIntensityCcts.toFixed(3)} tCO2e/t`} />
+            {entries.map((entry) => {
+              const isDraft = entry.status === "DRAFT";
+              const href = isDraft
+                ? `/facilities/${facility.id}/data-entry/${entry.id}/edit`
+                : `/facilities/${facility.id}/data-entry/${entry.id}`;
+              return (
+                <Link key={entry.id} href={href}>
+                  <Card className="flex flex-col gap-3 p-5 transition-colors hover:border-teal-500/40 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <Calendar className="h-3.5 w-3.5 text-muted" />
+                        {formatDate(entry.periodStart)} – {formatDate(entry.periodEnd)}
+                        {isDraft ? <DraftBadge /> : <SubmittedBadge />}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {entry.productCategory ?? "Untitled"} ·{" "}
+                        {entry.productionQuantityT != null ? entry.productionQuantityT.toLocaleString("en-IN") : "—"}{" "}
+                        t produced
+                      </p>
                     </div>
-                  ) : (
-                    <span className="text-xs text-muted">Not yet calculated</span>
-                  )}
-                </Card>
-              </Link>
-            ))}
+                    {entry.calculationResult ? (
+                      <div className="flex gap-6">
+                        <Metric label="CBAM SEE" value={`${entry.calculationResult.specificEmbeddedEmissionsCbam.toFixed(3)} tCO2e/t`} />
+                        <Metric label="CCTS intensity" value={`${entry.calculationResult.ghgIntensityCcts.toFixed(3)} tCO2e/t`} />
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted">{isDraft ? "Not yet submitted" : "Not yet calculated"}</span>
+                    )}
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         )}
       </main>

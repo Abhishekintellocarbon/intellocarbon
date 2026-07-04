@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormRegisterReturn, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Factory, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/ui/field-error";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
+import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
+import { useAutosave } from "@/hooks/use-autosave";
 import { facilitySchema, type FacilityFormValues } from "@/lib/validations/facility";
 import { FACILITY_TYPE_OPTIONS, SECTOR_FACILITY_TYPE_VALUES } from "@/lib/constants";
 import { facilityApi, companyApi, referenceApi, ApiError } from "@/lib/api";
@@ -22,10 +24,15 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
   const searchParams = useSearchParams();
   const isOnboarding = searchParams.get("onboarding") === "1";
   const isEditing = Boolean(facility);
+  // Autosave only applies to the setup wizard (a brand-new facility, or
+  // resuming an incomplete one). Editing an already-complete facility keeps
+  // its existing plain strict-update behavior untouched.
+  const isDraftMode = !facility || facility.isDraft;
 
   const [serverError, setServerError] = useState<string | null>(null);
   const [sector, setSector] = useState<Sector | null>(null);
   const [routeOptions, setRouteOptions] = useState<ReferenceOption[]>([]);
+  const savedFacilityId = useRef<string | undefined>(facility?.id);
 
   useEffect(() => {
     Promise.all([companyApi.getMine(), referenceApi.emissionFactors()])
@@ -44,14 +51,19 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FacilityFormValues>({
     resolver: zodResolver(facilitySchema),
     defaultValues: facility
       ? {
           name: facility.name,
-          facilityType: facility.facilityType,
-          productionRoute: facility.productionRoute,
+          // A draft facility may not have this set yet — cast past the
+          // strict enum type since "" (the unselected <option>) is a valid
+          // runtime value here; zodResolver still requires a real value at
+          // submit time.
+          facilityType: (facility.facilityType ?? "") as FacilityFormValues["facilityType"],
+          productionRoute: facility.productionRoute ?? "",
           address: facility.address ?? "",
           state: facility.state ?? "",
           district: facility.district ?? "",
@@ -66,30 +78,57 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
       : undefined,
   });
 
+  const buildPayload = (data: Partial<FacilityFormValues>) => ({
+    ...data,
+    address: data.address || undefined,
+    state: data.state || undefined,
+    district: data.district || undefined,
+    pincode: data.pincode || undefined,
+    latitude: data.latitude ? Number(data.latitude) : undefined,
+    longitude: data.longitude ? Number(data.longitude) : undefined,
+    installedCapacityTpa: data.installedCapacityTpa ? Number(data.installedCapacityTpa) : undefined,
+    commissioningYear: data.commissioningYear ? Number(data.commissioningYear) : undefined,
+    productsManufactured: data.productsManufactured
+      ? data.productsManufactured.split(",").map((p) => p.trim()).filter(Boolean)
+      : [],
+    cnCodes: data.cnCodes ? data.cnCodes.split(",").map((c) => c.trim()).filter(Boolean) : [],
+  });
+
+  const { status: autosaveStatus, triggerAutosave } = useAutosave(async () => {
+    const payload = buildPayload(getValues());
+    if (!savedFacilityId.current) {
+      const { facility: created } = await facilityApi.autosaveNew(payload);
+      savedFacilityId.current = created.id;
+    } else {
+      await facilityApi.autosave(savedFacilityId.current, payload);
+    }
+  });
+
+  // Drop-in replacement for `register(name)` that also triggers a debounced
+  // autosave on blur — skipped entirely outside draft mode.
+  const autosaveField = (name: Path<FacilityFormValues>): UseFormRegisterReturn => {
+    const field = register(name);
+    if (!isDraftMode) return field;
+    return {
+      ...field,
+      onBlur: (e) => {
+        const result = field.onBlur(e);
+        triggerAutosave();
+        return result;
+      },
+    };
+  };
+
   const onSubmit = async (data: FacilityFormValues) => {
     setServerError(null);
     try {
-      const payload = {
-        ...data,
-        address: data.address || undefined,
-        state: data.state || undefined,
-        district: data.district || undefined,
-        pincode: data.pincode || undefined,
-        latitude: data.latitude ? Number(data.latitude) : undefined,
-        longitude: data.longitude ? Number(data.longitude) : undefined,
-        installedCapacityTpa: data.installedCapacityTpa ? Number(data.installedCapacityTpa) : undefined,
-        commissioningYear: data.commissioningYear ? Number(data.commissioningYear) : undefined,
-        productsManufactured: data.productsManufactured
-          ? data.productsManufactured.split(",").map((p) => p.trim()).filter(Boolean)
-          : [],
-        cnCodes: data.cnCodes
-          ? data.cnCodes.split(",").map((c) => c.trim()).filter(Boolean)
-          : [],
-      };
+      const payload = buildPayload(data);
 
-      const result = facility
-        ? await facilityApi.update(facility.id, payload)
-        : await facilityApi.create(payload);
+      const result = !isDraftMode
+        ? await facilityApi.update(facility!.id, payload)
+        : savedFacilityId.current
+          ? await facilityApi.complete(savedFacilityId.current, payload)
+          : await facilityApi.create(payload);
       router.push(`/facilities/${result.facility.id}`);
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
@@ -98,22 +137,29 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <div className="mb-8 flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-teal-blue">
-          <Factory className="h-5 w-5 text-[#06120F]" />
-        </span>
-        <div>
-          <h1 className="text-xl font-semibold">
-            {isEditing ? "Edit facility" : isOnboarding ? "Add your first facility" : "Add a facility"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {isEditing
-              ? "Update facility details, including data used on your CBAM reports."
-              : isOnboarding
-                ? "One more step — tell us about the plant you want to track."
-                : "Facilities are where activity data and emissions are tracked."}
-          </p>
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-teal-blue">
+            <Factory className="h-5 w-5 text-[#06120F]" />
+          </span>
+          <div>
+            <h1 className="text-xl font-semibold">
+              {isEditing && !isDraftMode
+                ? "Edit facility"
+                : isOnboarding
+                  ? "Add your first facility"
+                  : "Add a facility"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {isEditing && !isDraftMode
+                ? "Update facility details, including data used on your CBAM reports."
+                : isOnboarding
+                  ? "One more step — tell us about the plant you want to track."
+                  : "Facilities are where activity data and emissions are tracked."}
+            </p>
+          </div>
         </div>
+        {isDraftMode && <AutosaveIndicator status={autosaveStatus} />}
       </div>
 
       <Card className="p-6 sm:p-8">
@@ -122,14 +168,14 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
 
           <div>
             <Label htmlFor="name">Facility name</Label>
-            <Input id="name" placeholder="Jamshedpur Plant 1" error={Boolean(errors.name)} {...register("name")} />
+            <Input id="name" placeholder="Jamshedpur Plant 1" error={Boolean(errors.name)} {...autosaveField("name")} />
             <FieldError message={errors.name?.message} />
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="facilityType">Facility type</Label>
-              <Select id="facilityType" error={Boolean(errors.facilityType)} {...register("facilityType")}>
+              <Select id="facilityType" error={Boolean(errors.facilityType)} {...autosaveField("facilityType")}>
                 <option value="">Select type</option>
                 {facilityTypeOptions.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -141,7 +187,7 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
             </div>
             <div>
               <Label htmlFor="productionRoute">Production route</Label>
-              <Select id="productionRoute" error={Boolean(errors.productionRoute)} {...register("productionRoute")}>
+              <Select id="productionRoute" error={Boolean(errors.productionRoute)} {...autosaveField("productionRoute")}>
                 <option value="">Select route</option>
                 {routeOptions.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -162,21 +208,21 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
             <Label htmlFor="address">
               Address <span className="text-muted">(optional)</span>
             </Label>
-            <Input id="address" placeholder="Plot 4, Steel City Industrial Estate" {...register("address")} />
+            <Input id="address" placeholder="Plot 4, Steel City Industrial Estate" {...autosaveField("address")} />
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
               <Label htmlFor="state">State</Label>
-              <Input id="state" placeholder="Jharkhand" {...register("state")} />
+              <Input id="state" placeholder="Jharkhand" {...autosaveField("state")} />
             </div>
             <div>
               <Label htmlFor="district">District</Label>
-              <Input id="district" placeholder="East Singhbhum" {...register("district")} />
+              <Input id="district" placeholder="East Singhbhum" {...autosaveField("district")} />
             </div>
             <div>
               <Label htmlFor="pincode">PIN code</Label>
-              <Input id="pincode" placeholder="831001" maxLength={6} {...register("pincode")} />
+              <Input id="pincode" placeholder="831001" maxLength={6} {...autosaveField("pincode")} />
               <FieldError message={errors.pincode?.message} />
             </div>
           </div>
@@ -186,13 +232,13 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
               <Label htmlFor="latitude">
                 GPS latitude <span className="text-muted">(optional)</span>
               </Label>
-              <Input id="latitude" type="number" step="any" placeholder="22.8046" {...register("latitude")} />
+              <Input id="latitude" type="number" step="any" placeholder="22.8046" {...autosaveField("latitude")} />
             </div>
             <div>
               <Label htmlFor="longitude">
                 GPS longitude <span className="text-muted">(optional)</span>
               </Label>
-              <Input id="longitude" type="number" step="any" placeholder="86.2029" {...register("longitude")} />
+              <Input id="longitude" type="number" step="any" placeholder="86.2029" {...autosaveField("longitude")} />
             </div>
           </div>
 
@@ -201,13 +247,13 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
               <Label htmlFor="installedCapacityTpa">
                 Installed capacity (tonnes/year) <span className="text-muted">(optional)</span>
               </Label>
-              <Input id="installedCapacityTpa" type="number" placeholder="2000000" {...register("installedCapacityTpa")} />
+              <Input id="installedCapacityTpa" type="number" placeholder="2000000" {...autosaveField("installedCapacityTpa")} />
             </div>
             <div>
               <Label htmlFor="commissioningYear">
                 Commissioning year <span className="text-muted">(optional)</span>
               </Label>
-              <Input id="commissioningYear" type="number" placeholder="1998" {...register("commissioningYear")} />
+              <Input id="commissioningYear" type="number" placeholder="1998" {...autosaveField("commissioningYear")} />
               <FieldError message={errors.commissioningYear?.message} />
             </div>
           </div>
@@ -219,7 +265,7 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
             <Input
               id="productsManufactured"
               placeholder="Crude Steel, Hot Rolled Coil"
-              {...register("productsManufactured")}
+              {...autosaveField("productsManufactured")}
             />
           </div>
 
@@ -227,7 +273,7 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
             <Label htmlFor="cnCodes">
               CN code(s) <span className="text-muted">(comma-separated, optional)</span>
             </Label>
-            <Input id="cnCodes" placeholder="7208 10, 7208 25" {...register("cnCodes")} />
+            <Input id="cnCodes" placeholder="7208 10, 7208 25" {...autosaveField("cnCodes")} />
             <p className="mt-1 text-xs text-muted-foreground">
               Customs (CN) codes for goods produced here — shown on your CBAM report.
             </p>

@@ -16,8 +16,8 @@ import { verifierApi, ApiError } from "@/lib/api";
 import type { VerificationRequestDetail } from "@/lib/types";
 
 const fmt = (n: number, digits = 3) => n.toLocaleString("en-IN", { maximumFractionDigits: digits, minimumFractionDigits: digits });
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+const formatDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 interface DecisionForm {
   verifierOrg: string;
@@ -100,11 +100,11 @@ function ReviewContent() {
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-muted-foreground">Type</dt>
-            <dd className="mt-0.5">{facility.facilityType.replace(/_/g, " ")}</dd>
+            <dd className="mt-0.5">{facility.facilityType?.replace(/_/g, " ") ?? "—"}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Production route</dt>
-            <dd className="mt-0.5">{facility.productionRoute.replace(/_/g, " ")}</dd>
+            <dd className="mt-0.5">{facility.productionRoute?.replace(/_/g, " ") ?? "—"}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Sector</dt>
@@ -112,7 +112,7 @@ function ReviewContent() {
           </div>
           <div>
             <dt className="text-muted-foreground">Production quantity</dt>
-            <dd className="mt-0.5">{activityData.productionQuantityT.toLocaleString("en-IN")} t</dd>
+            <dd className="mt-0.5">{(activityData.productionQuantityT ?? 0).toLocaleString("en-IN")} t</dd>
           </div>
         </dl>
       </Card>

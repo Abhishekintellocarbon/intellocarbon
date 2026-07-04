@@ -12,8 +12,8 @@ import { verifierApi, ApiError } from "@/lib/api";
 import type { VerificationRequestDetail } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
 
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+const formatDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 const STATUS_STYLES: Record<string, string> = {
   PENDING: "bg-surface-raised text-muted-foreground border-surface-border",
