@@ -6,18 +6,37 @@ import { ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-export function IntelloCalcFloatingCta({ watchId }: { watchId: string }) {
-  const [visible, setVisible] = useState(false);
+export function IntelloCalcFloatingCta({
+  watchId,
+  hideWhileVisibleId,
+}: {
+  watchId: string;
+  /** Id of a section wider than max-w-4xl (e.g. using the gutter this card floats in) — the card hides while it's in view to avoid overlapping it. */
+  hideWhileVisibleId?: string;
+}) {
+  const [inRange, setInRange] = useState(false);
+  const [overWideSection, setOverWideSection] = useState(false);
 
   useEffect(() => {
     const target = document.getElementById(watchId);
     if (!target) return;
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), {
+    const observer = new IntersectionObserver(([entry]) => setInRange(entry.isIntersecting), {
       rootMargin: "-96px 0px -96px 0px",
     });
     observer.observe(target);
     return () => observer.disconnect();
   }, [watchId]);
+
+  useEffect(() => {
+    if (!hideWhileVisibleId) return;
+    const target = document.getElementById(hideWhileVisibleId);
+    if (!target) return;
+    const observer = new IntersectionObserver(([entry]) => setOverWideSection(entry.isIntersecting));
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hideWhileVisibleId]);
+
+  const visible = inRange && !overWideSection;
 
   return (
     <>

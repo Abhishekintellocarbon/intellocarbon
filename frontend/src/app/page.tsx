@@ -3,7 +3,7 @@ import {
   ArrowRight,
   BarChart3,
   ShieldCheck,
-  Sparkles,
+  FileBarChart,
   PenLine,
   Calculator,
   FileText,
@@ -14,6 +14,17 @@ import {
   Sprout,
   Atom,
   Zap,
+  FlaskConical,
+  Trees,
+  Beaker,
+  Fuel,
+  Shirt,
+  BatteryCharging,
+  Package,
+  Cpu,
+  Disc,
+  Car,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,10 +45,10 @@ const pillars = [
       "Track GHG intensity, earn Carbon Credit Certificates under India's Carbon Credit Trading Scheme. Article 9 deduction calculated automatically.",
   },
   {
-    icon: Sparkles,
-    title: "ESG & Scope 1, 2, 3",
+    icon: FileBarChart,
+    title: "BRSR & ESG Reporting",
     description:
-      "Unified Scope 1, 2 and 3 emissions dashboard built for Indian regulatory frameworks — BRSR, GHG Protocol, ISO 14064.",
+      "SEBI BRSR Core disclosures generated from the same emissions data — GRI, ISSB, CSRD and CDP on the roadmap.",
   },
 ];
 
@@ -54,13 +65,39 @@ const STEPS = [
   { icon: FileText, label: "Report" },
 ];
 
-const SECTORS = [
-  { icon: Factory, label: "Steel" },
-  { icon: Building2, label: "Cement" },
-  { icon: Layers, label: "Aluminium" },
-  { icon: Sprout, label: "Fertilizers" },
-  { icon: Atom, label: "Hydrogen" },
-  { icon: Zap, label: "Electricity" },
+const INDUSTRY_CLUSTERS = [
+  {
+    label: "CBAM Export Sectors",
+    items: [
+      { icon: Factory, label: "Iron & Steel" },
+      { icon: Building2, label: "Cement" },
+      { icon: Layers, label: "Aluminium" },
+      { icon: Sprout, label: "Fertilizers" },
+      { icon: Atom, label: "Hydrogen" },
+      { icon: Zap, label: "Electricity" },
+    ],
+  },
+  {
+    label: "CCTS Obligated Sectors",
+    items: [
+      { icon: FlaskConical, label: "Chlor-Alkali" },
+      { icon: Trees, label: "Pulp & Paper" },
+      { icon: Beaker, label: "Petrochemicals" },
+      { icon: Fuel, label: "Petroleum Refinery" },
+      { icon: Shirt, label: "Textiles" },
+    ],
+  },
+  {
+    label: "ESG & EPR Regulated Industries",
+    items: [
+      { icon: BatteryCharging, label: "Battery Manufacturing & Recycling" },
+      { icon: Package, label: "Plastics & Packaging" },
+      { icon: Cpu, label: "Electronics & E-Waste" },
+      { icon: Disc, label: "Tyre & Rubber" },
+      { icon: Car, label: "Automotive & Engineering" },
+      { icon: Briefcase, label: "Listed Companies & Supply Chains (BRSR)" },
+    ],
+  },
 ];
 
 export default function Home() {
@@ -119,7 +156,7 @@ export default function Home() {
         </div>
       </main>
 
-      <IntelloCalcFloatingCta watchId="mid-sections" />
+      <IntelloCalcFloatingCta watchId="mid-sections" hideWhileVisibleId="industry-coverage" />
 
       <div id="mid-sections">
         {/* Stat strip */}
@@ -154,20 +191,51 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Sector row */}
-        <section className="relative z-10 mx-auto max-w-4xl px-6 pb-20 text-center">
-          <h2 className="text-2xl font-semibold">Built for every CBAM sector</h2>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            {SECTORS.map((sector) => (
-              <div
-                key={sector.label}
-                className="flex items-center gap-2.5 rounded-[12px] border border-surface-border bg-surface px-5 py-3"
-              >
-                <sector.icon className="h-4 w-4 text-teal-500" />
-                <span className="text-sm font-medium text-foreground/90">{sector.label}</span>
+        {/* Industry coverage */}
+        <section id="industry-coverage" className="relative z-10 mx-auto max-w-6xl px-6 pb-20 text-center">
+          <h2 className="text-2xl font-semibold sm:text-3xl">Built for Every Regulated Industry</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-balance text-muted-foreground">
+            One platform covering carbon, ESG and EPR obligations across Indian industry — CBAM sectors included,
+            not the limit.
+          </p>
+
+          <div className="mt-10 grid gap-10 lg:grid-cols-3 lg:text-left">
+            {INDUSTRY_CLUSTERS.map((cluster) => (
+              <div key={cluster.label}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-teal-500">{cluster.label}</p>
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:justify-center sm:gap-3 lg:flex-col lg:items-stretch lg:justify-start">
+                  {cluster.items.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-center gap-2 rounded-[12px] border border-surface-border bg-surface px-4 py-3 text-center transition-all duration-300 hover:-translate-y-0.5 hover:border-teal-500/40 hover:shadow-glow sm:justify-start lg:justify-start"
+                    >
+                      <item.icon className="h-4 w-4 shrink-0 text-teal-500" />
+                      <span className="text-sm font-medium text-foreground/90">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
+
+          <p className="mt-10 text-sm text-[#8AA0B4]">
+            + every industry with environmental compliance obligations
+          </p>
+        </section>
+
+        {/* ESG & BRSR */}
+        <section className="relative z-10 mx-auto max-w-4xl px-6 pb-20 text-center">
+          <h2 className="text-2xl font-semibold">ESG &amp; BRSR</h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
+            <span className="font-medium text-teal-500">BRSR Core is live</span> — reusing the GHG data you&apos;ve
+            already submitted for CBAM/CCTS. GRI, ISSB IFRS S1/S2, CSRD, and CDP are in active development.
+          </p>
+          <Link href="/esg" className="mt-6 inline-block">
+            <Button variant="secondary" size="sm">
+              Explore ESG frameworks
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
         </section>
       </div>
 

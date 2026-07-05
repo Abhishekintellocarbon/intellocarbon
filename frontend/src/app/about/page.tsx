@@ -22,9 +22,9 @@ const METHODOLOGY = [
 const WHY_CARDS = [
   {
     icon: Globe2,
-    title: "CBAM + CCTS in one platform",
+    title: "CBAM, CCTS & BRSR in one platform",
     description:
-      "The only platform that combines EU carbon border compliance and India domestic carbon market compliance from a single data entry point.",
+      "Carbon border compliance, India's domestic carbon market, and SEBI BRSR ESG reporting — all from a single data entry point.",
   },
   {
     icon: ShieldCheck,
@@ -79,6 +79,10 @@ export default function AboutPage() {
               focused on large corporations, or only serve one framework at a time. Intellocarbon was built to
               change this. One platform. One data entry. Every compliance output — CBAM Communication Package,
               CCTS BEE Forms, EPR filings, ESG reports — generated automatically.
+            </p>
+            <p className="mt-4 max-w-2xl text-sm text-[#8AA0B4]">
+              <span className="font-medium text-teal-500">BRSR Core is live today</span> on the platform. Broader
+              ESG frameworks — GRI, ISSB IFRS S1/S2, CSRD, and CDP — are in active development.
             </p>
 
             <div className="mt-12 grid gap-8 sm:grid-cols-2 sm:items-start">

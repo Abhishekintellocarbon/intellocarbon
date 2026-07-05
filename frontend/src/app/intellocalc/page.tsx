@@ -93,7 +93,8 @@ export default function IntelloCalcHub() {
         <Card className="mx-auto mt-20 max-w-xl p-8">
           <h2 className="text-lg font-semibold">Ready for verified compliance reports?</h2>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Sign up on Intellocarbon for verified CBAM reports, CCTS filings, and ongoing compliance tracking.
+            Sign up on Intellocarbon for verified CBAM reports, CCTS filings, BRSR disclosures, and ongoing
+            compliance tracking.
           </p>
           <Link href="/signup" className="mt-5 inline-block">
             <Button>
