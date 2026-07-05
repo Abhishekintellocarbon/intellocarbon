@@ -66,49 +66,59 @@ export default function AboutPage() {
 
       <main className="relative z-10 mx-auto max-w-5xl px-6 pb-24">
         {/* Section 1 — Our Mission */}
-        <section className="grid gap-8 border-t border-surface-border py-14 sm:grid-cols-2">
-          <h2 className="text-2xl font-semibold text-[#E8F0F7]">Our Mission</h2>
-          <p className="text-[#8AA0B4]">
-            India&apos;s industrial exporters face mandatory carbon compliance obligations on two fronts
-            simultaneously — EU CBAM from 2026 and India CCTS from Q3 2026 — alongside growing EPR and ESG
-            reporting requirements. Most compliance tools available are either too expensive for MSMEs, too
-            focused on large corporations, or only serve one framework at a time. Intellocarbon was built to
-            change this. One platform. One data entry. Every compliance output — CBAM Communication Package,
-            CCTS BEE Forms, EPR filings, ESG reports — generated automatically.
-          </p>
-        </section>
+        <section className="relative overflow-hidden border-t border-surface-border py-20 sm:py-24">
+          <div className="pointer-events-none absolute inset-0 bg-grid opacity-20" />
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-radial-glow" />
 
-        {/* Section 2 — Our Approach */}
-        <section className="grid gap-8 border-t border-surface-border py-14 sm:grid-cols-2">
-          <Card className="rounded-[12px] border-teal-500 p-6">
-            <h3 className="text-lg font-semibold text-[#E8F0F7]">Verification-first, by design</h3>
-            <p className="mt-1 text-sm text-teal-500">Intellocarbon Solutions Private Limited</p>
-            <ul className="mt-5 space-y-2.5">
-              {METHODOLOGY.map((item) => (
-                <li key={item} className="flex items-start gap-2 text-sm text-[#8AA0B4]">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </Card>
-          <p className="text-[#8AA0B4]">
-            Most compliance tools available to Indian industrial exporters are either too expensive for MSMEs,
-            too focused on large corporations, or built by teams without direct exposure to how GHG inventories
-            are actually verified. Intellocarbon closes that gap — our verification workflows are built on ISO
-            14064-1 and ISO 14064-3, the international standard for GHG inventory design and independent
-            verification, reviewed by accredited verifiers inside the platform. Built in India, for
-            India&apos;s industrial compliance needs.
-          </p>
+          <div className="relative">
+            <h2 className="text-2xl font-semibold text-[#E8F0F7] sm:text-3xl">Our Mission</h2>
+            <p className="mt-5 max-w-2xl text-[#8AA0B4] sm:text-lg">
+              India&apos;s industrial exporters face mandatory carbon compliance obligations on two fronts
+              simultaneously — EU CBAM from 2026 and India CCTS from Q3 2026 — alongside growing EPR and ESG
+              reporting requirements. Most compliance tools available are either too expensive for MSMEs, too
+              focused on large corporations, or only serve one framework at a time. Intellocarbon was built to
+              change this. One platform. One data entry. Every compliance output — CBAM Communication Package,
+              CCTS BEE Forms, EPR filings, ESG reports — generated automatically.
+            </p>
+
+            <div className="mt-12 grid gap-8 sm:grid-cols-2 sm:items-start">
+              <Card className="group relative rounded-[12px] border-teal-500/40 p-7 transition-all duration-300 hover:-translate-y-1 hover:border-teal-500/60 hover:shadow-glow">
+                <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-surface-border bg-[radial-gradient(circle,rgba(0,212,170,0.18)_0%,rgba(0,212,170,0)_70%)]">
+                  <ShieldCheck className="h-5 w-5 text-teal-500" />
+                </span>
+                <h3 className="mt-4 text-lg font-semibold text-[#E8F0F7]">Verification-first, by design</h3>
+                <p className="mt-1 text-sm text-teal-500">Intellocarbon Solutions Private Limited</p>
+                <ul className="mt-5 space-y-2.5">
+                  {METHODOLOGY.map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-sm text-[#8AA0B4]">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+              <p className="text-[#8AA0B4] sm:pt-2">
+                Most compliance tools available to Indian industrial exporters are either too expensive for
+                MSMEs, too focused on large corporations, or built by teams without direct exposure to how GHG
+                inventories are actually verified. Intellocarbon closes that gap — our verification workflows
+                are built on ISO 14064-1 and ISO 14064-3, the international standard for GHG inventory design
+                and independent verification, reviewed by accredited verifiers inside the platform. Built in
+                India, for India&apos;s industrial compliance needs.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* Section 3 — Why Intellocarbon */}
         <section className="border-t border-surface-border py-14">
           <h2 className="text-2xl font-semibold text-[#E8F0F7]">Why Intellocarbon</h2>
-          <div className="mt-8 grid gap-5 sm:grid-cols-2">
+          <div className="mt-8 grid gap-6 sm:grid-cols-2">
             {WHY_CARDS.map((card) => (
-              <Card key={card.title} className="rounded-[12px] p-6">
-                <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-surface-border bg-surface-raised">
+              <Card
+                key={card.title}
+                className="group relative rounded-[12px] p-7 transition-all duration-300 hover:-translate-y-1 hover:border-teal-500/40 hover:shadow-glow"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-surface-border bg-[radial-gradient(circle,rgba(0,212,170,0.18)_0%,rgba(0,212,170,0)_70%)] transition-colors group-hover:border-teal-500/40">
                   <card.icon className="h-5 w-5 text-teal-500" />
                 </span>
                 <h3 className="mt-4 font-semibold text-[#E8F0F7]">{card.title}</h3>

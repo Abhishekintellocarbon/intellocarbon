@@ -5,12 +5,6 @@ export function ToolFooter() {
         © 2026 Intellocarbon Solutions Private Limited | intellocarbon.com | All calculations are estimates.
         Verified reports available on the platform.
       </p>
-      <p className="mx-auto mt-3 max-w-3xl">
-        Intellocarbon provides calculation and reporting tools based on data you provide and applicable
-        regulations at the time of use. Final compliance responsibility rests with the client and their
-        appointed verifier/auditor. Intellocarbon is not liable for penalties arising from inaccurate
-        client-submitted data or regulatory changes not yet reflected in the platform.
-      </p>
     </footer>
   );
 }
