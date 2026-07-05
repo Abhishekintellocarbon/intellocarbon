@@ -1,0 +1,79 @@
+name: Monthly security check
+
+on:
+  schedule:
+    - cron: "0 0 1 * *" # 1st of every month, 00:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  monthly-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history — needed for the git secret scan over the last 30 days
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: npm audit — backend
+        id: audit_backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm audit --json > audit-result.json || true
+          node ../scripts/check-audit.js audit-result.json > ../backend-audit-report.txt 2>&1 || echo "BACKEND_AUDIT_FAILED=1" >> "$GITHUB_ENV"
+        continue-on-error: true
+
+      - name: npm audit — frontend
+        id: audit_frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --json > audit-result.json || true
+          node ../scripts/check-audit.js audit-result.json .audit-allowlist.json > ../frontend-audit-report.txt 2>&1 || echo "FRONTEND_AUDIT_FAILED=1" >> "$GITHUB_ENV"
+        continue-on-error: true
+
+      - name: Rate-limit / CORS drift check
+        run: node scripts/check-config-drift.js > config-drift-report.txt 2>&1 || echo "CONFIG_DRIFT_FAILED=1" >> "$GITHUB_ENV"
+        continue-on-error: true
+
+      - name: Secret scan — last 30 days of commits
+        run: |
+          {
+            echo "Scanning commits from the last 30 days for accidentally committed secrets..."
+            git log --all --since="30 days ago" -p 2>/dev/null \
+              | grep -nE "postgres(ql)?://[^ ]*:[^ @]*@|DATABASE_URL\s*=\s*[\"']?postgres|JWT_(ACCESS|REFRESH)_SECRET\s*=\s*[\"']?[A-Za-z0-9+/]{15,}|rzp_(live|test)_[A-Za-z0-9]+|re_[A-Za-z0-9_]{20,}|sk_live_|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC )?PRIVATE KEY-----" \
+              | grep -v "\.env\.example\|postgres:postgres@localhost" > secret-scan-hits.txt || true
+            if [ -s secret-scan-hits.txt ]; then
+              echo "POSSIBLE SECRETS FOUND — review immediately:"
+              cat secret-scan-hits.txt
+            else
+              echo "No secret-like patterns found in the last 30 days of commit history."
+            fi
+          } > secret-scan-report.txt 2>&1
+
+      - name: Compile and send report
+        run: |
+          {
+            echo "=== npm audit — backend ==="
+            cat backend-audit-report.txt
+            echo
+            echo "=== npm audit — frontend ==="
+            cat frontend-audit-report.txt
+            echo
+            echo "=== Rate-limit / CORS drift check ==="
+            cat config-drift-report.txt
+            echo
+            echo "=== Secret scan (last 30 days) ==="
+            cat secret-scan-report.txt
+          } | node scripts/send-monthly-report.js
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+
+      - name: Fail workflow if anything needs attention
+        if: env.BACKEND_AUDIT_FAILED == '1' || env.FRONTEND_AUDIT_FAILED == '1' || env.CONFIG_DRIFT_FAILED == '1'
+        run: |
+          echo "::error::One or more monthly security checks found something new — see the emailed report."
+          exit 1
