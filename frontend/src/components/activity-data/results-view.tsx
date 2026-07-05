@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BadgeCheck, Download, Info, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Download, Info, Lock, ShieldCheck, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { activityDataApi, ApiError } from "@/lib/api";
-import type { ActivityData, VerificationRequest } from "@/lib/types";
+import { activityDataApi, referenceApi, ApiError } from "@/lib/api";
+import type { ActivityData, ReportWindowStatus, VerificationRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const fmt = (n: number, digits = 3) => n.toLocaleString("en-IN", { maximumFractionDigits: digits, minimumFractionDigits: digits });
@@ -19,6 +19,7 @@ const formatDate = (iso: string | null) =>
 export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId: string }) {
   const router = useRouter();
   const [entry, setEntry] = useState<ActivityData | null>(null);
+  const [reportWindows, setReportWindows] = useState<ReportWindowStatus | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -30,6 +31,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
       .get(facilityId, dataId)
       .then(({ entry }) => setEntry(entry))
       .catch(() => setLoadError("Couldn't load this activity data entry."));
+    referenceApi.reportWindows().then(setReportWindows).catch(() => setReportWindows(null));
   }, [facilityId, dataId]);
 
   const handleDelete = async () => {
@@ -73,6 +75,10 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
   if (!entry) return null;
 
   const result = entry.calculationResult;
+  const cbamOpen = reportWindows?.cbam.open ?? true;
+  const cctsOpen = reportWindows?.ccts.open ?? true;
+  const cbamUnlockLabel = reportWindows ? formatDate(reportWindows.cbam.unlockDate) : null;
+  const cctsUnlockLabel = reportWindows ? formatDate(reportWindows.ccts.unlockDate) : null;
 
   return (
     <div className="space-y-6">
@@ -100,8 +106,10 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
                 size="sm"
                 onClick={() => handleDownload("cbam")}
                 isLoading={downloading === "cbam"}
+                disabled={!cbamOpen}
+                title={cbamOpen ? undefined : `Report generation opens on ${cbamUnlockLabel}`}
               >
-                <Download className="h-3.5 w-3.5" />
+                {cbamOpen ? <Download className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                 CBAM report
               </Button>
               <Button
@@ -109,8 +117,10 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
                 size="sm"
                 onClick={() => handleDownload("ccts")}
                 isLoading={downloading === "ccts"}
+                disabled={!cctsOpen}
+                title={cctsOpen ? undefined : `Report generation opens on ${cctsUnlockLabel}`}
               >
-                <Download className="h-3.5 w-3.5" />
+                {cctsOpen ? <Download className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                 CCTS report
               </Button>
             </>
@@ -121,6 +131,18 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
           </Button>
         </div>
       </div>
+
+      {result && (!cbamOpen || !cctsOpen) && (
+        <Alert variant="info">
+          <div className="flex items-start gap-2">
+            <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              {!cbamOpen && <>CBAM report generation opens on {cbamUnlockLabel}. </>}
+              {!cctsOpen && <>CCTS report generation opens on {cctsUnlockLabel}.</>}
+            </span>
+          </div>
+        </Alert>
+      )}
 
       {actionError && <Alert variant="error">{actionError}</Alert>}
 

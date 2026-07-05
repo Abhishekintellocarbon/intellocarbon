@@ -122,6 +122,51 @@ export const sendVerificationDecidedEmail = async (
   });
 };
 
+export const sendMonthlyReminderEmail = async (
+  to: string,
+  facilityName: string,
+  currentMonthLabel: string,
+  previousMonthIncomplete: boolean,
+  previousMonthLabel: string,
+): Promise<void> => {
+  const html = emailShell(
+    `Enter ${currentMonthLabel} activity data`,
+    previousMonthIncomplete
+      ? `<p>Your <strong>${previousMonthLabel}</strong> activity data for <strong>${facilityName}</strong> is still incomplete or in draft. Please finish it, then enter your ${currentMonthLabel} data.</p>
+         ${button(`${env.CLIENT_URL}/facilities`, "Complete activity data")}`
+      : `<p>Please enter ${currentMonthLabel} activity data for <strong>${facilityName}</strong>.</p>
+         ${button(`${env.CLIENT_URL}/facilities`, "Enter activity data")}`,
+  );
+  await sendEmail({
+    to,
+    subject: `Reminder: enter ${currentMonthLabel} activity data for ${facilityName}`,
+    html,
+  });
+};
+
+export const sendDeadlineWarningEmail = async (
+  to: string,
+  framework: "CCTS" | "CBAM",
+  daysLeft: 30 | 7,
+  incompleteCount: number,
+  totalCount: number,
+  deadlineLabel: string,
+): Promise<void> => {
+  const urgent = daysLeft === 7;
+  const html = emailShell(
+    urgent ? `Urgent: ${framework} report due in 7 days` : `${framework} report due in 30 days`,
+    `<p>${urgent ? '<strong style="color:#FF5C6C">Urgent — a</strong>' : "Your"} ${framework} report is due on <strong>${deadlineLabel}</strong> (${daysLeft} days away). <strong>${incompleteCount} of ${totalCount}</strong> required data entries ${incompleteCount === 1 ? "is" : "are"} still incomplete.</p>
+     ${button(`${env.CLIENT_URL}/facilities`, "Review activity data")}`,
+  );
+  await sendEmail({
+    to,
+    subject: urgent
+      ? `Urgent: ${framework} report due in 7 days — ${incompleteCount} entries incomplete`
+      : `${framework} report due in 30 days — ${incompleteCount} entries incomplete`,
+    html,
+  });
+};
+
 const fmtNum = (n: number, digits = 2) => n.toLocaleString("en-IN", { maximumFractionDigits: digits });
 const fmtEur = (n: number) => `€${fmtNum(n)}`;
 const fmtInr = (n: number) => `₹${fmtNum(n)}`;

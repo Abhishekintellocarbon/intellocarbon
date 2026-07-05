@@ -22,6 +22,12 @@ import {
   EU_DEFAULT_SEE_BY_FERTILIZER_PRODUCT,
   EU_DEFAULT_SEE_BY_ROUTE,
 } from "../data/cbamReferenceData";
+import {
+  isCbamReportWindowOpen,
+  isCctsReportWindowOpen,
+  nextCbamUnlockDate,
+  nextCctsUnlockDate,
+} from "../data/complianceDeadlines";
 
 const enumOptions = (values: Record<string, string>) =>
   Object.values(values).map((value) => ({
@@ -62,5 +68,13 @@ export const getEmissionFactorReference = asyncHandler(async (_req, res) => {
       source: N2O_DEFAULT_EF_SOURCE,
     },
     cementCalcinationEmissionFactor: CEMENT_CALCINATION_EMISSION_FACTOR,
+  });
+});
+
+export const getReportWindowStatus = asyncHandler(async (_req, res) => {
+  const now = new Date();
+  res.status(200).json({
+    cbam: { open: isCbamReportWindowOpen(now), unlockDate: nextCbamUnlockDate(now).toISOString() },
+    ccts: { open: isCctsReportWindowOpen(now), unlockDate: nextCctsUnlockDate(now).toISOString() },
   });
 });

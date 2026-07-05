@@ -62,7 +62,7 @@ export const deleteActivityData = asyncHandler(async (req, res) => {
 
 const downloadReport = (type: ReportType) =>
   asyncHandler(async (req, res) => {
-    const ctx = await getReportContext(req.user!.sub, req.params.facilityId, req.params.dataId);
+    const ctx = await getReportContext(req.user!.sub, req.params.facilityId, req.params.dataId, type);
     const doc = generateReportPdf(ctx, type);
 
     const filename = `${type.toLowerCase()}-report-${ctx.facility.name.replace(/\s+/g, "-").toLowerCase()}-${ctx.id.slice(-8)}.pdf`;

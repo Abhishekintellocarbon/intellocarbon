@@ -4,6 +4,13 @@ import { requireOwnedActivityData } from "./activityData.service";
 import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
 import { buildCbamCommunicationPackage } from "./cbamReport/build";
 import { SECTOR_PRODUCTION_ROUTES } from "../data/cbamReferenceData";
+import { AppError } from "../utils/AppError";
+import {
+  isCbamReportWindowOpen,
+  isCctsReportWindowOpen,
+  nextCbamUnlockDate,
+  nextCctsUnlockDate,
+} from "../data/complianceDeadlines";
 
 const TEAL = "#00A886";
 const NAVY = "#0F1923";
@@ -12,7 +19,33 @@ const BORDER = "#D8DEE4";
 
 export type ReportType = "CBAM" | "CCTS";
 
-export const getReportContext = async (userId: string, facilityId: string, activityDataId: string) => {
+const fmtUnlockDate = (d: Date) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+
+// The actual security boundary — the frontend also disables the button and
+// shows this same message, but that's cosmetic; this is what stops someone
+// hitting the download URL directly outside the reporting window.
+const requireReportWindowOpen = (type: ReportType, now: Date = new Date()): void => {
+  if (type === "CBAM" && !isCbamReportWindowOpen(now)) {
+    throw AppError.forbidden(
+      `Report generation opens on ${fmtUnlockDate(nextCbamUnlockDate(now))}`,
+      "REPORT_WINDOW_CLOSED",
+    );
+  }
+  if (type === "CCTS" && !isCctsReportWindowOpen(now)) {
+    throw AppError.forbidden(
+      `Report generation opens on ${fmtUnlockDate(nextCctsUnlockDate(now))}`,
+      "REPORT_WINDOW_CLOSED",
+    );
+  }
+};
+
+export const getReportContext = async (
+  userId: string,
+  facilityId: string,
+  activityDataId: string,
+  type: ReportType,
+) => {
+  requireReportWindowOpen(type);
   await requireOwnedActivityData(userId, facilityId, activityDataId);
 
   const activityData = await prisma.activityData.findUniqueOrThrow({

@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { LiveClock } from "@/components/layout/live-clock";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,7 @@ export function AppHeader() {
         </div>
         <div className="flex items-center gap-4">
           <LiveClock />
+          {user?.role !== "VERIFIER" && <NotificationBell />}
           <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
           <Button variant="secondary" size="sm" onClick={handleLogout}>
             <LogOut className="h-3.5 w-3.5" />

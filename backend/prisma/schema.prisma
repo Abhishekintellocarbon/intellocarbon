@@ -35,6 +35,7 @@ model User {
   passwordResetTokens  PasswordResetToken[]
   company              Company?
   verificationsHandled VerificationRequest[] @relation("VerifierAssignments")
+  notifications        Notification[]
 
   @@map("users")
 }
@@ -83,6 +84,7 @@ model Company {
   facilities           Facility[]
   subscription         Subscription?
   verificationRequests VerificationRequest[]
+  notifications        Notification[]
 
   @@map("companies")
 }
@@ -163,6 +165,44 @@ model VerificationRequest {
   @@map("verification_requests")
 }
 
+enum NotificationType {
+  MONTHLY_REMINDER
+  DEADLINE_WARNING_30D
+  DEADLINE_URGENT_7D
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Set for facility-specific alerts (monthly reminder); null for
+  // company-wide deadline alerts (which aren't about any one facility).
+  facilityId String?
+  facility   Facility?        @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  title      String
+  body       String
+  // Uniquely identifies "this alert, for this company, for this period" —
+  // e.g. "monthly:<facilityId>:2026-07", "cbam-30d:2026-Q3", "ccts-7d:2026".
+  // Lets the daily cron run unconditionally every day and rely on the
+  // unique constraint below to silently no-op on days 2..N of a window,
+  // instead of tracking "have I already sent this" separately. Encoding the
+  // facility id inside the string (rather than making facilityId part of
+  // the constraint) sidesteps Postgres treating NULL as distinct-from-NULL,
+  // which would otherwise break dedup for the facility-less company-wide
+  // alerts.
+  dedupeKey   String
+  readAt      DateTime?
+  emailSentAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([companyId, dedupeKey])
+  @@index([userId])
+  @@map("notifications")
+}
+
 enum FacilityType {
   INTEGRATED_STEEL_PLANT
   EAF_MINI_MILL
@@ -216,7 +256,8 @@ model Facility {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 
-  activityData ActivityData[]
+  activityData  ActivityData[]
+  notifications Notification[]
 
   @@index([companyId])
   @@map("facilities")

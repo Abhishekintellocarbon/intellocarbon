@@ -383,3 +383,21 @@ export interface VerificationRequest {
 export interface VerificationRequestDetail extends VerificationRequest {
   activityData: ActivityData & { facility: Facility & { company: Company } };
 }
+
+export type NotificationType = "MONTHLY_REMINDER" | "DEADLINE_WARNING_30D" | "DEADLINE_URGENT_7D";
+
+export interface Notification {
+  id: string;
+  companyId: string;
+  facilityId: string | null;
+  type: NotificationType;
+  title: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface ReportWindowStatus {
+  cbam: { open: boolean; unlockDate: string };
+  ccts: { open: boolean; unlockDate: string };
+}

@@ -10,6 +10,8 @@ import type {
   SubscriptionTier,
   VerificationRequest,
   VerificationRequestDetail,
+  Notification,
+  ReportWindowStatus,
 } from "./types";
 import type {
   BorderInputs,
@@ -166,6 +168,14 @@ export const authApi = {
 
 export const referenceApi = {
   emissionFactors: (): Promise<EmissionFactorReference> => apiFetch("/api/reference/emission-factors"),
+  reportWindows: (): Promise<ReportWindowStatus> => apiFetch("/api/reference/report-windows"),
+};
+
+export const notificationApi = {
+  list: (): Promise<{ notifications: Notification[] }> => apiFetch("/api/notifications"),
+  markRead: (id: string): Promise<{ notification: Notification }> =>
+    apiFetch(`/api/notifications/${id}/read`, { method: "POST" }),
+  markAllRead: () => apiFetch("/api/notifications/read-all", { method: "POST" }),
 };
 
 export const companyApi = {
