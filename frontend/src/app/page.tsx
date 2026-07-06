@@ -148,7 +148,7 @@ export default function Home() {
 
             <p className="mt-5 max-w-xl text-balance text-lg text-muted-foreground">
               Intellocarbon automates emissions calculation, verification, and reporting for Indian
-              industrial exporters — one platform, every framework.
+              industry — one platform, every framework.
             </p>
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
