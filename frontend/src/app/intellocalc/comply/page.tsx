@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function ComplyPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background lg:pr-[240px]">
       <AnnouncementBar />
       <MarketingHeader />
       <ToolHero

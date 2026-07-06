@@ -40,8 +40,10 @@ export function IntelloCalcFloatingCta({
 
   return (
     <>
-      {/* Mobile / tablet — inline card, placed right after the hero's feature cards */}
-      <div className="relative z-10 mx-auto max-w-4xl px-6 pb-4 xl:hidden">
+      {/* Mobile / tablet — inline card, placed right after the hero's feature cards.
+          Id is a fixed contract the mobile "Free Tools" FAB (IntelloCalcToolsPanel)
+          watches for, so the two floating CTAs never visually stack on top of each other. */}
+      <div id="mobile-intellocalc-cta" className="relative z-10 mx-auto max-w-4xl px-6 pb-4 xl:hidden">
         <Card className="flex flex-col items-center gap-4 rounded-[12px] border-teal-500/20 bg-gradient-radial-glow p-6 text-center sm:flex-row sm:justify-between sm:text-left">
           <div>
             <p className="text-base font-semibold text-foreground">

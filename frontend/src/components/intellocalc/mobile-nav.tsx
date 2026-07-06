@@ -2,39 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, ChevronDown, Globe2, MapPinned, ListChecks } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-
-const TOOLS = [
-  {
-    href: "/intellocalc/border",
-    icon: Globe2,
-    name: "IntelloCalc Border",
-    description: "CBAM Exposure Estimator",
-  },
-  {
-    href: "/intellocalc/india",
-    icon: MapPinned,
-    name: "IntelloCalc India",
-    description: "CCTS Intensity Checker",
-  },
-  {
-    href: "/intellocalc/comply",
-    icon: ListChecks,
-    name: "IntelloCalc Comply",
-    description: "Compliance Eligibility Checker",
-  },
-];
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
 
-  const close = () => {
-    setOpen(false);
-    setToolsOpen(false);
-  };
+  const close = () => setOpen(false);
 
   return (
     <div className="md:hidden">
@@ -68,36 +42,13 @@ export function MobileNav() {
             </div>
 
             <nav className="mt-6 flex flex-1 flex-col gap-1">
-              <button
-                type="button"
-                onClick={() => setToolsOpen((o) => !o)}
-                aria-expanded={toolsOpen}
-                className="flex items-center justify-between rounded-lg px-3 py-3 text-left text-sm font-medium text-[#E8F0F7] transition-colors hover:text-teal-500"
+              <Link
+                href="/esg"
+                onClick={close}
+                className="rounded-lg px-3 py-3 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
               >
-                IntelloCalc
-                <ChevronDown className={cn("h-4 w-4 transition-transform", toolsOpen && "rotate-180")} />
-              </button>
-              {toolsOpen && (
-                <div className="ml-2 flex flex-col gap-1 border-l border-surface-border pl-3">
-                  {TOOLS.map((tool) => (
-                    <Link
-                      key={tool.href}
-                      href={tool.href}
-                      onClick={close}
-                      className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-raised"
-                    >
-                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-surface-border bg-surface-raised">
-                        <tool.icon className="h-4 w-4 text-teal-500" />
-                      </span>
-                      <span>
-                        <span className="block text-sm font-medium text-foreground">{tool.name}</span>
-                        <span className="block text-xs text-muted-foreground">{tool.description}</span>
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-
+                ESG
+              </Link>
               <Link
                 href="/about"
                 onClick={close}

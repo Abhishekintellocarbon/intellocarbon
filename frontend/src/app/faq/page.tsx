@@ -61,6 +61,23 @@ const CBAM_FAQS = [
   },
 ];
 
+const ESG_FAQS = [
+  {
+    question: "What is BRSR Core and do I need it?",
+    answer:
+      "BRSR Core is SEBI's mandatory subset of Business Responsibility and Sustainability Reporting — 9 ESG attributes covering GHG footprint, water, waste, energy, workforce, diversity, inclusion, openness of business, and customer fairness. Intellocarbon's BRSR Core module reuses your existing CBAM/CCTS GHG data automatically and only asks you to fill in the other 8 attributes.",
+  },
+  {
+    question: "Is BRSR mandatory for my company?",
+    answer:
+      "Only the top 1,000 listed companies by market capitalisation are directly mandated to file BRSR. However, MSME suppliers to those companies increasingly receive BRSR data requests from their buyers under SEBI's value-chain disclosure rules — so even if you're not directly mandated, you may need this data to keep a large customer.",
+  },
+  {
+    question: "When will GRI/ISSB/CSRD/CDP be available?",
+    answer: "These are in active development — join the waitlist on the ESG page to be notified per framework.",
+  },
+];
+
 const GENERAL_FAQS = [
   {
     question: "Why is the subscription monthly if reports are annual/quarterly?",
@@ -92,7 +109,7 @@ function FaqSection({ title, items }: { title: string; items: typeof CCTS_FAQS }
 
 export default function FaqPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
+    <div className="relative min-h-screen overflow-hidden bg-background lg:pr-[240px]">
       <div className="pointer-events-none absolute inset-0 bg-grid opacity-40" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-gradient-radial-glow" />
 
@@ -104,13 +121,15 @@ export default function FaqPage() {
           Frequently asked questions
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-balance text-[#8AA0B4] sm:text-lg">
-          CCTS thresholds and deadlines, CBAM reporting and deductions, and how the platform works.
+          CCTS thresholds and deadlines, CBAM reporting and deductions, BRSR Core and ESG, and how the platform
+          works.
         </p>
       </section>
 
       <main className="relative z-10 mx-auto max-w-3xl px-6 pb-24">
         <FaqSection title="CCTS" items={CCTS_FAQS} />
         <FaqSection title="CBAM" items={CBAM_FAQS} />
+        <FaqSection title="ESG & BRSR" items={ESG_FAQS} />
         <FaqSection title="General / Platform" items={GENERAL_FAQS} />
       </main>
 
