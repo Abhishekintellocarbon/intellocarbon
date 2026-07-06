@@ -75,6 +75,7 @@ const PLAN_ORDER_CLASS: Record<string, string> = {
   CCTS_COMPLIANCE: "sm:order-1",
   CBAM_PLUS_CCTS: "sm:order-2",
   CBAM_COMPLIANCE: "sm:order-3",
+  BRSR_CORE_REPORTING: "sm:order-4",
 };
 
 function ComparisonMark({ ok }: { ok: boolean }) {
@@ -121,7 +122,14 @@ function PlanCard({
         </span>
       )}
 
-      <h3 className="text-lg font-semibold">{plan.name}</h3>
+      <div className="flex items-center gap-2">
+        <h3 className="text-lg font-semibold">{plan.name}</h3>
+        {plan.tier === "BRSR_CORE_REPORTING" && (
+          <span className="inline-flex items-center rounded-full border border-teal-500/30 bg-teal-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-500">
+            New
+          </span>
+        )}
+      </div>
       <p className="mt-1 text-2xl font-semibold text-gradient">{plan.priceLabel}</p>
       <p className="mt-2 text-sm text-muted-foreground">{plan.forWhom}</p>
 
@@ -158,11 +166,11 @@ function BillingContent() {
   const isOnboarding = searchParams.get("onboarding") === "1";
 
   const [plans, setPlans] = useState<PlanDefinition[] | null>(null);
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [usage, setUsage] = useState<{ facilityCount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checkingOutTier, setCheckingOutTier] = useState<SubscriptionTier | null>(null);
-  const [canceling, setCanceling] = useState(false);
+  const [cancelingTier, setCancelingTier] = useState<SubscriptionTier | null>(null);
   const [devBypassNotice, setDevBypassNotice] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
@@ -171,7 +179,7 @@ function BillingContent() {
       .subscription()
       .then((data) => {
         setPlans(data.plans);
-        setSubscription(data.subscription);
+        setSubscriptions(data.subscriptions);
         setUsage(data.usage);
         setQuantities((prev) => {
           const next = { ...prev };
@@ -195,7 +203,6 @@ function BillingContent() {
       const result = await billingApi.checkout(tier);
       if (result.devBypass) {
         setDevBypassNotice(true);
-        setSubscription(result.subscription);
         await refresh();
         if (isOnboarding) router.push("/facilities/new?onboarding=1");
       } else if (result.razorpayKeyId && result.razorpaySubscriptionId) {
@@ -219,16 +226,16 @@ function BillingContent() {
     }
   };
 
-  const handleCancel = async () => {
-    if (!confirm("Cancel your subscription at the end of the current billing period?")) return;
-    setCanceling(true);
+  const handleCancel = async (tier: SubscriptionTier) => {
+    if (!confirm("Cancel this plan at the end of the current billing period?")) return;
+    setCancelingTier(tier);
     try {
-      await billingApi.cancel();
+      await billingApi.cancel(tier);
       await refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't cancel subscription.");
     } finally {
-      setCanceling(false);
+      setCancelingTier(null);
     }
   };
 
@@ -263,38 +270,50 @@ function BillingContent() {
         </div>
       )}
 
-      {subscription && (
-        <Card className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-[12px] p-5">
-          <div className="flex items-center gap-3">
-            <span
-              className={cn(
-                "rounded-full border px-2.5 py-1 text-xs font-semibold",
-                STATUS_STYLES[subscription.status],
-              )}
+      {subscriptions.length > 0 && (
+        <div className="mt-6 space-y-3">
+          {subscriptions.map((subscription) => (
+            <Card
+              key={subscription.id}
+              className="flex flex-wrap items-center justify-between gap-4 rounded-[12px] p-5"
             >
-              {subscription.status.replace(/_/g, " ")}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              {subscription.tier.replace(/_/g, " ")}
-              {usage && ` · ${usage.facilityCount} facilit${usage.facilityCount === 1 ? "y" : "ies"} in use`}
-              {subscription.cancelAtPeriodEnd && " · cancels at period end"}
-            </span>
-          </div>
-          {subscription.status === "ACTIVE" && !subscription.cancelAtPeriodEnd && (
-            <Button variant="secondary" size="sm" onClick={handleCancel} isLoading={canceling}>
-              Cancel subscription
-            </Button>
-          )}
-        </Card>
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-xs font-semibold",
+                    STATUS_STYLES[subscription.status],
+                  )}
+                >
+                  {subscription.status.replace(/_/g, " ")}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {subscription.tier.replace(/_/g, " ")}
+                  {usage && ` · ${usage.facilityCount} facilit${usage.facilityCount === 1 ? "y" : "ies"} in use`}
+                  {subscription.cancelAtPeriodEnd && " · cancels at period end"}
+                </span>
+              </div>
+              {subscription.status === "ACTIVE" && !subscription.cancelAtPeriodEnd && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleCancel(subscription.tier)}
+                  isLoading={cancelingTier === subscription.tier}
+                >
+                  Cancel plan
+                </Button>
+              )}
+            </Card>
+          ))}
+        </div>
       )}
 
       {/* Section 1 — plan cards */}
       {plans && (
         <>
-          <div className="mt-8 grid gap-6 sm:grid-cols-3">
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {plans.map((plan) => {
-              const isCurrent = subscription?.tier === plan.tier && subscription.status === "ACTIVE";
-              const isSwitchable = Boolean(subscription?.status === "ACTIVE" && !isCurrent);
+              const isCurrent = subscriptions.some((s) => s.tier === plan.tier && s.status === "ACTIVE");
+              const isSwitchable = subscriptions.some((s) => s.status === "ACTIVE") && !isCurrent;
               return (
                 <PlanCard
                   key={plan.tier}

@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Calendar, ClipboardList, Factory, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { Calendar, ClipboardList, FileBarChart, Factory, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DraftBadge, SubmittedBadge } from "@/components/ui/draft-badge";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
-import { activityDataApi, facilityApi, ApiError } from "@/lib/api";
-import type { Facility, ActivityData } from "@/lib/types";
+import { activityDataApi, brsrApi, facilityApi, ApiError } from "@/lib/api";
+import type { Facility, ActivityData, BrsrCoreReport } from "@/lib/types";
 import { FACILITY_TYPE_OPTIONS, PRODUCTION_ROUTE_OPTIONS } from "@/lib/constants";
 
 const labelFor = (options: readonly { value: string; label: string }[], value: string) =>
@@ -24,14 +24,16 @@ function FacilityDetailContent() {
   const router = useRouter();
   const [facility, setFacility] = useState<Facility | null>(null);
   const [entries, setEntries] = useState<ActivityData[] | null>(null);
+  const [brsrReports, setBrsrReports] = useState<BrsrCoreReport[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    Promise.all([facilityApi.get(params.id), activityDataApi.list(params.id)])
-      .then(([facilityRes, entriesRes]) => {
+    Promise.all([facilityApi.get(params.id), activityDataApi.list(params.id), brsrApi.list(params.id)])
+      .then(([facilityRes, entriesRes, brsrRes]) => {
         setFacility(facilityRes.facility);
         setEntries(entriesRes.entries);
+        setBrsrReports(brsrRes.reports);
       })
       .catch(() => setError("Couldn't load this facility. It may not exist or you may not have access."));
   }, [params.id]);
@@ -64,7 +66,7 @@ function FacilityDetailContent() {
     );
   }
 
-  if (!facility || !entries) {
+  if (!facility || !entries || !brsrReports) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
@@ -177,6 +179,56 @@ function FacilityDetailContent() {
                     ) : (
                       <span className="text-xs text-muted">{isDraft ? "Not yet submitted" : "Not yet calculated"}</span>
                     )}
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-10 mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">BRSR Core disclosures</h2>
+          <Link href={`/facilities/${facility.id}/brsr/new`}>
+            <Button size="sm" variant="secondary">
+              <Plus className="h-4 w-4" />
+              Add BRSR Core disclosure
+            </Button>
+          </Link>
+        </div>
+
+        {brsrReports.length === 0 ? (
+          <Card className="flex flex-col items-center gap-3 p-12 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full border border-surface-border bg-surface-raised">
+              <FileBarChart className="h-5 w-5 text-teal-500" />
+            </span>
+            <h3 className="font-medium">No BRSR Core disclosures yet</h3>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Disclose the 9 BRSR Core ESG attributes for a financial year — the GHG figure is reused automatically
+              from this facility&apos;s activity data above.
+            </p>
+            <Link href={`/facilities/${facility.id}/brsr/new`} className="mt-2">
+              <Button size="sm" variant="secondary">
+                <Plus className="h-4 w-4" />
+                Add BRSR Core disclosure
+              </Button>
+            </Link>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {brsrReports.map((report) => {
+              const isDraft = report.status === "DRAFT";
+              const href = isDraft
+                ? `/facilities/${facility.id}/brsr/${encodeURIComponent(report.reportingPeriod)}/edit`
+                : `/facilities/${facility.id}/brsr/${encodeURIComponent(report.reportingPeriod)}`;
+              return (
+                <Link key={report.id} href={href}>
+                  <Card className="flex flex-col gap-3 p-5 transition-colors hover:border-teal-500/40 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <FileBarChart className="h-3.5 w-3.5 text-muted" />
+                      {report.reportingPeriod}
+                      {isDraft ? <DraftBadge /> : <SubmittedBadge />}
+                    </p>
+                    <span className="text-xs text-muted">{isDraft ? "Not yet submitted" : "View report & download PDF"}</span>
                   </Card>
                 </Link>
               );

@@ -262,6 +262,71 @@ export interface ActivityData {
   facility?: Facility;
 }
 
+// BRSR Core's GHG attribute (1 of 9) isn't stored here — it's derived from the
+// facility's existing ActivityData/EmissionCalculationResult rows, see BrsrCoreMetrics.
+export interface BrsrCoreReport {
+  id: string;
+  companyId: string;
+  facilityId: string;
+  reportingPeriod: string;
+  turnoverInr: number | null;
+  waterWithdrawnKl: number | null;
+  waterDischargedKl: number | null;
+  wasteGeneratedTonnes: number | null;
+  wasteRecoveredTonnes: number | null;
+  renewableEnergyConsumptionGj: number | null;
+  nonRenewableEnergyConsumptionGj: number | null;
+  employeeCountTotal: number | null;
+  employeeCountFemale: number | null;
+  wagesPaidMaleInr: number | null;
+  wagesPaidFemaleInr: number | null;
+  safetyIncidentsCount: number | null;
+  womenInWorkforcePct: number | null;
+  womenInManagementPct: number | null;
+  procurementFromMsmePct: number | null;
+  purchasesFromTop10SuppliersPct: number | null;
+  salesToTop10CustomersPct: number | null;
+  consumerComplaintsCount: number | null;
+  consumerComplaintsResolvedPct: number | null;
+  status: "DRAFT" | "SUBMITTED";
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BrsrCoreMetrics {
+  fyWindow: { start: string; end: string; label: string };
+  turnoverInr: number | null;
+  ghg: {
+    scope1Co2e: number;
+    scope2Co2e: number;
+    totalCo2e: number;
+    productionQuantityT: number;
+    intensityPerRupeeTurnover: number | null;
+    intensityPerUnitProduction: number | null;
+    activityDataCount: number;
+  };
+  water: {
+    withdrawnKl: number | null;
+    dischargedKl: number | null;
+    consumptionKl: number | null;
+    intensityPerRupeeTurnover: number | null;
+  };
+  waste: {
+    generatedTonnes: number | null;
+    recoveredTonnes: number | null;
+    recoveryRatePct: number | null;
+    intensityPerRupeeTurnover: number | null;
+  };
+  energy: {
+    renewableGj: number | null;
+    nonRenewableGj: number | null;
+    totalGj: number | null;
+    renewablePct: number | null;
+    electricityAndSteamGjReused: number;
+  };
+}
+
 export interface ReferenceOption {
   value: string;
   label: string;
@@ -328,7 +393,11 @@ export interface EmissionFactorReference {
   cementCalcinationEmissionFactor: number;
 }
 
-export type SubscriptionTier = "CCTS_COMPLIANCE" | "CBAM_COMPLIANCE" | "CBAM_PLUS_CCTS";
+export type SubscriptionTier =
+  | "CCTS_COMPLIANCE"
+  | "CBAM_COMPLIANCE"
+  | "CBAM_PLUS_CCTS"
+  | "BRSR_CORE_REPORTING";
 export type SubscriptionStatus = "INCOMPLETE" | "ACTIVE" | "PAST_DUE" | "CANCELED";
 
 export interface PlanDefinition {

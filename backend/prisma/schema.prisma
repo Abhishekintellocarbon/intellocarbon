@@ -31,11 +31,12 @@ model User {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  refreshTokens        RefreshToken[]
-  passwordResetTokens  PasswordResetToken[]
-  company              Company?
-  verificationsHandled VerificationRequest[] @relation("VerifierAssignments")
-  notifications        Notification[]
+  refreshTokens            RefreshToken[]
+  passwordResetTokens      PasswordResetToken[]
+  company                  Company?
+  verificationsHandled     VerificationRequest[]     @relation("VerifierAssignments")
+  brsrVerificationsHandled BrsrVerificationRequest[] @relation("BrsrVerifierAssignments")
+  notifications            Notification[]
 
   @@map("users")
 }
@@ -82,9 +83,15 @@ model Company {
   updatedAt DateTime @updatedAt
 
   facilities           Facility[]
-  subscription         Subscription?
+  // A company can hold more than one active tier at once (e.g. CBAM +
+  // BRSR_CORE_REPORTING bought separately) — see [[companyId, tier]] below.
+  // Was a 1:1 `Subscription?` until BRSR Core needed to be purchasable as a
+  // standalone add-on alongside an existing CBAM/CCTS plan rather than only
+  // as a pre-bundled combo tier like CBAM_PLUS_CCTS.
+  subscriptions        Subscription[]
   verificationRequests VerificationRequest[]
   notifications        Notification[]
+  brsrCoreReports      BrsrCoreReport[]
 
   @@map("companies")
 }
@@ -93,6 +100,7 @@ enum SubscriptionTier {
   CCTS_COMPLIANCE
   CBAM_COMPLIANCE
   CBAM_PLUS_CCTS
+  BRSR_CORE_REPORTING
 }
 
 enum SubscriptionStatus {
@@ -104,7 +112,7 @@ enum SubscriptionStatus {
 
 model Subscription {
   id                     String             @id @default(cuid())
-  companyId              String             @unique
+  companyId              String
   company                Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   tier                   SubscriptionTier   @default(CCTS_COMPLIANCE)
   status                 SubscriptionStatus @default(INCOMPLETE)
@@ -117,6 +125,11 @@ model Subscription {
 
   payments Payment[]
 
+  // One subscription row per (company, tier) — a company can hold several
+  // tiers simultaneously (each its own Razorpay subscription), but can't
+  // double-purchase the same tier twice.
+  @@unique([companyId, tier])
+  @@index([companyId])
   @@map("subscriptions")
 }
 
@@ -172,18 +185,18 @@ enum NotificationType {
 }
 
 model Notification {
-  id         String           @id @default(cuid())
-  userId     String
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyId  String
-  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   // Set for facility-specific alerts (monthly reminder); null for
   // company-wide deadline alerts (which aren't about any one facility).
-  facilityId String?
-  facility   Facility?        @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  type       NotificationType
-  title      String
-  body       String
+  facilityId  String?
+  facility    Facility?        @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  title       String
+  body        String
   // Uniquely identifies "this alert, for this company, for this period" —
   // e.g. "monthly:<facilityId>:2026-07", "cbam-30d:2026-Q3", "ccts-7d:2026".
   // Lets the daily cron run unconditionally every day and rely on the
@@ -196,7 +209,7 @@ model Notification {
   dedupeKey   String
   readAt      DateTime?
   emailSentAt DateTime?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime         @default(now())
 
   @@unique([companyId, dedupeKey])
   @@index([userId])
@@ -226,10 +239,10 @@ enum HydrogenRoute {
 }
 
 model Facility {
-  id        String  @id @default(cuid())
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name      String
+  id                   String        @id @default(cuid())
+  companyId            String
+  company              Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                 String
   // Nullable to support autosaved drafts, which may not have these set yet —
   // both are required by app-layer validation before isDraft can flip false.
   facilityType         FacilityType?
@@ -247,17 +260,18 @@ model Facility {
   installedCapacityTpa Float?
   commissioningYear    Int?
   productsManufactured String[]
-  cnCodes              String[]     @default([])
+  cnCodes              String[]      @default([])
   // True until the user explicitly clicks "Mark as complete" — autosave
   // never sets this to false. Incomplete facilities are still visible (with
   // a Draft badge) but should be treated as not-yet-real by anything that
   // isn't the setup form itself.
-  isDraft              Boolean      @default(true)
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
+  isDraft              Boolean       @default(true)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
-  activityData  ActivityData[]
-  notifications Notification[]
+  activityData    ActivityData[]
+  notifications   Notification[]
+  brsrCoreReports BrsrCoreReport[]
 
   @@index([companyId])
   @@map("facilities")
@@ -269,12 +283,12 @@ enum DataEntryStatus {
 }
 
 model ActivityData {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   facilityId          String
-  facility            Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facility            Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   // Denormalised from the owning Company at creation time — lets the
   // calculation engine and reports branch per sector without an extra join.
-  sector Sector @default(STEEL)
+  sector              Sector    @default(STEEL)
   // Nullable to support autosaved drafts — all four are required by
   // app-layer validation before status can flip to SUBMITTED.
   periodStart         DateTime?
@@ -418,6 +432,103 @@ model EmissionCalculationResult {
   @@map("emission_calculation_results")
 }
 
+// BRSR Core (SEBI HO/CFD/CFD-SEC-2/P/CIR/2023/122) — the 9 mandated ESG
+// attributes for one facility's financial year. Attribute 1 (GHG footprint)
+// is intentionally NOT stored here as a number — it is derived at report-build
+// time from the existing ActivityData / EmissionCalculationResult rows for
+// this facility that fall inside the FY (see `brsrCalculation.service.ts`),
+// on the CCTS/AR2-BUR3 basis, so there is exactly one place that computes
+// emissions. Every field below is a manual disclosure input the calculation
+// engine has no other source for.
+model BrsrCoreReport {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  // Financial year this disclosure covers, e.g. "FY2025-26" — resolved against
+  // Company.reportingFyStartMonth to bound the ActivityData rollup window.
+  reportingPeriod String
+
+  // Denominator for every "per rupee of turnover" intensity ratio (attributes 1, 2, 3, 4).
+  turnoverInr Float?
+
+  // --- Attribute 2: Water footprint (manual entry) ---
+  waterWithdrawnKl  Float?
+  waterDischargedKl Float?
+
+  // --- Attribute 3: Waste management (manual entry) ---
+  wasteGeneratedTonnes Float?
+  wasteRecoveredTonnes Float?
+
+  // --- Attribute 4: Energy footprint — renewable/non-renewable SPLIT only;
+  // the total itself is reused from existing fuel + electricity ActivityData. ---
+  renewableEnergyConsumptionGj    Float?
+  nonRenewableEnergyConsumptionGj Float?
+
+  // --- Attribute 5: Employee wellbeing (manual entry) ---
+  employeeCountTotal   Int?
+  employeeCountFemale  Int?
+  wagesPaidMaleInr     Float?
+  wagesPaidFemaleInr   Float?
+  safetyIncidentsCount Int?
+
+  // --- Attribute 6: Gender diversity (manual entry) ---
+  womenInWorkforcePct  Float?
+  womenInManagementPct Float?
+
+  // --- Attribute 7: Inclusive development (manual entry) ---
+  procurementFromMsmePct Float?
+
+  // --- Attribute 8: Openness of business — concentration risk (manual entry) ---
+  purchasesFromTop10SuppliersPct Float?
+  salesToTop10CustomersPct       Float?
+
+  // --- Attribute 9: Customer fairness (manual entry) ---
+  consumerComplaintsCount       Int?
+  consumerComplaintsResolvedPct Float?
+
+  // DRAFT -> SUBMITTED, same lifecycle as ActivityData. "Verified" is not a
+  // status value here either, for the same reason it isn't on ActivityData —
+  // it's derived from an APPROVED BrsrVerificationRequest, see below.
+  status DataEntryStatus @default(DRAFT)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  verificationRequest BrsrVerificationRequest?
+
+  // One BRSR Core disclosure per facility per financial year.
+  @@unique([facilityId, reportingPeriod])
+  @@index([companyId])
+  @@map("brsr_core_reports")
+}
+
+// Mirrors VerificationRequest's shape for CBAM/CCTS — kept as its own model rather than
+// a polymorphic one so the existing ActivityData verification flow is untouched.
+model BrsrVerificationRequest {
+  id                  String             @id @default(cuid())
+  brsrCoreReportId    String             @unique
+  brsrCoreReport      BrsrCoreReport     @relation(fields: [brsrCoreReportId], references: [id], onDelete: Cascade)
+  status              VerificationStatus @default(PENDING)
+  verifierId          String?
+  verifier            User?              @relation("BrsrVerifierAssignments", fields: [verifierId], references: [id])
+  verifierOrg         String?
+  accreditationNumber String?
+  statement           String?
+  comments            String?
+  submittedAt         DateTime           @default(now())
+  decidedAt           DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([verifierId])
+  @@map("brsr_verification_requests")
+}
+
 model RefreshToken {
   id         String    @id @default(cuid())
   tokenHash  String    @unique
@@ -451,13 +562,22 @@ enum LeadTool {
   BORDER
   INDIA
   COMPLY
+  // "Notify me" waitlist signups for not-yet-built ESG frameworks on /esg —
+  // lightweight (email only, see name/company below), tagged per framework so
+  // demand signal is visible per-framework before committing to build order.
+  ESG_GRI
+  ESG_ISSB
+  ESG_CSRD
+  ESG_CDP
 }
 
 model LeadCapture {
   id          String   @id @default(cuid())
-  name        String
+  // Nullable because ESG_* waitlist signups are email-only — the calculator
+  // tools (BORDER/INDIA/COMPLY) still always supply both.
+  name        String?
   email       String
-  company     String
+  company     String?
   phone       String?
   toolUsed    LeadTool
   inputsJson  Json

@@ -80,6 +80,28 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
     highlight: true,
     razorpayPlanIdEnvVar: "RAZORPAY_PLAN_ID_CBAM_PLUS_CCTS",
   },
+  // Standalone add-on — purchasable on its own or alongside any CBAM/CCTS tier,
+  // since Subscription now allows one row per (company, tier) rather than a
+  // single subscription per company. Priced at ₹9,999/facility/mo = 999900 paise,
+  // the amount to use when creating the corresponding plan in the Razorpay dashboard.
+  BRSR_CORE_REPORTING: {
+    tier: "BRSR_CORE_REPORTING",
+    name: "BRSR Core Reporting",
+    forWhom: "Listed companies and their value chain partners required to disclose the 9 BRSR Core ESG attributes.",
+    facilityLimit: null,
+    priceInr: 9999,
+    priceLabel: "₹9,999/facility/mo",
+    description: "SEBI BRSR Core — the 9 mandated ESG attributes, reusing your existing GHG calculation data.",
+    features: [
+      "All 9 BRSR Core attributes (GHG, water, waste, energy, workforce, diversity, inclusion, openness, fairness)",
+      "GHG footprint reused automatically from your CBAM/CCTS activity data — no double entry",
+      "BRSR Core PDF report matching SEBI HO/CFD/CFD-SEC-2/P/CIR/2023/122 format",
+      "Reasonable-assurance verification workflow",
+      "Standalone or bundled with any CBAM/CCTS plan",
+      "7-year document retention",
+    ],
+    razorpayPlanIdEnvVar: "RAZORPAY_PLAN_ID_BRSR_CORE",
+  },
 };
 
 export const getPlan = (tier: SubscriptionTier): PlanDefinition => PLANS[tier];

@@ -15,7 +15,7 @@ const MONTH_LABELS = [
 
 type CompanyWithRelations = Company & {
   owner: User;
-  subscription: Subscription | null;
+  subscriptions: Subscription[];
   facilities: Facility[];
 };
 
@@ -190,10 +190,10 @@ const checkCbamDeadlineAlerts = async (company: CompanyWithRelations, now: Date)
  */
 export const runDailyComplianceCheck = async (now: Date = new Date()): Promise<void> => {
   const companies = await prisma.company.findMany({
-    where: { subscription: { status: "ACTIVE" } },
+    where: { subscriptions: { some: { status: "ACTIVE" } } },
     include: {
       owner: true,
-      subscription: true,
+      subscriptions: true,
       facilities: { where: { isDraft: false } },
     },
   });
@@ -204,11 +204,15 @@ export const runDailyComplianceCheck = async (now: Date = new Date()): Promise<v
     try {
       await checkMonthlyReminders(company, now);
 
-      const tier = company.subscription?.tier;
-      if (tier === "CCTS_COMPLIANCE" || tier === "CBAM_PLUS_CCTS") {
+      // A company can hold several active tiers at once (see the Subscription
+      // model) — check each framework's alert independently rather than
+      // reading a single tier, so e.g. CCTS_COMPLIANCE + BRSR_CORE_REPORTING
+      // bought separately still gets CCTS deadline alerts.
+      const activeTiers = company.subscriptions.filter((s) => s.status === "ACTIVE").map((s) => s.tier);
+      if (activeTiers.includes("CCTS_COMPLIANCE") || activeTiers.includes("CBAM_PLUS_CCTS")) {
         await checkCctsDeadlineAlerts(company, now);
       }
-      if (tier === "CBAM_COMPLIANCE" || tier === "CBAM_PLUS_CCTS") {
+      if (activeTiers.includes("CBAM_COMPLIANCE") || activeTiers.includes("CBAM_PLUS_CCTS")) {
         await checkCbamDeadlineAlerts(company, now);
       }
     } catch (err) {

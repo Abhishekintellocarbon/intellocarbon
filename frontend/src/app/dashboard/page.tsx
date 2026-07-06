@@ -20,7 +20,7 @@ function DashboardContent() {
   const { user } = useAuth();
   const [company, setCompany] = useState<Company | null | undefined>(undefined);
   const [facilities, setFacilities] = useState<Facility[] | null>(null);
-  const [subscription, setSubscription] = useState<Subscription | null | undefined>(undefined);
+  const [subscriptions, setSubscriptions] = useState<Subscription[] | undefined>(undefined);
 
   useEffect(() => {
     companyApi
@@ -29,13 +29,14 @@ function DashboardContent() {
         setCompany(company);
         if (company) {
           facilityApi.list().then(({ facilities }) => setFacilities(facilities));
-          billingApi.subscription().then(({ subscription }) => setSubscription(subscription));
+          billingApi.subscription().then(({ subscriptions }) => setSubscriptions(subscriptions));
         }
       })
       .catch(() => setCompany(null));
   }, []);
 
-  const hasActiveSubscription = subscription?.status === "ACTIVE";
+  const hasActiveSubscription = Boolean(subscriptions?.some((s) => s.status === "ACTIVE"));
+  const hasPastDueSubscription = Boolean(subscriptions?.some((s) => s.status === "PAST_DUE"));
 
   return (
     <div className="min-h-screen bg-background">
@@ -93,14 +94,14 @@ function DashboardContent() {
               </div>
             </Card>
 
-            {subscription !== undefined && !hasActiveSubscription && (
+            {subscriptions !== undefined && !hasActiveSubscription && (
               <Card className="mt-6 flex flex-col items-center gap-3 p-12 text-center">
                 <span className="flex h-12 w-12 items-center justify-center rounded-full border border-surface-border bg-surface-raised">
                   <CreditCard className="h-5 w-5 text-teal-500" />
                 </span>
                 <h3 className="font-medium">Subscribe to add facilities</h3>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                  {subscription?.status === "PAST_DUE"
+                  {hasPastDueSubscription
                     ? "Your last payment failed. Update your billing details to keep access."
                     : "An active subscription is required before you can add facilities and generate reports."}
                 </p>

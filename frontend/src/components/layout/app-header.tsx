@@ -13,6 +13,10 @@ import { cn } from "@/lib/utils";
 const COMPANY_NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/facilities", label: "Facilities" },
+  // Straight to the functional flow (not the public /esg marketing hub) —
+  // a logged-in user clicking this from inside the app wants to use BRSR
+  // Core, not read about frameworks they're already a customer of.
+  { href: "/esg/brsr", label: "ESG" },
   { href: "/billing", label: "Billing" },
   { href: "/company/settings", label: "Company" },
 ];

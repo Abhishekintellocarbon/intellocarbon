@@ -27,6 +27,7 @@ const envSchema = z.object({
   RAZORPAY_PLAN_ID_CCTS_COMPLIANCE: z.string().optional().default(""),
   RAZORPAY_PLAN_ID_CBAM_COMPLIANCE: z.string().optional().default(""),
   RAZORPAY_PLAN_ID_CBAM_PLUS_CCTS: z.string().optional().default(""),
+  RAZORPAY_PLAN_ID_BRSR_CORE: z.string().optional().default(""),
 });
 
 const parsed = envSchema.safeParse(process.env);

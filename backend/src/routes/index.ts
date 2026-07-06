@@ -8,6 +8,7 @@ import verifierRoutes from "./verifier.routes";
 import leadCaptureRoutes from "./leadCapture.routes";
 import adminRoutes from "./admin.routes";
 import notificationRoutes from "./notification.routes";
+import brsrRoutes from "./brsr.routes";
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use("/verifier", verifierRoutes);
 router.use("/leads", leadCaptureRoutes);
 router.use("/admin", adminRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/brsr", brsrRoutes);
 
 export default router;

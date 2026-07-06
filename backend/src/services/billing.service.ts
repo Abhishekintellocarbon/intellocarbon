@@ -32,29 +32,42 @@ export const getUsage = async (companyId: string) => {
   return { facilityCount };
 };
 
-export const getSubscription = async (companyId: string) => {
-  const subscription = await prisma.subscription.findUnique({ where: { companyId } });
+// A company can hold several tiers at once (each bought/cancelled independently) —
+// e.g. CBAM_COMPLIANCE plus BRSR_CORE_REPORTING bought as a standalone add-on,
+// rather than only via a pre-bundled combo tier like CBAM_PLUS_CCTS. See the
+// `@@unique([companyId, tier])` comment on the Subscription model.
+export const getSubscriptions = async (companyId: string) => {
+  const subscriptions = await prisma.subscription.findMany({
+    where: { companyId },
+    orderBy: { createdAt: "asc" },
+  });
   const usage = await getUsage(companyId);
-  return { subscription, usage, plans: Object.values(PLANS) };
+  return { subscriptions, usage, plans: Object.values(PLANS) };
 };
 
 export const requireCapacityForNewFacility = async (companyId: string): Promise<void> => {
-  const subscription = await prisma.subscription.findUnique({ where: { companyId } });
+  const subscriptions = await prisma.subscription.findMany({
+    where: { companyId, status: "ACTIVE" },
+  });
 
-  if (!subscription || subscription.status !== "ACTIVE") {
+  if (subscriptions.length === 0) {
     throw AppError.forbidden(
       "An active subscription is required to add facilities",
       "SUBSCRIPTION_REQUIRED",
     );
   }
 
-  const plan = getPlan(subscription.tier);
-  if (plan.facilityLimit === null) return;
+  const limits = subscriptions.map((s) => getPlan(s.tier).facilityLimit);
+  if (limits.some((limit) => limit === null)) return;
+
+  // Every active tier is billed per-facility with a finite cap — combined
+  // capacity is additive across tiers rather than the single most permissive one.
+  const totalLimit = (limits as number[]).reduce((sum, limit) => sum + limit, 0);
 
   const { facilityCount } = await getUsage(companyId);
-  if (facilityCount >= plan.facilityLimit) {
+  if (facilityCount >= totalLimit) {
     throw AppError.forbidden(
-      `Your ${plan.name} plan is limited to ${plan.facilityLimit} facilit${plan.facilityLimit === 1 ? "y" : "ies"}. Upgrade to add more.`,
+      `Your current plan(s) are limited to ${totalLimit} facilit${totalLimit === 1 ? "y" : "ies"} combined. Upgrade to add more.`,
       "PLAN_LIMIT_REACHED",
     );
   }
@@ -62,7 +75,7 @@ export const requireCapacityForNewFacility = async (companyId: string): Promise<
 
 const devBypassCheckout = async (companyId: string, tier: SubscriptionTier) => {
   const subscription = await prisma.subscription.upsert({
-    where: { companyId },
+    where: { companyId_tier: { companyId, tier } },
     create: {
       companyId,
       tier,
@@ -70,7 +83,6 @@ const devBypassCheckout = async (companyId: string, tier: SubscriptionTier) => {
       currentPeriodEnd: new Date(Date.now() + 30 * DAY_MS),
     },
     update: {
-      tier,
       status: "ACTIVE",
       cancelAtPeriodEnd: false,
       currentPeriodEnd: new Date(Date.now() + 30 * DAY_MS),
@@ -98,9 +110,13 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier) 
     include: { owner: true },
   });
 
-  let existing = await prisma.subscription.findUnique({ where: { companyId } });
+  // Any of the company's existing subscriptions carries the same Razorpay
+  // customer id — reuse it instead of creating a duplicate customer per tier.
+  const existingForCompany = await prisma.subscription.findFirst({
+    where: { companyId, razorpayCustomerId: { not: null } },
+  });
 
-  let razorpayCustomerId = existing?.razorpayCustomerId ?? undefined;
+  let razorpayCustomerId = existingForCompany?.razorpayCustomerId ?? undefined;
   if (!razorpayCustomerId) {
     const customer = await razorpay.customers.create({
       name: company.owner.name,
@@ -117,8 +133,8 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier) 
     notes: { companyId, tier },
   });
 
-  existing = await prisma.subscription.upsert({
-    where: { companyId },
+  const subscription = await prisma.subscription.upsert({
+    where: { companyId_tier: { companyId, tier } },
     create: {
       companyId,
       tier,
@@ -127,7 +143,6 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier) 
       razorpaySubscriptionId: razorpaySubscription.id,
     },
     update: {
-      tier,
       status: "INCOMPLETE",
       razorpayCustomerId,
       razorpaySubscriptionId: razorpaySubscription.id,
@@ -138,26 +153,28 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier) 
     devBypass: false as const,
     razorpayKeyId: env.RAZORPAY_KEY_ID,
     razorpaySubscriptionId: razorpaySubscription.id,
-    subscription: existing,
+    subscription,
   };
 };
 
-export const cancelSubscription = async (companyId: string) => {
-  const subscription = await prisma.subscription.findUnique({ where: { companyId } });
+export const cancelSubscription = async (companyId: string, tier: SubscriptionTier) => {
+  const subscription = await prisma.subscription.findUnique({
+    where: { companyId_tier: { companyId, tier } },
+  });
   if (!subscription) {
-    throw AppError.notFound("No subscription found for this company");
+    throw AppError.notFound("No subscription found for this company and plan");
   }
 
   if (isRazorpayConfigured && razorpay && subscription.razorpaySubscriptionId) {
     await razorpay.subscriptions.cancel(subscription.razorpaySubscriptionId, true);
     return prisma.subscription.update({
-      where: { companyId },
+      where: { companyId_tier: { companyId, tier } },
       data: { cancelAtPeriodEnd: true },
     });
   }
 
   return prisma.subscription.update({
-    where: { companyId },
+    where: { companyId_tier: { companyId, tier } },
     data: { status: "CANCELED", cancelAtPeriodEnd: true },
   });
 };

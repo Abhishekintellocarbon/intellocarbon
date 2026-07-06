@@ -71,6 +71,37 @@ export const nextCbamUnlockDate = (now: Date): Date => {
 
 export const daysUntil = (now: Date, target: Date): number => daysBetween(now, target);
 
+const BRSR_REPORTING_PERIOD_REGEX = /^FY(\d{4})-\d{2}$/;
+
+/** Parses a "FY2025-26" style BRSR reporting period into its start year (2025). */
+export const parseBrsrFyStartYear = (reportingPeriod: string): number => {
+  const match = reportingPeriod.match(BRSR_REPORTING_PERIOD_REGEX);
+  if (!match) {
+    throw new Error(`Invalid BRSR reporting period "${reportingPeriod}" — expected e.g. "FY2025-26"`);
+  }
+  return Number(match[1]);
+};
+
+/**
+ * BRSR Core is an annual (not quarterly) disclosure, so its report-generation
+ * window isn't a recurring calendar window like CBAM/CCTS — each FY gets its
+ * own one-time window: it unlocks 1 April the year after that FY closes (once
+ * the year's data is complete) and stays open for a full 12 months, through
+ * 31 March the year after that.
+ */
+export const isBrsrReportWindowOpen = (reportingPeriod: string, now: Date): boolean => {
+  const startYear = parseBrsrFyStartYear(reportingPeriod);
+  const unlock = new Date(Date.UTC(startYear + 1, 3, 1, 0, 0, 0));
+  const deadline = new Date(Date.UTC(startYear + 2, 2, 31, 23, 59, 59));
+  return now >= unlock && now <= deadline;
+};
+
+/** This reporting period's fixed unlock date (for the locked-state message). */
+export const brsrUnlockDate = (reportingPeriod: string): Date => {
+  const startYear = parseBrsrFyStartYear(reportingPeriod);
+  return new Date(Date.UTC(startYear + 1, 3, 1, 0, 0, 0));
+};
+
 /** Calendar-quarter label for a date, e.g. "2026-Q3" — used in dedupe keys. */
 export const quarterLabel = (now: Date): string => {
   const quarter = Math.floor(now.getUTCMonth() / 3) + 1;

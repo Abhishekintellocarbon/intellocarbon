@@ -12,6 +12,8 @@ import type {
   VerificationRequestDetail,
   Notification,
   ReportWindowStatus,
+  BrsrCoreReport,
+  BrsrCoreMetrics,
 } from "./types";
 import type {
   BorderInputs,
@@ -296,11 +298,59 @@ export const activityDataApi = {
     apiFetch(`/api/facilities/${facilityId}/activity-data/${dataId}/verification`),
 };
 
+export const brsrApi = {
+  list: (facilityId: string): Promise<{ reports: BrsrCoreReport[] }> =>
+    apiFetch(`/api/brsr/facilities/${facilityId}/data`),
+
+  // One endpoint for both autosave (submit: false, permissive) and the
+  // explicit Submit action (submit: true, strict) — see brsr.controller.ts.
+  save: (facilityId: string, input: Record<string, unknown>, submit: boolean): Promise<{ report: BrsrCoreReport }> =>
+    apiFetch(`/api/brsr/facilities/${facilityId}/data`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, submit }),
+    }),
+
+  getReport: (
+    facilityId: string,
+    reportingPeriod: string,
+  ): Promise<{ report: BrsrCoreReport; facility: Facility; metrics: BrsrCoreMetrics }> =>
+    apiFetch(`/api/brsr/facilities/${facilityId}/report/${encodeURIComponent(reportingPeriod)}`),
+
+  downloadPdf: async (reportId: string): Promise<void> => {
+    const reportUrl = `${API_URL}/api/brsr/report/${reportId}/pdf`;
+    const fetchReport = () =>
+      fetch(reportUrl, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchReport();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchReport();
+    }
+    if (!res.ok) {
+      throw new ApiError("Couldn't generate the report. Please try again.", res.status);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `brsr-core-report-${reportId.slice(-8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+};
+
 export const billingApi = {
   plans: (): Promise<{ plans: PlanDefinition[] }> => apiFetch("/api/billing/plans"),
 
+  // A company can hold several subscriptions at once (each a separate tier) —
+  // see the backend's Subscription model comment.
   subscription: (): Promise<{
-    subscription: Subscription | null;
+    subscriptions: Subscription[];
     usage: { facilityCount: number };
     plans: PlanDefinition[];
   }> => apiFetch("/api/billing/subscription"),
@@ -308,7 +358,8 @@ export const billingApi = {
   checkout: (tier: SubscriptionTier): Promise<CheckoutResult> =>
     apiFetch("/api/billing/checkout", { method: "POST", body: JSON.stringify({ tier }) }),
 
-  cancel: (): Promise<{ subscription: Subscription }> => apiFetch("/api/billing/cancel", { method: "POST" }),
+  cancel: (tier: SubscriptionTier): Promise<{ subscription: Subscription }> =>
+    apiFetch("/api/billing/cancel", { method: "POST", body: JSON.stringify({ tier }) }),
 };
 
 export const intellocalcApi = {
