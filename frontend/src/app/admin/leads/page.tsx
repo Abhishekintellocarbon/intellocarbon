@@ -16,6 +16,10 @@ const TOOL_OPTIONS = [
   { value: "BORDER", label: "IntelloCalc Border" },
   { value: "INDIA", label: "IntelloCalc India" },
   { value: "COMPLY", label: "IntelloCalc Comply" },
+  { value: "ESG_GRI", label: "ESG waitlist — GRI" },
+  { value: "ESG_ISSB", label: "ESG waitlist — ISSB" },
+  { value: "ESG_CSRD", label: "ESG waitlist — CSRD" },
+  { value: "ESG_CDP", label: "ESG waitlist — CDP" },
 ];
 
 const fmtDate = (iso: string) =>
@@ -104,8 +108,8 @@ function AdminLeadsContent() {
               <tbody>
                 {filteredLeads.map((lead) => (
                   <tr key={lead.id} className="border-b border-surface-border last:border-b-0">
-                    <td className="px-5 py-3 font-medium text-foreground">{lead.name}</td>
-                    <td className="px-5 py-3 text-muted-foreground">{lead.company}</td>
+                    <td className="px-5 py-3 font-medium text-foreground">{lead.name ?? "—"}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{lead.company ?? "—"}</td>
                     <td className="px-5 py-3 text-muted-foreground">{lead.email}</td>
                     <td className="px-5 py-3">
                       <span className="rounded-full border border-teal-500/30 bg-teal-500/10 px-2 py-0.5 text-xs font-medium text-teal-500">

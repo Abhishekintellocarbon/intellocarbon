@@ -390,6 +390,17 @@ export const intellocalcApi = {
   complianceMapPdfUrl: (leadId: string) => `${API_URL}/api/leads/${leadId}/compliance-map.pdf`,
 };
 
+export type EsgWaitlistFramework = "ESG_GRI" | "ESG_ISSB" | "ESG_CSRD" | "ESG_CDP";
+
+export const esgApi = {
+  joinWaitlist: (tool: EsgWaitlistFramework, email: string): Promise<{ leadId: string }> =>
+    apiFetch("/api/leads/esg-waitlist", {
+      method: "POST",
+      body: JSON.stringify({ tool, email }),
+      skipAuth: true,
+    }),
+};
+
 export const adminApi = {
   listLeads: (filters: {
     tool?: string;

@@ -1,9 +1,22 @@
 import { prisma } from "../config/prisma";
 import { calculateBorder, calculateComply, calculateIndia } from "./intellocalcCalculations";
 import { sendLeadBorderEmail, sendLeadComplyEmail, sendLeadIndiaEmail } from "./email.service";
-import type { LeadCaptureInput, ListLeadsQuery } from "../validators/leadCapture.validators";
+import type { EsgWaitlistInput, LeadCaptureInput, ListLeadsQuery } from "../validators/leadCapture.validators";
 
 const cleanOptional = (value?: string) => (value ? value : undefined);
+
+/** "Notify me" signup for a not-yet-built /esg framework — no calculation, no email, just demand signal per framework. */
+export const createEsgWaitlistSignup = async (input: EsgWaitlistInput) => {
+  const lead = await prisma.leadCapture.create({
+    data: {
+      email: input.email,
+      toolUsed: input.tool,
+      inputsJson: {},
+      resultsJson: {},
+    },
+  });
+  return { lead };
+};
 
 export const createLead = async (input: LeadCaptureInput) => {
   let results: unknown;
@@ -29,14 +42,17 @@ export const createLead = async (input: LeadCaptureInput) => {
   });
 
   const sendEmail = async () => {
+    // `input.name` (not `lead.name`) — the column is nullable now to support
+    // the email-only ESG waitlist below, but these three tools' validator
+    // always requires a real name, so the pre-save input is the non-null source.
     if (input.tool === "BORDER") {
-      await sendLeadBorderEmail(lead.email, lead.name, results as ReturnType<typeof calculateBorder>);
+      await sendLeadBorderEmail(lead.email, input.name, results as ReturnType<typeof calculateBorder>);
     } else if (input.tool === "INDIA") {
-      await sendLeadIndiaEmail(lead.email, lead.name, results as ReturnType<typeof calculateIndia>);
+      await sendLeadIndiaEmail(lead.email, input.name, results as ReturnType<typeof calculateIndia>);
     } else {
       await sendLeadComplyEmail(
         lead.email,
-        lead.name,
+        input.name,
         results as ReturnType<typeof calculateComply>,
         lead.id,
       );

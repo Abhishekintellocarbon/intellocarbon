@@ -10,6 +10,11 @@ export const submitLead = asyncHandler(async (req, res) => {
   res.status(201).json({ results, leadId: lead.id });
 });
 
+export const submitEsgWaitlist = asyncHandler(async (req, res) => {
+  const { lead } = await leadCaptureService.createEsgWaitlistSignup(req.body);
+  res.status(201).json({ leadId: lead.id });
+});
+
 export const listLeads = asyncHandler(async (req, res) => {
   const query = listLeadsQuerySchema.parse(req.query);
   const leads = await leadCaptureService.listLeads(query);
@@ -22,7 +27,9 @@ export const downloadComplyPdf = asyncHandler(async (req, res) => {
     throw AppError.notFound("Compliance map not found");
   }
 
-  const doc = buildComplyPdf(lead.name, lead.company, lead.resultsJson as unknown as ComplyResults);
+  // COMPLY leads always carry name/company (only the ESG_* waitlist tool
+  // omits them) — the fallback here is just to satisfy the nullable column type.
+  const doc = buildComplyPdf(lead.name ?? "there", lead.company ?? "your company", lead.resultsJson as unknown as ComplyResults);
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="intellocalc-comply-map-${lead.id.slice(-8)}.pdf"`);

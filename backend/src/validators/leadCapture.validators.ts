@@ -63,8 +63,19 @@ export type BorderInputs = z.infer<typeof borderInputsSchema>;
 export type IndiaInputs = z.infer<typeof indiaInputsSchema>;
 export type ComplyInputs = z.infer<typeof complyInputsSchema>;
 
+// Lightweight "Notify me" waitlist capture for not-yet-built /esg frameworks —
+// email only, tagged by framework via `tool`, kept separate from the
+// discriminated union above since its shape doesn't fit the calculator
+// tools' required name/company/inputs/results contract.
+export const esgWaitlistSchema = z.object({
+  tool: z.enum(["ESG_GRI", "ESG_ISSB", "ESG_CSRD", "ESG_CDP"]),
+  email: z.string().trim().email("Enter a valid email address").max(200),
+});
+
+export type EsgWaitlistInput = z.infer<typeof esgWaitlistSchema>;
+
 export const listLeadsQuerySchema = z.object({
-  tool: z.enum(["BORDER", "INDIA", "COMPLY"]).optional(),
+  tool: z.enum(["BORDER", "INDIA", "COMPLY", "ESG_GRI", "ESG_ISSB", "ESG_CSRD", "ESG_CDP"]).optional(),
   sector: z.string().trim().optional(),
   from: z.string().trim().optional(),
   to: z.string().trim().optional(),

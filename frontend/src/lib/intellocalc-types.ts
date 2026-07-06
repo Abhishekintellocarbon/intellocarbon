@@ -96,11 +96,12 @@ export interface LeadContact {
 
 export interface LeadCapture {
   id: string;
-  name: string;
+  // Nullable — the ESG_* "Notify me" waitlist tools are email-only.
+  name: string | null;
   email: string;
-  company: string;
+  company: string | null;
   phone: string | null;
-  toolUsed: "BORDER" | "INDIA" | "COMPLY";
+  toolUsed: "BORDER" | "INDIA" | "COMPLY" | "ESG_GRI" | "ESG_ISSB" | "ESG_CSRD" | "ESG_CDP";
   inputsJson: unknown;
   resultsJson: unknown;
   followedUp: boolean;
