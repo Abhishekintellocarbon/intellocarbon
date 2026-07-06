@@ -5,8 +5,9 @@
  * calculation engine in `emissionFactors.ts` / `gwpTables.ts`.
  */
 
-export const CBAM_CERTIFICATE_PRICE_EUR = 75.36;
-export const CBAM_CERTIFICATE_PRICE_QUARTER = "Q1 2026";
+/** European Commission, published 6 Jul 2026: https://taxation-customs.ec.europa.eu/carbon-border-adjustment-mechanism/price-cbam-certificates_en */
+export const CBAM_CERTIFICATE_PRICE_EUR = 75.28;
+export const CBAM_CERTIFICATE_PRICE_QUARTER = "Q2 2026";
 export const EUR_TO_INR_RATE = 89.5;
 export const DE_MINIMIS_THRESHOLD_TONNES = 50;
 

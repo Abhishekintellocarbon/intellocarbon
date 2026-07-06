@@ -196,8 +196,7 @@ export function BorderTool() {
           <div className="mt-5 rounded-xl border border-surface-border bg-surface-raised p-4 text-xs text-muted-foreground">
             This estimate uses EU default values per EU 2025/2621. Your actual liability depends on verified
             facility-specific embedded emissions, which are typically lower than defaults. Certificate price
-            used: EUR {fmtNum(results.certificatePriceEur)} (Q1 2026). The Q2 2026 price will be published on 6
-            July 2026.
+            used: EUR {fmtNum(results.certificatePriceEur)} ({results.certificatePriceQuarter}).
           </div>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">

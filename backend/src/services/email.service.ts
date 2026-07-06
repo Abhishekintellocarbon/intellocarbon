@@ -3,6 +3,7 @@ import { env } from "../config/env";
 import { logger } from "../utils/logger";
 import type { BorderResults, ComplyResults, IndiaResults } from "./intellocalcCalculations";
 import { buildComplyPdf } from "./complyPdf.service";
+import { CBAM_CERTIFICATE_PRICE_EUR, CBAM_CERTIFICATE_PRICE_QUARTER } from "../data/intellocalcConstants";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
@@ -196,7 +197,7 @@ export const sendLeadBorderEmail = async (to: string, name: string, results: Bor
     `Hi ${name}, here's your CBAM exposure estimate`,
     `<p>Thanks for using <strong>IntelloCalc Border</strong>. Here's your instant CBAM exposure estimate:</p>
      <table style="width:100%;border-collapse:collapse;margin-top:8px;">${rows.join("")}</table>
-     <p style="margin-top:16px;font-size:12px;color:#8AA0B4;">This estimate uses EU default values per EU 2025/2621. Certificate price used: EUR 75.36 (Q1 2026).</p>
+     <p style="margin-top:16px;font-size:12px;color:#8AA0B4;">This estimate uses EU default values per EU 2025/2621. Certificate price used: EUR ${CBAM_CERTIFICATE_PRICE_EUR} (${CBAM_CERTIFICATE_PRICE_QUARTER}).</p>
      ${button(`${env.CLIENT_URL}/signup`, "Generate Your Verified CBAM Report")}
      <p>Questions? Reply to this email or write to abhishek@intellocarbon.com.</p>`,
   );

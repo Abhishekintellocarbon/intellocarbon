@@ -1,6 +1,7 @@
 import {
   BORDER_SEE_VALUES,
   CBAM_CERTIFICATE_PRICE_EUR,
+  CBAM_CERTIFICATE_PRICE_QUARTER,
   DE_MINIMIS_THRESHOLD_TONNES,
   EUR_TO_INR_RATE,
   FUEL_EMISSION_FACTORS,
@@ -27,6 +28,7 @@ export interface BorderResults {
   netLiabilityEur?: number;
   deMinimisWarning: boolean;
   certificatePriceEur: number;
+  certificatePriceQuarter: string;
   eurToInrRate: number;
 }
 
@@ -57,6 +59,7 @@ export const calculateBorder = (inputs: BorderInputs): BorderResults => {
     netLiabilityEur: netLiabilityEur !== undefined ? round2(netLiabilityEur) : undefined,
     deMinimisWarning: inputs.euExportQuantityTonnes < DE_MINIMIS_THRESHOLD_TONNES,
     certificatePriceEur: CBAM_CERTIFICATE_PRICE_EUR,
+    certificatePriceQuarter: CBAM_CERTIFICATE_PRICE_QUARTER,
     eurToInrRate: EUR_TO_INR_RATE,
   };
 };

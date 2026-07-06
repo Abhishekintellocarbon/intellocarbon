@@ -19,23 +19,21 @@ export interface CbamCertificatePriceReference {
 }
 
 /**
- * Indicative CBAM certificate reference price.
+ * Official CBAM certificate reference price.
  *
  * Under Regulation (EU) 2023/956 Article 21, the Commission calculates and
- * publishes the average weekly closing price of EU ETS allowances as the
- * CBAM certificate price — but certificate *sales* only open from February
- * 2027 (definitive regime), so no official weekly CBAM print exists yet for
- * a report dated in 2026. This figure is an indicative stand-in based on
- * the recent EU ETS (EUA) secondary-market average, used for estimating
- * prospective liability. Replace with the Commission's official weekly
- * average once published.
+ * publishes a CBAM certificate price during the transitional period ahead of
+ * the definitive regime — certificate *sales* only open from February 2027,
+ * but the Commission has been publishing a quarterly reference price since
+ * Q1 2026 (EUR 75.36, published 7 Apr 2026). This is that published figure,
+ * updated each quarter from the Commission's price page — not an estimate.
  */
 export const CBAM_CERTIFICATE_PRICE: CbamCertificatePriceReference = {
-  pricePerTonneEur: 72.5,
+  pricePerTonneEur: 75.28,
   quarterLabel: "Q2 2026",
-  asOfDate: "2026-04-01",
+  asOfDate: "2026-07-06",
   source:
-    "Indicative reference price based on EU ETS (EUA) secondary-market average — stand-in for the Commission's official weekly CBAM certificate price under Regulation (EU) 2023/956 Article 21, which begins publication only once certificate sales open (February 2027).",
+    "European Commission — https://taxation-customs.ec.europa.eu/carbon-border-adjustment-mechanism/price-cbam-certificates_en",
 };
 
 export interface EuDefaultSeeReference {

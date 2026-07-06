@@ -19,6 +19,7 @@ export interface BorderResults {
   netLiabilityEur?: number;
   deMinimisWarning: boolean;
   certificatePriceEur: number;
+  certificatePriceQuarter: string;
   eurToInrRate: number;
 }
 
