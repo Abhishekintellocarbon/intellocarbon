@@ -11,10 +11,89 @@ import {
   CONTENT_WIDTH,
   TOP_Y,
   PAGE_WIDTH,
+  PAGE_HEIGHT,
+  COVER_GRADIENT_FROM,
+  COVER_GRADIENT_TO,
+  STATUS_COLORS,
+  type StatusTone,
 } from "./theme";
 
 const PAGE_RIGHT = MARGIN_X + CONTENT_WIDTH;
 const FOOTER_NOTE = "Intellocarbon Solutions Private Limited  |  intellocarbon.com  |  Confidential";
+const COVER_BAND_HEIGHT = 340;
+
+/** Small rounded label chip — used for status/tone indicators and reference/doc-id badges. */
+export function drawPill(
+  doc: PDFKit.PDFDocument,
+  text: string,
+  x: number,
+  y: number,
+  opts: {
+    bg: string;
+    color: string;
+    fontSize?: number;
+    bold?: boolean;
+    paddingX?: number;
+    paddingY?: number;
+    align?: "left" | "right";
+  },
+): number {
+  const fontSize = opts.fontSize ?? 8;
+  const paddingX = opts.paddingX ?? 8;
+  const paddingY = opts.paddingY ?? 4;
+  doc.font(opts.bold === false ? "Helvetica" : "Helvetica-Bold").fontSize(fontSize);
+  const textWidth = doc.widthOfString(text);
+  const width = textWidth + paddingX * 2;
+  const height = fontSize + paddingY * 2;
+  const drawX = opts.align === "right" ? x - width : x;
+  doc.roundedRect(drawX, y, width, height, height / 2).fillColor(opts.bg).fill();
+  doc
+    .fillColor(opts.color)
+    .font(opts.bold === false ? "Helvetica" : "Helvetica-Bold")
+    .fontSize(fontSize)
+    .text(text, drawX + paddingX, y + paddingY + 0.5, { lineBreak: false });
+  return width;
+}
+
+/**
+ * Small vector up/down/flat marker drawn as a filled triangle (or dot for
+ * "pending") centred at (cx, cy) — standard PDF fonts only cover WinAnsi, so
+ * unicode arrow glyphs (▲▼●) render as garbage and must be drawn as shapes.
+ */
+function drawTrendMarker(doc: PDFKit.PDFDocument, tone: StatusTone, cx: number, cy: number, color: string) {
+  const r = 4.5;
+  doc.fillColor(color);
+  if (tone === "amber") {
+    doc.circle(cx, cy, r * 0.7).fill();
+  } else if (tone === "red") {
+    doc
+      .polygon([cx - r, cy + r * 0.6], [cx + r, cy + r * 0.6], [cx, cy - r * 0.8])
+      .fill();
+  } else {
+    doc
+      .polygon([cx - r, cy - r * 0.6], [cx + r, cy - r * 0.6], [cx, cy + r * 0.8])
+      .fill();
+  }
+}
+
+export interface CoverShellOptions {
+  logoPath: string;
+  logoWidth?: number;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  heroLabel: string;
+  heroValue: string;
+  heroDelta?: { text: string; tone: StatusTone };
+  referenceBadge: string;
+  controlTitle: string;
+  controlRows: [string, string][];
+  qrPngBuffer: Buffer;
+  qrCaption: string;
+  qrUrl: string;
+  docIdBadge: string;
+  confidentialityText: string;
+}
 
 interface TocEntry {
   number: number;
@@ -43,10 +122,12 @@ export class PageBuilder {
   private tocStartY = TOP_Y;
   private coverPageIndex = 0;
   private reportReference: string;
+  private logoPath: string;
 
-  constructor(doc: PDFKit.PDFDocument, reportReference: string) {
+  constructor(doc: PDFKit.PDFDocument, reportReference: string, logoPath: string) {
     this.doc = doc;
     this.reportReference = reportReference;
+    this.logoPath = logoPath;
   }
 
   private currentPageIndex() {
@@ -58,6 +139,148 @@ export class PageBuilder {
     this.coverPageIndex = this.currentPageIndex();
     this.y = 0;
   }
+
+  /**
+   * Full premium cover treatment shared by both reports: gradient hero band with
+   * headline stat, document control panel + verification QR beneath it, and a
+   * confidentiality strip at the foot of the page. Keeping this in one place is
+   * what guarantees the two report covers are pixel-consistent with each other.
+   */
+  coverShell(opts: CoverShellOptions) {
+    const doc = this.doc;
+    this.startCover();
+
+    const gradient = doc.linearGradient(0, 0, PAGE_WIDTH, COVER_BAND_HEIGHT);
+    gradient.stop(0, COVER_GRADIENT_FROM).stop(1, COVER_GRADIENT_TO);
+    doc.rect(0, 0, PAGE_WIDTH, COVER_BAND_HEIGHT).fill(gradient);
+
+    const logoWidth = opts.logoWidth ?? 168;
+    doc.image(opts.logoPath, MARGIN_X, 40, { width: logoWidth });
+
+    drawPill(doc, opts.referenceBadge, PAGE_RIGHT, 44, {
+      bg: "#0A1A22",
+      color: WHITE,
+      fontSize: 8,
+      align: "right",
+    });
+
+    doc
+      .fillColor("#9FEAD8")
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .text(opts.eyebrow.toUpperCase(), MARGIN_X, 96, { characterSpacing: 1.2 });
+
+    doc.fillColor(WHITE).font("Helvetica-Bold").fontSize(27).text(opts.title, MARGIN_X, 112, { width: CONTENT_WIDTH });
+    const titleBottom = doc.y;
+    doc
+      .fillColor("#CFEFE6")
+      .font("Helvetica")
+      .fontSize(11)
+      .text(opts.subtitle, MARGIN_X, titleBottom + 6, { width: CONTENT_WIDTH });
+
+    doc
+      .moveTo(MARGIN_X, doc.y + 16)
+      .lineTo(MARGIN_X + 90, doc.y + 16)
+      .strokeColor(TEAL)
+      .lineWidth(2)
+      .stroke();
+
+    const heroY = doc.y + 34;
+    doc
+      .fillColor("#9FEAD8")
+      .font("Helvetica-Bold")
+      .fontSize(9.5)
+      .text(opts.heroLabel.toUpperCase(), MARGIN_X, heroY, { characterSpacing: 1 });
+    doc.fillColor(WHITE).font("Helvetica-Bold").fontSize(38).text(opts.heroValue, MARGIN_X, heroY + 15, {
+      width: CONTENT_WIDTH,
+    });
+
+    if (opts.heroDelta) {
+      const tone = STATUS_COLORS[opts.heroDelta.tone];
+      const chipY = heroY + 62;
+      drawTrendMarker(doc, opts.heroDelta.tone, MARGIN_X + 5, chipY + 11, tone.fg);
+      drawPill(doc, opts.heroDelta.text, MARGIN_X + 22, chipY, {
+        bg: tone.bg,
+        color: tone.fg,
+        fontSize: 9,
+        paddingX: 10,
+        paddingY: 5,
+      });
+    }
+
+    const panelY = COVER_BAND_HEIGHT + 34;
+    const controlWidth = 290;
+    const gap = 25;
+    const qrWidth = CONTENT_WIDTH - controlWidth - gap;
+    const qrX = MARGIN_X + controlWidth + gap;
+    const panelHeaderHeight = 24;
+    const rowHeight = 26;
+    const panelHeight = panelHeaderHeight + opts.controlRows.length * rowHeight + 12;
+
+    // Document control panel
+    doc.roundedRect(MARGIN_X, panelY, controlWidth, panelHeight, 6).strokeColor(BORDER).lineWidth(1).stroke();
+    doc.rect(MARGIN_X, panelY, controlWidth, panelHeaderHeight).fillColor(NAVY).fill();
+    doc
+      .fillColor(WHITE)
+      .font("Helvetica-Bold")
+      .fontSize(8.5)
+      .text(opts.controlTitle.toUpperCase(), MARGIN_X + 14, panelY + 7, { characterSpacing: 0.8 });
+
+    let rowY = panelY + panelHeaderHeight + 7;
+    for (const [label, value] of opts.controlRows) {
+      doc
+        .fillColor(MUTED)
+        .font("Helvetica")
+        .fontSize(7.5)
+        .text(label.toUpperCase(), MARGIN_X + 14, rowY, { width: controlWidth - 28, characterSpacing: 0.3 });
+      doc
+        .fillColor(NAVY)
+        .font("Helvetica-Bold")
+        .fontSize(9)
+        .text(value, MARGIN_X + 14, rowY + 10, { width: controlWidth - 28, height: 12, ellipsis: true });
+      rowY += rowHeight;
+    }
+
+    // Verification QR card
+    doc.roundedRect(qrX, panelY, qrWidth, panelHeight, 6).strokeColor(BORDER).lineWidth(1).stroke();
+    const qrSize = Math.min(qrWidth - 30, 96);
+    const qrImgX = qrX + (qrWidth - qrSize) / 2;
+    doc.image(opts.qrPngBuffer, qrImgX, panelY + 14, { width: qrSize, height: qrSize });
+    doc
+      .fillColor(NAVY)
+      .font("Helvetica-Bold")
+      .fontSize(8)
+      .text(opts.qrCaption, qrX, panelY + 14 + qrSize + 8, { width: qrWidth, align: "center" });
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(6.5)
+      .text(opts.qrUrl, qrX + 8, panelY + 14 + qrSize + 20, { width: qrWidth - 16, align: "center" });
+
+    // Confidentiality strip
+    const footY = PAGE_HEIGHT - 90;
+    doc.moveTo(MARGIN_X, footY).lineTo(PAGE_RIGHT, footY).strokeColor(BORDER).lineWidth(1).stroke();
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica-Oblique")
+      .fontSize(7.5)
+      .text(opts.confidentialityText, MARGIN_X, footY + 12, { width: CONTENT_WIDTH, align: "center" });
+    const badgeWidth = doc.font("Helvetica-Bold").fontSize(8).widthOfString(opts.docIdBadge) + 20;
+    drawPill(doc, opts.docIdBadge, MARGIN_X + (CONTENT_WIDTH - badgeWidth) / 2, footY + 34, {
+      bg: ROW_ALT,
+      color: NAVY,
+      fontSize: 8,
+      paddingX: 10,
+      paddingY: 5,
+    });
+  }
+
+  /** Inline status chip — favourable/pending/unfavourable, used inline within body copy. */
+  statusBadge(text: string, tone: StatusTone, x: number, y: number) {
+    const colors = STATUS_COLORS[tone];
+    return drawPill(this.doc, text, x, y, { bg: colors.bg, color: colors.fg, fontSize: 8.5, paddingX: 9, paddingY: 4 });
+  }
+
 
   startTocPage() {
     this.doc.addPage();
@@ -224,15 +447,35 @@ export class PageBuilder {
       this.doc.rect(MARGIN_X, this.y, tableWidth, rowHeight).fillColor(bg).fill();
 
       x = MARGIN_X;
-      this.doc.font(isHighlight ? "Helvetica-Bold" : "Helvetica").fontSize(9).fillColor(isHighlight ? TEAL_DARK : "#1A2530");
+      const baseFont = isHighlight ? "Helvetica-Bold" : "Helvetica";
+      const baseColor = isHighlight ? TEAL_DARK : "#1A2530";
       row.forEach((cell, colIndex) => {
         const col = columns[colIndex];
-        this.doc.text(String(cell), x + 6, this.y + 5, {
-          width: col.width - 10,
+        // Trailing `^n` on a cell renders as a small superscript citation
+        // badge linking to the numbered methodology reference — a rigour
+        // signal next to the raw emission-factor value rather than only in a
+        // separate source column.
+        const raw = String(cell);
+        const citation = raw.match(/\^(\d+)$/);
+        const text = citation ? raw.slice(0, citation.index) : raw;
+
+        this.doc.font(baseFont).fontSize(9).fillColor(baseColor);
+        this.doc.text(text, x + 6, this.y + 5, {
+          width: col.width - (citation ? 16 : 10),
           height: cellTextHeight,
           align: col.align ?? "left",
           ellipsis: true,
         });
+
+        if (citation) {
+          const textWidth = this.doc.font(baseFont).fontSize(9).widthOfString(text);
+          const badgeX =
+            col.align === "right" ? x + col.width - 8 - this.doc.widthOfString(citation[1]) : x + 8 + textWidth;
+          this.doc.font("Helvetica-Bold").fontSize(6.5).fillColor(TEAL_DARK).text(citation[1], badgeX, this.y + 4, {
+            lineBreak: false,
+          });
+        }
+
         x += col.width;
       });
       this.y += rowHeight;
@@ -343,7 +586,7 @@ export class PageBuilder {
   }
 
   private drawHeaderBand() {
-    this.doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(8).text("INTELLOCARBON", MARGIN_X, 34, { lineBreak: false });
+    this.doc.image(this.logoPath, MARGIN_X, 26, { width: 78 });
     this.doc
       .fillColor(MUTED)
       .font("Helvetica")

@@ -15,9 +15,19 @@ const stableDigits = (id: string): string => {
   return String(1000 + (hash % 9000));
 };
 
-export const reportReferenceNumber = (ctx: ReportContext): string => {
+export type CbamReportType = "CBAM" | "CCTS";
+
+/**
+ * CBAM and CCTS reports for the same activity data entry used to share this
+ * exact reference number (both derived it from the same ctx.id with no
+ * report-type marker) — two different regulatory documents could carry an
+ * identical Document ID. The type prefix disambiguates them; the digit suffix
+ * itself is unchanged so a report generated before this fix and one generated
+ * after still share the same stable digits for the same underlying data.
+ */
+export const reportReferenceNumber = (ctx: ReportContext, reportType: CbamReportType): string => {
   const quarter = Math.floor(ctx.periodEnd.getUTCMonth() / 3) + 1;
-  return `ICT-${ctx.periodEnd.getUTCFullYear()}-Q${quarter}-${stableDigits(ctx.id)}`;
+  return `ICT-${reportType}-${ctx.periodEnd.getUTCFullYear()}-Q${quarter}-${stableDigits(ctx.id)}`;
 };
 
 export interface CctsCccPosition {
@@ -61,7 +71,7 @@ export interface CbamFinancialImpact {
   cctsPosition: CctsCccPosition | CctsCccPositionResolved;
 }
 
-export const computeCbamFinancialImpact = (ctx: ReportContext): CbamFinancialImpact => {
+export const computeCbamFinancialImpact = (ctx: ReportContext, reportType: CbamReportType): CbamFinancialImpact => {
   const result = ctx.calculationResult!;
   // Electricity's CBAM SEE is per MWh exported to the EU, not per tonne of product.
   const production = ctx.sector === "ELECTRICITY" ? (ctx.electricityExportedEuMwh ?? 0) : ctx.productionQuantityT;
@@ -98,7 +108,7 @@ export const computeCbamFinancialImpact = (ctx: ReportContext): CbamFinancialImp
       : { pending: true };
 
   return {
-    reportReference: reportReferenceNumber(ctx),
+    reportReference: reportReferenceNumber(ctx, reportType),
 
     actualSee: round(actualSee),
     defaultSee: round(defaultSee),

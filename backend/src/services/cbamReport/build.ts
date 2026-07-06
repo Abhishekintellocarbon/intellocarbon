@@ -2,6 +2,7 @@ import path from "path";
 import type { ReportContext } from "../report.service";
 import type { CbamFinancialImpact } from "../cbamFinancialImpact.service";
 import { PageBuilder } from "./layout";
+import { buildVerifyQr } from "./qr";
 import {
   TEAL,
   TEAL_DARK,
@@ -10,14 +11,15 @@ import {
   BORDER,
   MARGIN_X,
   CONTENT_WIDTH,
-  PAGE_WIDTH,
   fmt,
   fmtInt,
   fmtEur,
   fmtSigned,
   fmtDate,
   titleCase,
+  buildCitationNumbering,
 } from "./theme";
+import { donutChart, horizontalBarComparison, waterfallChart, CHART_BLUE, CHART_SLATE, CHART_AMBER } from "./charts";
 import {
   FUEL_LIBRARY,
   PROCESS_MATERIAL_LIBRARY,
@@ -39,7 +41,7 @@ const UNIT_LABELS: Record<string, string> = {
   GJ: "GJ",
 };
 
-const productionRouteLabel = (sector: ReportContext["sector"], route: string): string =>
+export const productionRouteLabel = (sector: ReportContext["sector"], route: string): string =>
   SECTOR_PRODUCTION_ROUTES[sector]?.find((r) => r.value === route)?.label ?? titleCase(route);
 
 const cnCodesLabel = (ctx: ReportContext): string => {
@@ -48,24 +50,23 @@ const cnCodesLabel = (ctx: ReportContext): string => {
   return sectorDefaults && sectorDefaults.length > 0 ? sectorDefaults.join(", ") : "Not provided";
 };
 
-export const buildCbamCommunicationPackage = (
+export const buildCbamCommunicationPackage = async (
   doc: PDFKit.PDFDocument,
   ctx: ReportContext,
   financials: CbamFinancialImpact,
 ) => {
-  const pb = new PageBuilder(doc, financials.reportReference);
+  const pb = new PageBuilder(doc, financials.reportReference, LOGO_PATH);
+  const qr = await buildVerifyQr(financials.reportReference);
 
-  buildCoverPage(pb, ctx, financials);
+  buildCoverPage(pb, ctx, financials, qr);
   pb.startTocPage();
   buildExecutiveSummary(pb, ctx, financials);
-  buildInstallationDeclarant(pb, ctx, financials);
-  buildGoodsProduction(pb, ctx, financials);
+  buildInstallationDeclarantProduction(pb, ctx, financials);
   buildSeeResults(pb, ctx, financials);
   buildFinancialImpact(pb, financials);
   buildScope1Combustion(pb, ctx);
   buildScope1Process(pb, ctx);
-  buildScope2Indirect(pb, ctx);
-  buildPrecursors(pb, ctx);
+  buildIndirectAndPrecursors(pb, ctx);
   buildMethodology(pb);
   buildVerification(pb, ctx);
   buildDeclarationAnnexures(pb, ctx);
@@ -77,79 +78,49 @@ export const buildCbamCommunicationPackage = (
 // Page 1 — Cover
 // ---------------------------------------------------------------------------
 
-function buildCoverPage(pb: PageBuilder, ctx: ReportContext, financials: CbamFinancialImpact) {
-  const doc = pb.doc;
-  pb.startCover();
+function buildCoverPage(
+  pb: PageBuilder,
+  ctx: ReportContext,
+  financials: CbamFinancialImpact,
+  qr: { buffer: Buffer; url: string },
+) {
+  const savingAbs = fmtEur(Math.abs(financials.savingVsDefaultEur));
+  const heroDelta = financials.varianceIsBetterThanDefault
+    ? { text: `${savingAbs} better than EU default value`, tone: "green" as const }
+    : { text: `${savingAbs} above EU default value`, tone: "red" as const };
 
-  doc.rect(0, 0, doc.page.width, 130).fillColor(TEAL).fill();
-
-  doc.roundedRect(MARGIN_X - 10, 24, 168, 50, 6).fillColor("#FFFFFF").fill();
-  doc.image(LOGO_PATH, MARGIN_X, 34, { width: 148 });
-
-  doc
-    .fillColor(NAVY)
-    .font("Helvetica-Bold")
-    .fontSize(30)
-    .text("CBAM Communication Package", MARGIN_X, 220, { width: CONTENT_WIDTH, align: "center" });
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica")
-    .fontSize(12)
-    .text(
-      "EU Carbon Border Adjustment Mechanism — Specific Embedded Emissions Report",
-      MARGIN_X,
-      260,
-      { width: CONTENT_WIDTH, align: "center" },
-    );
-
-  doc
-    .moveTo(MARGIN_X + 120, 300)
-    .lineTo(PAGE_WIDTH - MARGIN_X - 120, 300)
-    .strokeColor(TEAL)
-    .lineWidth(2)
-    .stroke();
-
-  const boxY = 340;
-  const boxX = MARGIN_X + 60;
-  const boxWidth = CONTENT_WIDTH - 120;
-  doc.roundedRect(boxX, boxY, boxWidth, 176, 8).strokeColor(BORDER).lineWidth(1).stroke();
-
-  const rows: [string, string][] = [
-    ["Company", ctx.facility.company.name],
-    ["Facility", ctx.facility.name],
-    ["Reporting period", `${fmtDate(ctx.periodStart)} – ${fmtDate(ctx.periodEnd)}`],
-    ["Date of issue", fmtDate(new Date())],
-  ];
-  let rowY = boxY + 22;
-  for (const [label, value] of rows) {
-    doc
-      .fillColor(MUTED)
-      .font("Helvetica-Bold")
-      .fontSize(8)
-      .text(label.toUpperCase(), boxX + 30, rowY, { width: boxWidth - 60, characterSpacing: 0.5 });
-    doc
-      .fillColor(NAVY)
-      .font("Helvetica-Bold")
-      .fontSize(13)
-      .text(value, boxX + 30, rowY + 12, { width: boxWidth - 60 });
-    rowY += 40;
-  }
-
-  doc
-    .fillColor(TEAL_DARK)
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text(`Reference: ${financials.reportReference}`, MARGIN_X, doc.page.height - 96, {
-      width: CONTENT_WIDTH,
-      align: "right",
-    });
+  pb.coverShell({
+    logoPath: LOGO_PATH,
+    eyebrow: "Regulatory Submission Document",
+    title: "CBAM Communication Package",
+    subtitle: "EU Carbon Border Adjustment Mechanism — Specific Embedded Emissions Report",
+    heroLabel: "Net CBAM Liability",
+    heroValue: fmtEur(financials.netLiabilityEur),
+    heroDelta,
+    referenceBadge: financials.reportReference,
+    controlTitle: "Document Control",
+    controlRows: [
+      ["Document ID", financials.reportReference],
+      ["Version", "v1.0"],
+      ["Classification", "Confidential — Regulatory Submission"],
+      ["Distribution", "Company Admin, EU Declarant, Assigned Verifier"],
+      ["Generated", fmtDate(new Date())],
+      ["Reporting period", `${fmtDate(ctx.periodStart)} – ${fmtDate(ctx.periodEnd)}`],
+    ],
+    qrPngBuffer: qr.buffer,
+    qrCaption: "Scan to verify",
+    qrUrl: qr.url,
+    docIdBadge: `DOC ID  ${financials.reportReference}  ·  v1.0`,
+    confidentialityText:
+      "This document is classified Confidential — Regulatory Submission and is intended solely for the named distribution list above. Unauthorised copying or distribution is prohibited. © 2026 Intellocarbon Solutions Private Limited.",
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Section 01 — Executive Summary (page 3)
 // ---------------------------------------------------------------------------
 
-function verificationStatusLabel(ctx: ReportContext): string {
+export function verificationStatusLabel(ctx: ReportContext): string {
   const vr = ctx.verificationRequest;
   if (!vr) return "Not yet submitted for verification";
   if (vr.status === "APPROVED") return `Approved by ${vr.verifier?.name ?? "independent verifier"}`;
@@ -157,7 +128,7 @@ function verificationStatusLabel(ctx: ReportContext): string {
   return vr.status === "IN_REVIEW" ? "Under review" : "Submitted, pending assignment";
 }
 
-function cctsPositionLabel(financials: CbamFinancialImpact): string {
+export function cctsPositionLabel(financials: CbamFinancialImpact): string {
   const pos = financials.cctsPosition;
   if (pos.pending) return "Pending — target not yet notified";
   return `${pos.isSurplus ? "Surplus" : "Deficit"} of ${fmt(Math.abs(pos.deltaTco2e), 2)} tCO2e`;
@@ -194,36 +165,30 @@ function buildExecutiveSummary(pb: PageBuilder, ctx: ReportContext, financials: 
     { tone: "teal" },
   );
 
+  pb.ensureSpace(150);
   pb.heading("Actual SEE vs. EU Default Comparison");
-  pb.table({
-    columns: [
-      { header: "Metric", width: 220 },
-      { header: "Actual", width: 90, align: "right" },
-      { header: "EU Default", width: 90, align: "right" },
-      { header: "Variance", width: 95, align: "right" },
-    ],
-    rows: [
-      [
-        "Total SEE (tCO2e / t product)",
-        fmt(financials.actualSee),
-        fmt(financials.defaultSee),
-        fmtSigned(financials.varianceFromDefault),
-      ],
-    ],
-    highlightRowIndex: financials.varianceIsBetterThanDefault ? 0 : undefined,
+  pb.y = horizontalBarComparison(pb.doc, {
+    x: MARGIN_X,
+    y: pb.y,
+    width: CONTENT_WIDTH,
+    actualValue: financials.actualSee,
+    actualLabel: "Actual SEE",
+    referenceValue: financials.defaultSee,
+    referenceLabel: "EU Default",
+    unit: seeUnit,
   });
 
   pb.note(
-    "EU default value is illustrative — see Section 05 for the applicable source citation and Section 10 for methodology.",
+    "EU default value is illustrative — see Section 04 for the applicable source citation and Section 08 for methodology.",
   );
 }
 
 // ---------------------------------------------------------------------------
-// Section 02 — Installation and Declarant Details (page 4)
+// Section 02 — Installation, Declarant and Production Data
 // ---------------------------------------------------------------------------
 
-function buildInstallationDeclarant(pb: PageBuilder, ctx: ReportContext, financials: CbamFinancialImpact) {
-  pb.startSection(2, "Installation and Declarant Details");
+function buildInstallationDeclarantProduction(pb: PageBuilder, ctx: ReportContext, financials: CbamFinancialImpact) {
+  pb.startSection(2, "Installation, Declarant and Production Data");
 
   const { facility } = ctx;
   const { company } = facility;
@@ -267,15 +232,8 @@ function buildInstallationDeclarant(pb: PageBuilder, ctx: ReportContext, financi
       "EU declarant details are incomplete — add the importer name and EORI number in Company Settings before this package is used for a regulatory submission.",
     );
   }
-}
 
-// ---------------------------------------------------------------------------
-// Section 03 — Goods and Production Data (page 5)
-// ---------------------------------------------------------------------------
-
-function buildGoodsProduction(pb: PageBuilder, ctx: ReportContext, financials: CbamFinancialImpact) {
-  pb.startSection(3, "Goods and Production Data");
-
+  pb.heading("Goods and Production Data");
   pb.paragraph(
     "The table below summarises the goods produced at this installation and reported under this CBAM Communication Package.",
   );
@@ -306,11 +264,11 @@ function buildGoodsProduction(pb: PageBuilder, ctx: ReportContext, financials: C
 }
 
 // ---------------------------------------------------------------------------
-// Section 04 — Specific Embedded Emissions Results (page 6)
+// Section 03 — Specific Embedded Emissions Results
 // ---------------------------------------------------------------------------
 
 function buildSeeResults(pb: PageBuilder, ctx: ReportContext, financials: CbamFinancialImpact) {
-  pb.startSection(4, "Specific Embedded Emissions Results");
+  pb.startSection(3, "Specific Embedded Emissions Results");
 
   const result = ctx.calculationResult!;
   const production = ctx.sector === "ELECTRICITY" ? (ctx.electricityExportedEuMwh ?? 0) : ctx.productionQuantityT;
@@ -348,6 +306,22 @@ function buildSeeResults(pb: PageBuilder, ctx: ReportContext, financials: CbamFi
     highlightRowIndex: financials.varianceIsBetterThanDefault ? 4 : undefined,
   });
 
+  pb.ensureSpace(240);
+  pb.heading("Total Embedded Emissions Composition");
+  pb.y = donutChart(pb.doc, {
+    x: MARGIN_X,
+    y: pb.y,
+    diameter: 130,
+    unit: "tCO2e",
+    centerLabel: "Total",
+    segments: [
+      { label: "Scope 1 Combustion", value: result.directCombustionCo2eAr5, color: TEAL },
+      { label: "Scope 1 Process", value: result.directProcessCo2e, color: CHART_BLUE },
+      { label: "Scope 2 Indirect", value: result.indirectElectricityCo2e + result.indirectSteamCo2e, color: CHART_AMBER },
+      { label: "Precursor Embedded", value: result.directPrecursorCo2e, color: CHART_SLATE },
+    ],
+  });
+
   pb.formulaBlock(
     "Specific Embedded Emissions (SEE)",
     [
@@ -366,7 +340,7 @@ function buildSeeResults(pb: PageBuilder, ctx: ReportContext, financials: CbamFi
 // ---------------------------------------------------------------------------
 
 function buildFinancialImpact(pb: PageBuilder, financials: CbamFinancialImpact) {
-  pb.startSection(5, "Financial Impact Analysis");
+  pb.startSection(4, "Financial Impact Analysis");
 
   pb.formulaBlock(
     "Net CBAM Liability",
@@ -389,6 +363,22 @@ function buildFinancialImpact(pb: PageBuilder, financials: CbamFinancialImpact) 
 
   pb.note(`Certificate price source: ${financials.certificatePriceSource} As of ${fmtDate(new Date(financials.certificatePriceAsOfDate))}.`);
 
+  pb.ensureSpace(250);
+  pb.heading("Liability Walk — Gross to Net");
+  pb.y = waterfallChart(pb.doc, {
+    x: MARGIN_X,
+    y: pb.y,
+    width: CONTENT_WIDTH,
+    height: 150,
+    grossLabel: "Gross Liability",
+    grossValue: financials.grossLiabilityEur,
+    deductionLabel: "Article 9 Deduction",
+    deductionValue: financials.article9DeductionEur,
+    netLabel: "Net Liability",
+    netValue: financials.netLiabilityEur,
+    formatValue: fmtEur,
+  });
+
   pb.heading("CCTS CCC Position");
   const pos = financials.cctsPosition;
   if (pos.pending) {
@@ -408,7 +398,7 @@ function buildFinancialImpact(pb: PageBuilder, financials: CbamFinancialImpact) 
 // ---------------------------------------------------------------------------
 
 function buildScope1Combustion(pb: PageBuilder, ctx: ReportContext) {
-  pb.startSection(6, "Direct Emissions — Scope 1 Combustion");
+  pb.startSection(5, "Direct Emissions — Scope 1 Combustion");
 
   pb.paragraph(
     "Combustion emissions from fuels charged directly to furnaces, boilers and other combustion equipment at the installation.",
@@ -420,6 +410,7 @@ function buildScope1Combustion(pb: PageBuilder, ctx: ReportContext) {
   }
 
   let subtotal = 0;
+  const sources: string[] = [];
   const rows: (string | number)[][] = ctx.fuelEntries.map((entry) => {
     const def = FUEL_LIBRARY[entry.fuelType];
     const efCo2 = entry.emissionFactorOverrideCo2 ?? def.efCo2PerUnit;
@@ -428,32 +419,35 @@ function buildScope1Combustion(pb: PageBuilder, ctx: ReportContext) {
     const n2oKg = entry.quantity * def.efN2oPerUnit;
     const co2eAr5 = co2Tonnes + (ch4Kg / 1000) * GWP_AR5.ch4 + (n2oKg / 1000) * GWP_AR5.n2o;
     subtotal += co2eAr5;
+    sources.push(EMISSION_FACTOR_SOURCE);
     return [
       def.label,
       fmt(entry.quantity, 2),
       UNIT_LABELS[entry.unit] ?? titleCase(entry.unit),
       `${fmt(efCo2, 3)} t/unit`,
-      EMISSION_FACTOR_SOURCE,
       fmt(co2eAr5, 2),
     ];
   });
-  rows.push(["Subtotal — Scope 1 Combustion", "", "", "", "", fmt(subtotal, 2)]);
+  const { numbers, legend } = buildCitationNumbering(sources);
+  rows.forEach((row, i) => {
+    row[3] = `${row[3]}^${numbers[i]}`;
+  });
+  rows.push(["Subtotal — Scope 1 Combustion", "", "", "", fmt(subtotal, 2)]);
 
   pb.table({
     columns: [
-      { header: "Fuel type", width: 108 },
-      { header: "Quantity", width: 58, align: "right" },
-      { header: "Unit", width: 57 },
-      { header: "Emission factor", width: 80, align: "right" },
-      { header: "Source regulation", width: 122 },
-      { header: "tCO2e", width: 70, align: "right" },
+      { header: "Fuel type", width: 145 },
+      { header: "Quantity", width: 70, align: "right" },
+      { header: "Unit", width: 65 },
+      { header: "Emission factor", width: 105, align: "right" },
+      { header: "tCO2e", width: 110, align: "right" },
     ],
     rows,
     highlightRowIndex: rows.length - 1,
   });
 
   pb.note(
-    `Emission factors are Tier-1 defaults; the applicable regulatory citation for each fuel is ${EMISSION_FACTOR_SOURCE}. Overridden factors reflect facility-specific data supplied at data entry.`,
+    `${legend}. Emission factors are Tier-1 defaults. Overridden factors reflect facility-specific data supplied at data entry.`,
   );
 }
 
@@ -469,10 +463,10 @@ interface SectorBreakdown {
 }
 
 function buildScope1Process(pb: PageBuilder, ctx: ReportContext) {
-  pb.startSection(7, "Direct Emissions — Scope 1 Process");
+  pb.startSection(6, "Direct Emissions — Scope 1 Process");
 
   pb.paragraph(
-    "Process emissions from flux/carbonate calcination, anode carbon oxidation, and other sector-specific process reactions. Purchased precursor materials (pig iron, DRI, scrap, clinker, alumina, ammonia) are reported as embedded emissions in Section 09 — Precursor Embedded Emissions, consistent with the mass balance approach described in Section 10.",
+    "Process emissions from flux/carbonate calcination, anode carbon oxidation, and other sector-specific process reactions. Purchased precursor materials (pig iron, DRI, scrap, clinker, alumina, ammonia) are reported as embedded emissions in Section 07 — Indirect Emissions and Precursor Embedded Emissions, consistent with the mass balance approach described in Section 08.",
   );
 
   const breakdown = (ctx.calculationResult?.breakdown ?? {}) as SectorBreakdown;
@@ -481,47 +475,54 @@ function buildScope1Process(pb: PageBuilder, ctx: ReportContext) {
     pb.note("No process material entries recorded for this reporting period.");
   } else {
     let subtotal = 0;
+    const sources: string[] = [];
     const rows: (string | number)[][] = ctx.processMaterialEntries.map((entry) => {
       const def = PROCESS_MATERIAL_LIBRARY[entry.materialType];
       const efUsed = entry.emissionFactorOverride ?? def.efCo2PerTonne;
       const co2 = entry.quantityTonnes * efUsed;
       subtotal += co2;
-      return [def.label, fmt(entry.quantityTonnes, 2), `${fmt(efUsed, 3)} tCO2/t`, EMISSION_FACTOR_SOURCE, fmt(co2, 2)];
+      sources.push(EMISSION_FACTOR_SOURCE);
+      return [def.label, fmt(entry.quantityTonnes, 2), `${fmt(efUsed, 3)} tCO2/t`, fmt(co2, 2)];
     });
 
     if (breakdown.calcination) {
       subtotal += breakdown.calcination.co2Tonnes;
+      sources.push("IPCC 2006 Vol.3 Ch.2");
       rows.push([
         "Limestone calcination (cement)",
         fmt(breakdown.calcination.limestoneInputTonnes, 2),
         `${fmt(breakdown.calcination.emissionFactorUsed, 3)} tCO2/t CaCO3 x ${fmt(breakdown.calcination.clinkerConversionFraction, 2)}`,
-        "IPCC 2006 Vol.3 Ch.2",
         fmt(breakdown.calcination.co2Tonnes, 2),
       ]);
     }
     if (breakdown.fertilizerFeedstock) {
       subtotal += breakdown.fertilizerFeedstock.co2Tonnes;
+      sources.push(EMISSION_FACTOR_SOURCE);
       rows.push([
         "Natural gas feedstock carbon (ammonia)",
         `${fmt(breakdown.fertilizerFeedstock.naturalGasFeedstockNm3, 2)} '000 Nm3`,
         `${fmt(breakdown.fertilizerFeedstock.emissionFactorUsed, 3)} tCO2/'000 Nm3`,
-        EMISSION_FACTOR_SOURCE,
         fmt(breakdown.fertilizerFeedstock.co2Tonnes, 2),
       ]);
     }
-    rows.push(["Subtotal — Scope 1 Process", "", "", "", fmt(subtotal, 2)]);
+
+    const { numbers, legend } = buildCitationNumbering(sources);
+    rows.forEach((row, i) => {
+      row[2] = `${row[2]}^${numbers[i]}`;
+    });
+    rows.push(["Subtotal — Scope 1 Process", "", "", fmt(subtotal, 2)]);
 
     pb.table({
       columns: [
-        { header: "Process material", width: 140 },
-        { header: "Quantity (t)", width: 65, align: "right" },
-        { header: "Emission factor", width: 80, align: "right" },
-        { header: "Source regulation", width: 130 },
-        { header: "tCO2e", width: 80, align: "right" },
+        { header: "Process material", width: 175 },
+        { header: "Quantity (t)", width: 80, align: "right" },
+        { header: "Emission factor", width: 140, align: "right" },
+        { header: "tCO2e", width: 100, align: "right" },
       ],
       rows,
       highlightRowIndex: rows.length - 1,
     });
+    pb.note(legend);
   }
 
   if (breakdown.pfc) {
@@ -572,74 +573,61 @@ function buildScope1Process(pb: PageBuilder, ctx: ReportContext) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 08 — Indirect Emissions: Scope 2 (page 10)
+// Section 07 — Indirect Emissions and Precursor Embedded Emissions
 // ---------------------------------------------------------------------------
 
-function buildScope2Indirect(pb: PageBuilder, ctx: ReportContext) {
-  pb.startSection(8, "Indirect Emissions — Scope 2");
+function buildIndirectAndPrecursors(pb: PageBuilder, ctx: ReportContext) {
+  pb.startSection(7, "Indirect Emissions and Precursor Embedded Emissions");
 
   pb.paragraph("Emissions embedded in purchased electricity and imported steam.");
 
   const gridEfUsed = ctx.gridEmissionFactorOverride ?? DEFAULT_GRID_EMISSION_FACTOR;
-  const gridSource = ctx.gridEmissionFactorOverride != null ? "Facility override" : "CEA FY2025-26";
+  const gridSource = ctx.gridEmissionFactorOverride != null ? "Facility override" : DEFAULT_GRID_EMISSION_FACTOR_SOURCE;
   const electricityCo2e = ctx.gridElectricityMwh * gridEfUsed;
 
+  const sources: string[] = [gridSource];
   const rows: (string | number)[][] = [
-    ["Grid electricity", fmt(ctx.gridElectricityMwh, 2), "MWh", `${fmt(gridEfUsed, 3)} tCO2/MWh`, gridSource, fmt(electricityCo2e, 2)],
+    ["Grid electricity", fmt(ctx.gridElectricityMwh, 2), "MWh", `${fmt(gridEfUsed, 3)} tCO2/MWh`, fmt(electricityCo2e, 2)],
   ];
 
   if (ctx.renewableElectricityMwh > 0) {
-    rows.push([
-      "Renewable electricity",
-      fmt(ctx.renewableElectricityMwh, 2),
-      "MWh",
-      "0.000 tCO2/MWh",
-      "Zero-rated",
-      "0.00",
-    ]);
+    sources.push("Zero-rated");
+    rows.push(["Renewable electricity", fmt(ctx.renewableElectricityMwh, 2), "MWh", "0.000 tCO2/MWh", "0.00"]);
   }
 
   let steamCo2e = 0;
   if (ctx.steamImportedGj > 0) {
     const steamEfUsed = ctx.steamEmissionFactorOverride ?? DEFAULT_STEAM_EMISSION_FACTOR;
     steamCo2e = ctx.steamImportedGj * steamEfUsed;
-    rows.push([
-      "Imported steam",
-      fmt(ctx.steamImportedGj, 2),
-      "GJ",
-      `${fmt(steamEfUsed, 4)} tCO2/GJ`,
-      ctx.steamEmissionFactorOverride != null ? "Facility override" : "Facility default",
-      fmt(steamCo2e, 2),
-    ]);
+    sources.push(ctx.steamEmissionFactorOverride != null ? "Facility override" : "Facility default");
+    rows.push(["Imported steam", fmt(ctx.steamImportedGj, 2), "GJ", `${fmt(steamEfUsed, 4)} tCO2/GJ`, fmt(steamCo2e, 2)]);
   }
 
-  rows.push(["Subtotal — Scope 2 (Indirect)", "", "", "", "", fmt(electricityCo2e + steamCo2e, 2)]);
+  const { numbers, legend } = buildCitationNumbering(sources);
+  rows.forEach((row, i) => {
+    row[3] = `${row[3]}^${numbers[i]}`;
+  });
+  rows.push(["Subtotal — Scope 2 (Indirect)", "", "", "", fmt(electricityCo2e + steamCo2e, 2)]);
 
   pb.table({
     columns: [
-      { header: "Energy source", width: 120 },
-      { header: "Quantity", width: 68, align: "right" },
-      { header: "Unit", width: 40 },
-      { header: "Emission factor", width: 100, align: "right" },
-      { header: "Reference", width: 97 },
-      { header: "tCO2e", width: 70, align: "right" },
+      { header: "Energy source", width: 150 },
+      { header: "Quantity", width: 80, align: "right" },
+      { header: "Unit", width: 50 },
+      { header: "Emission factor", width: 125, align: "right" },
+      { header: "tCO2e", width: 90, align: "right" },
     ],
     rows,
     highlightRowIndex: rows.length - 1,
   });
 
-  pb.note(`Grid emission factor default: ${fmt(DEFAULT_GRID_EMISSION_FACTOR, 3)} tCO2/MWh — ${DEFAULT_GRID_EMISSION_FACTOR_SOURCE}.`);
-}
+  pb.note(
+    `${legend}. Grid emission factor default: ${fmt(DEFAULT_GRID_EMISSION_FACTOR, 3)} tCO2/MWh — ${DEFAULT_GRID_EMISSION_FACTOR_SOURCE}.`,
+  );
 
-// ---------------------------------------------------------------------------
-// Section 09 — Precursor Embedded Emissions (page 11)
-// ---------------------------------------------------------------------------
-
-function buildPrecursors(pb: PageBuilder, ctx: ReportContext) {
-  pb.startSection(9, "Precursor Embedded Emissions");
-
+  pb.heading("Precursor Embedded Emissions");
   pb.paragraph(
-    "Embedded emissions in purchased precursor materials (pig iron, DRI, hot metal, scrap, ferro-alloys) sourced from external suppliers, per the mass balance approach described in Section 10.",
+    "Embedded emissions in purchased precursor materials (pig iron, DRI, hot metal, scrap, ferro-alloys) sourced from external suppliers, per the mass balance approach described in Section 08.",
   );
 
   if (ctx.precursorEntries.length === 0) {
@@ -647,43 +635,42 @@ function buildPrecursors(pb: PageBuilder, ctx: ReportContext) {
     return;
   }
 
-  let subtotal = 0;
-  const rows: (string | number)[][] = ctx.precursorEntries.map((entry) => {
+  let precursorSubtotal = 0;
+  const precursorSources: string[] = [];
+  const precursorRows: (string | number)[][] = ctx.precursorEntries.map((entry) => {
     const def = PRECURSOR_LIBRARY[entry.materialType];
     const efUsed = entry.embeddedEmissionFactorOverride ?? def.defaultEmbeddedFactor;
     const co2e = entry.quantityTonnes * efUsed;
-    subtotal += co2e;
-    return [
-      def.label,
-      entry.sourceLabel || "Not specified",
-      fmt(entry.quantityTonnes, 2),
-      entry.embeddedEmissionFactorOverride != null ? "Verified / override" : "EU Tier-1 default",
-      fmt(efUsed, 3),
-      fmt(co2e, 2),
-    ];
+    precursorSubtotal += co2e;
+    precursorSources.push(entry.embeddedEmissionFactorOverride != null ? "Verified / override" : "EU Tier-1 default");
+    return [def.label, entry.sourceLabel || "Not specified", fmt(entry.quantityTonnes, 2), fmt(efUsed, 3), fmt(co2e, 2)];
   });
-  rows.push(["Subtotal — Precursors", "", "", "", "", fmt(subtotal, 2)]);
+  const precursorCitation = buildCitationNumbering(precursorSources);
+  precursorRows.forEach((row, i) => {
+    row[3] = `${row[3]}^${precursorCitation.numbers[i]}`;
+  });
+  precursorRows.push(["Subtotal — Precursors", "", "", "", fmt(precursorSubtotal, 2)]);
 
   pb.table({
     columns: [
-      { header: "Precursor material", width: 115 },
-      { header: "Source / country", width: 115 },
-      { header: "Quantity (t)", width: 62, align: "right" },
-      { header: "Basis", width: 88 },
-      { header: "EF (t/t)", width: 45, align: "right" },
-      { header: "tCO2e", width: 70, align: "right" },
+      { header: "Precursor material", width: 135 },
+      { header: "Source / country", width: 130 },
+      { header: "Quantity (t)", width: 70, align: "right" },
+      { header: "EF (t/t)", width: 65, align: "right" },
+      { header: "tCO2e", width: 95, align: "right" },
     ],
-    rows,
-    highlightRowIndex: rows.length - 1,
+    rows: precursorRows,
+    highlightRowIndex: precursorRows.length - 1,
   });
+  pb.note(precursorCitation.legend);
 }
 
 // ---------------------------------------------------------------------------
-// Section 10 — Calculation Methodology (page 12)
+// Section 08 — Calculation Methodology
 // ---------------------------------------------------------------------------
 
 function buildMethodology(pb: PageBuilder) {
-  pb.startSection(10, "Calculation Methodology");
+  pb.startSection(8, "Calculation Methodology");
 
   pb.paragraph(
     "This report is prepared under the framework of Regulation (EU) 2023/956 establishing the Carbon Border Adjustment Mechanism, its implementing provisions for the definitive regime under Regulation (EU) 2025/2547, and the calculation methodology set out in Implementing Regulation (EU) 2023/1773.",
@@ -691,15 +678,15 @@ function buildMethodology(pb: PageBuilder) {
 
   pb.heading("Mass balance approach");
   pb.paragraph(
-    "Direct emissions are attributed to goods using a mass balance approach: combustion emissions from fuels and process emissions from calcination of flux/carbonate materials charged to the production route are summed per Section 06 and 07, embedded emissions in purchased precursor materials are added per Section 09, and indirect emissions from purchased electricity and steam are added per Section 08. The total is divided by the quantity of goods produced in the reporting period to arrive at Specific Embedded Emissions (SEE).",
+    "Direct emissions are attributed to goods using a mass balance approach: combustion emissions from fuels and process emissions from calcination of flux/carbonate materials charged to the production route are summed per Section 05 and 06, and embedded emissions in purchased precursor materials plus indirect emissions from purchased electricity and steam are added per Section 07. The total is divided by the quantity of goods produced in the reporting period to arrive at Specific Embedded Emissions (SEE).",
   );
 
   pb.formulaBlock(
     "Specific Embedded Emissions (SEE)",
     [
-      ["Direct emissions", "Combustion (Section 06) + Process (Section 07)"],
-      ["Indirect emissions", "Electricity + Steam (Section 08)"],
-      ["Precursor emissions", "Embedded emissions in purchased precursors (Section 09)"],
+      ["Direct emissions", "Combustion (Section 05) + Process (Section 06)"],
+      ["Indirect emissions", "Electricity + Steam (Section 07)"],
+      ["Precursor emissions", "Embedded emissions in purchased precursors (Section 07)"],
     ],
     "SEE",
     "(Direct + Indirect + Precursor) ÷ Production quantity",
@@ -733,11 +720,11 @@ function buildMethodology(pb: PageBuilder) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 11 — Verification Statement (page 13)
+// Section 09 — Verification Statement
 // ---------------------------------------------------------------------------
 
 function buildVerification(pb: PageBuilder, ctx: ReportContext) {
-  pb.startSection(11, "Verification Statement");
+  pb.startSection(9, "Verification Statement");
 
   const vr = ctx.verificationRequest;
   const isApproved = vr?.status === "APPROVED";
@@ -751,7 +738,7 @@ function buildVerification(pb: PageBuilder, ctx: ReportContext) {
 
   pb.heading("Scope of verification");
   pb.paragraph(
-    "Specific Embedded Emissions calculation for the stated reporting period, based on the activity data submitted through the Intellocarbon platform (Sections 03–09).",
+    "Specific Embedded Emissions calculation for the stated reporting period, based on the activity data submitted through the Intellocarbon platform (Sections 02–07).",
   );
 
   pb.heading("Verification opinion");
@@ -781,17 +768,17 @@ function buildVerification(pb: PageBuilder, ctx: ReportContext) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 12 — Authorised Declaration and Annexures (page 14)
+// Section 10 — Authorised Declaration and Annexures
 // ---------------------------------------------------------------------------
 
 function buildDeclarationAnnexures(pb: PageBuilder, ctx: ReportContext) {
-  pb.startSection(12, "Authorised Declaration and Annexures");
+  pb.startSection(10, "Authorised Declaration and Annexures");
 
   const owner = ctx.facility.company.owner;
 
   pb.heading("Declaration");
   pb.paragraph(
-    `I/We, on behalf of ${ctx.facility.company.name}, declare that the information contained in this CBAM Communication Package has been prepared in good faith based on the activity data submitted through the Intellocarbon platform for the reporting period ${fmtDate(ctx.periodStart)} – ${fmtDate(ctx.periodEnd)}, and represents our best current estimate of the Specific Embedded Emissions of the goods described in Section 03.`,
+    `I/We, on behalf of ${ctx.facility.company.name}, declare that the information contained in this CBAM Communication Package has been prepared in good faith based on the activity data submitted through the Intellocarbon platform for the reporting period ${fmtDate(ctx.periodStart)} – ${fmtDate(ctx.periodEnd)}, and represents our best current estimate of the Specific Embedded Emissions of the goods described in Section 02.`,
   );
 
   pb.ensureSpace(70);
@@ -807,10 +794,10 @@ function buildDeclarationAnnexures(pb: PageBuilder, ctx: ReportContext) {
 
   pb.heading("Annexures");
   const annexures = [
-    "Annex A — Goods and production data (Section 03)",
-    "Annex B — Fuel, process material and precursor entry detail (Sections 06–09)",
-    "Annex C — Calculation methodology and GWP tables (Section 10)",
-    "Annex D — Verification statement (Section 11)",
+    "Annex A — Goods and production data (Section 02)",
+    "Annex B — Fuel, process material and precursor entry detail (Sections 05–07)",
+    "Annex C — Calculation methodology and GWP tables (Section 08)",
+    "Annex D — Verification statement (Section 09)",
   ];
   for (const item of annexures) {
     pb.paragraph(`•  ${item}`, { size: 9.5 });
