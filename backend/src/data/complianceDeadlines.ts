@@ -141,3 +141,107 @@ export const quarterLabel = (now: Date): string => {
   const quarter = Math.floor(now.getUTCMonth() / 3) + 1;
   return `${now.getUTCFullYear()}-Q${quarter}`;
 };
+
+// --- Report generation periods (dashboard "Generate Report" modal) ---
+// A separate, additive set of helpers from isCbamReportWindowOpen /
+// isCctsReportWindowOpen above, which keep gating the older per-activity-data
+// report download endpoints untouched. These answer "which single period is
+// open for generation right now, and if none, when does the next one open" —
+// exactly what the report-generation cards need to render.
+
+export interface ReportPeriodStatus {
+  /** Machine-readable period key, e.g. "Q2-2026" or "FY2025-26". */
+  period: string;
+  /** Human-readable, e.g. "Q2 2026" or "FY2025-26". */
+  displayLabel: string;
+  isOpen: boolean;
+  windowStart: Date;
+  windowEnd: Date;
+  /** Calendar bounds of the underlying activity data this period reports on (CBAM only — CCTS/BRSR already key off a full FY). */
+  dataRangeStart?: Date;
+  dataRangeEnd?: Date;
+}
+
+// CBAM_QUARTERS' unlock windows recur every quarter, but each one files the
+// *preceding* calendar quarter's data — the January window files Q4 of the
+// prior year, April files Q1, July files Q2, October files Q3.
+const CBAM_TARGET_QUARTER_BY_UNLOCK_MONTH: Record<number, 1 | 2 | 3 | 4> = { 1: 4, 4: 1, 7: 2, 10: 3 };
+const QUARTER_MONTH_RANGE: Record<1 | 2 | 3 | 4, [number, number]> = { 1: [1, 3], 2: [4, 6], 3: [7, 9], 4: [10, 12] };
+
+const startOfQuarter = (quarter: 1 | 2 | 3 | 4, year: number): Date =>
+  new Date(Date.UTC(year, QUARTER_MONTH_RANGE[quarter][0] - 1, 1, 0, 0, 0));
+
+// Day 0 of the month after endMonth = the last day of endMonth.
+const endOfQuarter = (quarter: 1 | 2 | 3 | 4, year: number): Date =>
+  new Date(Date.UTC(year, QUARTER_MONTH_RANGE[quarter][1], 0, 23, 59, 59));
+
+const cbamWindowFor = (unlockMonth: number, unlockYear: number) => {
+  const q = CBAM_QUARTERS.find((cq) => cq.unlock.month === unlockMonth)!;
+  return { windowStart: dateFor(unlockYear, q.unlock), windowEnd: dateFor(unlockYear, q.deadline) };
+};
+
+const cbamTargetFor = (unlockMonth: number, unlockYear: number) => ({
+  targetQuarter: CBAM_TARGET_QUARTER_BY_UNLOCK_MONTH[unlockMonth],
+  targetYear: unlockMonth === 1 ? unlockYear - 1 : unlockYear,
+});
+
+/** The CBAM report period whose window is open right now, or the next one that will open. */
+export const getCbamReportPeriodStatus = (now: Date): ReportPeriodStatus => {
+  const openWindow = getOpenCbamQuarter(now);
+  const year = now.getUTCFullYear();
+
+  const unlockMonth = openWindow ? openWindow.unlock.month : nextCbamUnlockDate(now).getUTCMonth() + 1;
+  const unlockYear = openWindow ? year : nextCbamUnlockDate(now).getUTCFullYear();
+
+  const { targetQuarter, targetYear } = cbamTargetFor(unlockMonth, unlockYear);
+  const { windowStart, windowEnd } = cbamWindowFor(unlockMonth, unlockYear);
+
+  return {
+    period: `Q${targetQuarter}-${targetYear}`,
+    displayLabel: `Q${targetQuarter} ${targetYear}`,
+    isOpen: Boolean(openWindow),
+    windowStart,
+    windowEnd,
+    dataRangeStart: startOfQuarter(targetQuarter, targetYear),
+    dataRangeEnd: endOfQuarter(targetQuarter, targetYear),
+  };
+};
+
+/**
+ * CCTS annual GHG Intensity Report — for the dashboard's "Generate Report"
+ * flow specifically. Distinct from isCctsReportWindowOpen above (which gates
+ * the older per-activity-data CCTS PDF download on a narrower Apr-Jul
+ * window): this mirrors BRSR Core's model instead — the report for a given
+ * FY opens for generation 1 April the following FY and stays open a full 12
+ * months, so at any moment there is exactly one FY whose report is open.
+ */
+export const getCctsReportPeriodStatus = (now: Date): ReportPeriodStatus => {
+  const livingYear = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  const reportStartYear = livingYear - 1;
+  const period = `FY${reportStartYear}-${String((reportStartYear + 1) % 100).padStart(2, "0")}`;
+  const windowStart = new Date(Date.UTC(livingYear, 3, 1, 0, 0, 0));
+  const windowEnd = new Date(Date.UTC(livingYear + 1, 2, 31, 23, 59, 59));
+  return {
+    period,
+    displayLabel: period,
+    isOpen: now >= windowStart && now <= windowEnd,
+    windowStart,
+    windowEnd,
+  };
+};
+
+/** Same 12-month-window model as CCTS above, built on BRSR's own reportingPeriod window math. */
+export const getBrsrReportPeriodStatus = (now: Date): ReportPeriodStatus => {
+  const livingYear = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  const reportStartYear = livingYear - 1;
+  const period = `FY${reportStartYear}-${String((reportStartYear + 1) % 100).padStart(2, "0")}`;
+  const windowStart = brsrUnlockDate(period);
+  const windowEnd = new Date(Date.UTC(reportStartYear + 2, 2, 31, 23, 59, 59));
+  return {
+    period,
+    displayLabel: period,
+    isOpen: isBrsrReportWindowOpen(period, now),
+    windowStart,
+    windowEnd,
+  };
+};

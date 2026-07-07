@@ -12,6 +12,7 @@ import { EmissionsBreakdownChart } from "@/components/facilities/dashboard/emiss
 import { LiabilityTrendChart } from "@/components/facilities/dashboard/liability-trend-chart";
 import { IntensityTrendChart } from "@/components/facilities/dashboard/intensity-trend-chart";
 import { RecentActivityFeed } from "@/components/facilities/dashboard/recent-activity-feed";
+import { GenerateReportButton } from "@/components/facilities/dashboard/generate-report-button";
 import { computeDashboardAccess } from "@/components/facilities/dashboard/dashboard-access";
 import { billingApi, facilityApi } from "@/lib/api";
 import type { Facility, FacilityDashboard as FacilityDashboardData, PlanDefinition, Subscription } from "@/lib/types";
@@ -67,14 +68,17 @@ function FacilityDashboardContent() {
       <AppHeader />
 
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="flex items-start gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-surface-border bg-surface-raised">
-            <Factory className="h-5 w-5 text-teal-500" />
-          </span>
-          <div>
-            <h1 className="text-2xl font-semibold">{facility.name} — Dashboard</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Compliance status, deadlines, and emissions trends for this facility.</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-surface-border bg-surface-raised">
+              <Factory className="h-5 w-5 text-teal-500" />
+            </span>
+            <div>
+              <h1 className="text-2xl font-semibold">{facility.name} — Dashboard</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Compliance status, deadlines, and emissions trends for this facility.</p>
+            </div>
           </div>
+          <GenerateReportButton facilityId={facility.id} />
         </div>
         <Link href={`/facilities/${facility.id}`} className="mt-2 inline-block text-sm text-teal-500 hover:text-teal-400">
           Back to facility

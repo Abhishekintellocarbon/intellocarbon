@@ -472,6 +472,45 @@ export interface ReportWindowStatus {
   brsr: { fyLabel: string; deadlineDate: string };
 }
 
+// --- Report generation (dashboard "Generate Report" modal) ---
+// Mirrors backend/src/services/reportGeneration.service.ts.
+
+export type GeneratedReportType = "CBAM" | "CCTS" | "BRSR";
+
+export interface ReportPeriodStatus {
+  period: string;
+  displayLabel: string;
+  isOpen: boolean;
+  windowStart: string;
+  windowEnd: string;
+  dataRangeStart?: string;
+  dataRangeEnd?: string;
+}
+
+export interface ReportCardStatus {
+  reportType: GeneratedReportType;
+  hasAccess: boolean;
+  period: ReportPeriodStatus;
+  existingReport: { id: string; generatedAt: string; pdfPath: string } | null;
+}
+
+export interface ReportGenerationStatus {
+  hasAnySubscription: boolean;
+  cards: ReportCardStatus[];
+}
+
+export interface GeneratedReport {
+  id: string;
+  facilityId: string;
+  companyId: string;
+  reportType: GeneratedReportType;
+  period: string;
+  generatedAt: string;
+  pdfPath: string;
+  status: "GENERATED";
+  document?: { id: string; verified: boolean; fileName: string } | null;
+}
+
 // --- Facility dashboard (/facilities/[id]/dashboard) ---
 // Mirrors backend/src/services/facilityDashboard.service.ts — that service owns
 // all EU-default/GWP/certificate-price business logic, this page only renders

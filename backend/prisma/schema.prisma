@@ -103,6 +103,8 @@ model Company {
   notifications        Notification[]
   brsrCoreReports      BrsrCoreReport[]
   auditLogs            AuditLog[]
+  reports              Report[]
+  documents            Document[]
 
   @@map("companies")
 }
@@ -250,6 +252,71 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+enum ReportType {
+  CBAM
+  CCTS
+  BRSR
+}
+
+enum ReportStatus {
+  GENERATED
+}
+
+// One row per (facility, reportType, period) — the record of a generated
+// compliance report, from the dashboard's "Generate Report" flow. `pdfPath`
+// is a stable human-readable reference (used for the download filename),
+// not an on-disk path — the actual PDF bytes live on the linked Document
+// row, since Render's filesystem is ephemeral and can't be used as durable
+// storage.
+model Report {
+  id          String       @id @default(cuid())
+  facilityId  String
+  facility    Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reportType  ReportType
+  period      String
+  generatedAt DateTime     @default(now())
+  pdfPath     String
+  status      ReportStatus @default(GENERATED)
+
+  document Document?
+
+  @@unique([facilityId, reportType, period])
+  @@index([facilityId])
+  @@map("reports")
+}
+
+enum DocumentType {
+  REPORT
+}
+
+// The generated PDF itself, auto-saved whenever a Report is created —
+// stored in Postgres (not on disk) for the same durability reason as
+// Report.pdfPath above. Every generated report has exactly one Document;
+// this is a separate table (rather than a fileData column on Report
+// directly) so future non-report document types can reuse it without a
+// migration, and so the Documents section query never has to pull report
+// bytes it doesn't need.
+model Document {
+  id              String       @id @default(cuid())
+  facilityId      String
+  facility        Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reportId        String       @unique
+  report          Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  documentType    DocumentType @default(REPORT)
+  reportingPeriod String
+  verified        Boolean      @default(false)
+  fileName        String
+  fileData        Bytes
+  createdAt       DateTime     @default(now())
+
+  @@index([facilityId])
+  @@map("documents")
+}
+
 enum FacilityType {
   INTEGRATED_STEEL_PLANT
   EAF_MINI_MILL
@@ -307,6 +374,8 @@ model Facility {
   notifications   Notification[]
   brsrCoreReports BrsrCoreReport[]
   auditLogs       AuditLog[]
+  reports         Report[]
+  documents       Document[]
 
   @@index([companyId])
   @@map("facilities")

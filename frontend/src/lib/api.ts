@@ -15,6 +15,9 @@ import type {
   BrsrCoreReport,
   BrsrCoreMetrics,
   FacilityDashboard,
+  ReportGenerationStatus,
+  GeneratedReport,
+  GeneratedReportType,
 } from "./types";
 import type {
   BorderInputs,
@@ -229,6 +232,45 @@ export const facilityApi = {
   // Explicit "Mark as complete" — strict validation, flips isDraft to false.
   complete: (facilityId: string, input: Record<string, unknown>): Promise<{ facility: Facility }> =>
     apiFetch(`/api/facilities/${facilityId}/complete`, { method: "POST", body: JSON.stringify(input) }),
+};
+
+export const reportsApi = {
+  status: (facilityId: string): Promise<ReportGenerationStatus> => apiFetch(`/api/facilities/${facilityId}/reports/status`),
+
+  generate: (facilityId: string, reportType: GeneratedReportType): Promise<{ report: GeneratedReport }> =>
+    apiFetch(`/api/facilities/${facilityId}/reports/generate`, {
+      method: "POST",
+      body: JSON.stringify({ reportType }),
+    }),
+
+  list: (facilityId: string): Promise<{ reports: GeneratedReport[] }> => apiFetch(`/api/facilities/${facilityId}/reports`),
+
+  downloadPdf: async (facilityId: string, reportId: string, fileName: string): Promise<void> => {
+    const reportUrl = `${API_URL}/api/facilities/${facilityId}/reports/${reportId}/pdf`;
+    const fetchReport = () =>
+      fetch(reportUrl, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchReport();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchReport();
+    }
+    if (!res.ok) {
+      throw new ApiError("Couldn't download the report. Please try again.", res.status);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
 };
 
 export const activityDataApi = {
