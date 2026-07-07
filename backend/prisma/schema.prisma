@@ -102,6 +102,7 @@ model Company {
   verificationRequests VerificationRequest[]
   notifications        Notification[]
   brsrCoreReports      BrsrCoreReport[]
+  auditLogs            AuditLog[]
 
   @@map("companies")
 }
@@ -226,6 +227,29 @@ model Notification {
   @@map("notifications")
 }
 
+enum AuditLogAction {
+  REPORT_GENERATED
+}
+
+// Minimal append-only event log for the per-facility "Recent Activity" feed
+// (see facilityDashboard.service.ts). Only covers actions with no other
+// timestamped record to source from — data submissions, verifier
+// claims/decisions, and deadline alerts are read directly off ActivityData,
+// VerificationRequest, and Notification instead of being duplicated here.
+model AuditLog {
+  id         String          @id @default(cuid())
+  facilityId String
+  facility   Facility        @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  action     AuditLogAction
+  detail     String
+  createdAt  DateTime        @default(now())
+
+  @@index([facilityId])
+  @@map("audit_logs")
+}
+
 enum FacilityType {
   INTEGRATED_STEEL_PLANT
   EAF_MINI_MILL
@@ -282,6 +306,7 @@ model Facility {
   activityData    ActivityData[]
   notifications   Notification[]
   brsrCoreReports BrsrCoreReport[]
+  auditLogs       AuditLog[]
 
   @@index([companyId])
   @@map("facilities")

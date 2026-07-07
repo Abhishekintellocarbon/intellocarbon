@@ -45,7 +45,8 @@ const stableDigits = (id: string): string => {
 
 const reportReference = (report: BrsrCoreReport): string => `ICT-BRSR-${report.reportingPeriod.replace("FY", "")}-${stableDigits(report.id)}`;
 
-const DISCLOSED_ATTRIBUTE_COUNT = (report: BrsrCoreReport): number => {
+/** Of the 9 BRSR Core attributes, how many are disclosed on this report — attribute 1 (GHG) is always derived, the other 8 are manual fields. Reused by facilityDashboard.service.ts for the BRSR status card. */
+export const DISCLOSED_ATTRIBUTE_COUNT = (report: BrsrCoreReport): number => {
   const groups: (unknown | null)[][] = [
     [report.waterWithdrawnKl, report.waterDischargedKl],
     [report.wasteGeneratedTonnes, report.wasteRecoveredTonnes],

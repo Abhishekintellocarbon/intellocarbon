@@ -71,6 +71,40 @@ export const nextCbamUnlockDate = (now: Date): Date => {
 
 export const daysUntil = (now: Date, target: Date): number => daysBetween(now, target);
 
+/** Next upcoming CBAM quarterly filing deadline on/after `now` (whether or not that quarter's window is currently open). */
+export const nextCbamDeadline = (now: Date): Date => {
+  const year = now.getUTCFullYear();
+  for (const q of CBAM_QUARTERS) {
+    const deadline = dateFor(year, q.deadline);
+    if (now <= deadline) return deadline;
+  }
+  return dateFor(year + 1, CBAM_QUARTERS[0].deadline);
+};
+
+/** Next upcoming CCTS annual compliance deadline (31 Jul) on/after `now`. */
+export const nextCctsDeadline = (now: Date): Date => {
+  const year = now.getUTCFullYear();
+  const thisYearDeadline = dateFor(year, CCTS_DEADLINE);
+  return now <= thisYearDeadline ? thisYearDeadline : dateFor(year + 1, CCTS_DEADLINE);
+};
+
+/**
+ * The financial year currently in progress, e.g. "FY2026-27" from any date in
+ * Apr 2026 - Mar 2027. Matches the frontend's BRSR "suggested FY" convention
+ * (see frontend/src/app/facilities/[id]/brsr/new/page.tsx) — the standard
+ * April-March Indian FY, independent of a company's own reportingFyStartMonth.
+ */
+export const currentBrsrFyLabel = (now: Date): string => {
+  const year = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  return `FY${year}-${String((year + 1) % 100).padStart(2, "0")}`;
+};
+
+/** 31 March close of the financial year currently in progress — the BRSR Core submission deadline shown on the facility dashboard. */
+export const currentBrsrFyDeadline = (now: Date): Date => {
+  const startYear = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  return dateFor(startYear + 1, { month: 3, day: 31 });
+};
+
 const BRSR_REPORTING_PERIOD_REGEX = /^FY(\d{4})-\d{2}$/;
 
 /** Parses a "FY2025-26" style BRSR reporting period into its start year (2025). */

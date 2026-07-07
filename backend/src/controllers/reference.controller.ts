@@ -27,6 +27,10 @@ import {
   isCctsReportWindowOpen,
   nextCbamUnlockDate,
   nextCctsUnlockDate,
+  nextCbamDeadline,
+  nextCctsDeadline,
+  currentBrsrFyLabel,
+  currentBrsrFyDeadline,
 } from "../data/complianceDeadlines";
 
 const enumOptions = (values: Record<string, string>) =>
@@ -74,7 +78,19 @@ export const getEmissionFactorReference = asyncHandler(async (_req, res) => {
 export const getReportWindowStatus = asyncHandler(async (_req, res) => {
   const now = new Date();
   res.status(200).json({
-    cbam: { open: isCbamReportWindowOpen(now), unlockDate: nextCbamUnlockDate(now).toISOString() },
-    ccts: { open: isCctsReportWindowOpen(now), unlockDate: nextCctsUnlockDate(now).toISOString() },
+    cbam: {
+      open: isCbamReportWindowOpen(now),
+      unlockDate: nextCbamUnlockDate(now).toISOString(),
+      deadlineDate: nextCbamDeadline(now).toISOString(),
+    },
+    ccts: {
+      open: isCctsReportWindowOpen(now),
+      unlockDate: nextCctsUnlockDate(now).toISOString(),
+      deadlineDate: nextCctsDeadline(now).toISOString(),
+    },
+    brsr: {
+      fyLabel: currentBrsrFyLabel(now),
+      deadlineDate: currentBrsrFyDeadline(now).toISOString(),
+    },
   });
 });

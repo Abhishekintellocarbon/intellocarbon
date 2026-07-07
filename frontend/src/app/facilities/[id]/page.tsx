@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Calendar, ClipboardList, FileBarChart, Factory, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { Calendar, ClipboardList, FileBarChart, Factory, LayoutDashboard, Loader2, MapPin, Plus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DraftBadge, SubmittedBadge } from "@/components/ui/draft-badge";
@@ -112,6 +112,12 @@ function FacilityDetailContent() {
             <Link href={`/facilities/${facility.id}/edit`}>
               <Button variant="secondary" size="sm">
                 Edit
+              </Button>
+            </Link>
+            <Link href={`/facilities/${facility.id}/dashboard`}>
+              <Button variant="secondary" size="sm">
+                <LayoutDashboard className="h-3.5 w-3.5" />
+                View Dashboard
               </Button>
             </Link>
             <Link href={`/facilities/${facility.id}/data-entry/new`}>

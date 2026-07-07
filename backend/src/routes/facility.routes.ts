@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as facilityController from "../controllers/facility.controller";
+import * as facilityDashboardController from "../controllers/facilityDashboard.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireApproved } from "../middleware/requireApproved";
 import { validate } from "../middleware/validate";
@@ -14,6 +15,7 @@ router.get("/", facilityController.listFacilities);
 router.post("/", validate(facilitySchema), facilityController.createFacility);
 router.post("/draft", validate(facilityDraftSchema), facilityController.autosaveNewFacility);
 router.get("/:facilityId", facilityController.getFacility);
+router.get("/:facilityId/dashboard", facilityDashboardController.getFacilityDashboard);
 router.put("/:facilityId", validate(facilitySchema), facilityController.updateFacility);
 router.patch("/:facilityId/draft", validate(facilityDraftSchema), facilityController.autosaveFacility);
 router.post("/:facilityId/complete", validate(facilitySchema), facilityController.completeFacility);

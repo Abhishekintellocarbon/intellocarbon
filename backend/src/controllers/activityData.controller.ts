@@ -1,6 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler";
 import * as activityDataService from "../services/activityData.service";
 import { generateReportPdf, getReportContext, type ReportType } from "../services/report.service";
+import { logFacilityAudit } from "../services/auditLog.service";
 
 export const listActivityData = asyncHandler(async (req, res) => {
   const entries = await activityDataService.listActivityData(req.user!.sub, req.params.facilityId);
@@ -64,6 +65,8 @@ const downloadReport = (type: ReportType) =>
   asyncHandler(async (req, res) => {
     const ctx = await getReportContext(req.user!.sub, req.params.facilityId, req.params.dataId, type);
     const doc = await generateReportPdf(ctx, type);
+
+    logFacilityAudit(ctx.facility.id, ctx.facility.companyId, "REPORT_GENERATED", `${type} report — ${ctx.periodStart.toLocaleDateString("en-IN")} to ${ctx.periodEnd.toLocaleDateString("en-IN")}`);
 
     const filename = `${type.toLowerCase()}-report-${ctx.facility.name.replace(/\s+/g, "-").toLowerCase()}-${ctx.id.slice(-8)}.pdf`;
     res.setHeader("Content-Type", "application/pdf");

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Factory, Loader2, MapPin, Plus } from "lucide-react";
+import { Factory, LayoutDashboard, Loader2, MapPin, Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DraftBadge } from "@/components/ui/draft-badge";
@@ -78,8 +78,8 @@ function FacilitiesContent() {
         {facilities && facilities.length > 0 && (
           <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {facilities.map((facility) => (
-              <Link key={facility.id} href={`/facilities/${facility.id}`}>
-                <Card className="h-full p-6 transition-colors hover:border-teal-500/40">
+              <Card key={facility.id} className="flex h-full flex-col p-6 transition-colors hover:border-teal-500/40">
+                <Link href={`/facilities/${facility.id}`} className="flex-1">
                   <div className="flex items-start justify-between">
                     <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-surface-border bg-surface-raised">
                       <Factory className="h-5 w-5 text-teal-500" />
@@ -103,8 +103,14 @@ function FacilitiesContent() {
                     {facility._count?.activityData ?? 0} activity data{" "}
                     {facility._count?.activityData === 1 ? "entry" : "entries"}
                   </p>
-                </Card>
-              </Link>
+                </Link>
+                <Link href={`/facilities/${facility.id}/dashboard`} className="mt-4">
+                  <Button size="sm" variant="secondary" className="w-full">
+                    <LayoutDashboard className="h-3.5 w-3.5" />
+                    View Dashboard
+                  </Button>
+                </Link>
+              </Card>
             ))}
           </div>
         )}

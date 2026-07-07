@@ -2,6 +2,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { AppError } from "../utils/AppError";
 import * as brsrService from "../services/brsr.service";
 import { buildBrsrCorePdf } from "../services/brsrReport/build";
+import { logFacilityAudit } from "../services/auditLog.service";
 import { brsrCoreReportSchema, brsrCoreReportDraftSchema } from "../validators/brsr.validators";
 
 // One endpoint serves both draft-autosave and final submit — `submit: true`
@@ -34,6 +35,8 @@ export const getBrsrReport = asyncHandler(async (req, res) => {
 export const downloadBrsrReportPdf = asyncHandler(async (req, res) => {
   const { report, facility, metrics } = await brsrService.getBrsrReportContextById(req.user!.sub, req.params.reportId);
   const doc = await buildBrsrCorePdf(report, facility, metrics);
+
+  logFacilityAudit(facility.id, report.companyId, "REPORT_GENERATED", `BRSR Core report — ${report.reportingPeriod}`);
 
   const filename = `brsr-core-report-${facility.name.replace(/\s+/g, "-").toLowerCase()}-${report.id.slice(-8)}.pdf`;
   res.setHeader("Content-Type", "application/pdf");

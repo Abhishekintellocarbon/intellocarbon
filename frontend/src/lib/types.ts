@@ -467,6 +467,93 @@ export interface Notification {
 }
 
 export interface ReportWindowStatus {
-  cbam: { open: boolean; unlockDate: string };
-  ccts: { open: boolean; unlockDate: string };
+  cbam: { open: boolean; unlockDate: string; deadlineDate: string };
+  ccts: { open: boolean; unlockDate: string; deadlineDate: string };
+  brsr: { fyLabel: string; deadlineDate: string };
+}
+
+// --- Facility dashboard (/facilities/[id]/dashboard) ---
+// Mirrors backend/src/services/facilityDashboard.service.ts — that service owns
+// all EU-default/GWP/certificate-price business logic, this page only renders
+// the numbers it's handed.
+
+export type CctsTone = "SURPLUS" | "ON_TRACK" | "DEFICIT" | "NO_TARGET";
+
+export interface FacilityDashboardCbam {
+  hasData: boolean;
+  actualSee?: number;
+  defaultSee?: number;
+  seeUnit?: string;
+  isBetterThanDefault?: boolean;
+  liabilityEur?: number;
+  certificatePrice?: number;
+  certificatePriceQuarter?: string;
+  periodLabel?: string;
+}
+
+export interface FacilityDashboardCcts {
+  hasData: boolean;
+  actualIntensity?: number;
+  targetIntensity?: number | null;
+  tone?: CctsTone;
+  deltaTco2e?: number | null;
+  periodLabel?: string;
+}
+
+export interface FacilityDashboardBrsr {
+  fyLabel: string;
+  status: "SUBMITTED" | "DRAFT" | "NOT_STARTED";
+  attributesFilled: number;
+  attributesTotal: number;
+}
+
+export interface FacilityDashboardDeadline {
+  deadline: string;
+  daysRemaining: number;
+}
+
+export interface FacilityDashboardEmissionsBreakdown {
+  hasData: boolean;
+  periodLabel?: string;
+  totalTco2e?: number;
+  segments?: { label: string; valueTco2e: number; pct: number }[];
+}
+
+export interface FacilityLiabilityTrendPoint {
+  quarterLabel: string;
+  actualLiabilityEur: number;
+  defaultLiabilityEur: number;
+}
+
+export interface FacilityIntensityTrendPoint {
+  periodLabel: string;
+  periodEnd: string;
+  actualIntensity: number;
+  targetIntensity: number | null;
+  aboveTarget: boolean | null;
+}
+
+export interface FacilityActivityFeedItem {
+  id: string;
+  kind: "SUBMISSION" | "REPORT" | "VERIFICATION" | "ALERT";
+  label: string;
+  detail: string;
+  timestamp: string;
+}
+
+export interface FacilityDashboard {
+  facility: { id: string; name: string; sector: Sector; productionRoute: string | null };
+  cbam: FacilityDashboardCbam;
+  ccts: FacilityDashboardCcts;
+  brsr: FacilityDashboardBrsr;
+  deadlines: {
+    cbam: FacilityDashboardDeadline;
+    ccts: FacilityDashboardDeadline;
+    brsr: FacilityDashboardDeadline;
+  };
+  emissionsBreakdown: FacilityDashboardEmissionsBreakdown;
+  liabilityTrend: FacilityLiabilityTrendPoint[];
+  intensityTrend: FacilityIntensityTrendPoint[];
+  intensityTargetLine: number | null;
+  recentActivity: FacilityActivityFeedItem[];
 }

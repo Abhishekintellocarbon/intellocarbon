@@ -14,6 +14,7 @@ import type {
   ReportWindowStatus,
   BrsrCoreReport,
   BrsrCoreMetrics,
+  FacilityDashboard,
 } from "./types";
 import type {
   BorderInputs,
@@ -205,6 +206,9 @@ export const facilityApi = {
 
   get: (facilityId: string): Promise<{ facility: Facility }> =>
     apiFetch(`/api/facilities/${facilityId}`),
+
+  dashboard: (facilityId: string): Promise<{ dashboard: FacilityDashboard }> =>
+    apiFetch(`/api/facilities/${facilityId}/dashboard`),
 
   create: (input: Record<string, unknown>): Promise<{ facility: Facility }> =>
     apiFetch("/api/facilities", { method: "POST", body: JSON.stringify(input) }),
