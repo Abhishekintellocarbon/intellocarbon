@@ -295,31 +295,36 @@ model Report {
 
 enum DocumentType {
   REPORT
+  // User-uploaded bills/invoices backing a specific activity_data submission
+  // — see ActivityData.documents and the "Evidence Pending" flag it drives.
+  SUPPORTING_EVIDENCE
 }
 
-// The generated PDF itself, auto-saved whenever a Report is created —
-// stored in Postgres (not on disk) for the same durability reason as
-// Report.pdfPath above. Every generated report has exactly one Document;
-// this is a separate table (rather than a fileData column on Report
-// directly) so future non-report document types can reuse it without a
-// migration, and so the Documents section query never has to pull report
-// bytes it doesn't need.
+// Either the generated PDF for a Report, or a user-uploaded supporting
+// document for an ActivityData submission — exactly one of reportId /
+// activityDataId is set, matching documentType. Both stored in Postgres
+// (not on disk) since Render's filesystem is ephemeral; this is a separate
+// table from Report so a future third document type can reuse it without a
+// migration, and so list views never have to pull file bytes they don't need.
 model Document {
-  id              String       @id @default(cuid())
+  id              String        @id @default(cuid())
   facilityId      String
-  facility        Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facility        Facility      @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   companyId       String
-  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  reportId        String       @unique
-  report          Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  documentType    DocumentType @default(REPORT)
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reportId        String?       @unique
+  report          Report?       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  activityDataId  String?
+  activityData    ActivityData? @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  documentType    DocumentType  @default(REPORT)
   reportingPeriod String
-  verified        Boolean      @default(false)
+  verified        Boolean       @default(false)
   fileName        String
   fileData        Bytes
-  createdAt       DateTime     @default(now())
+  createdAt       DateTime      @default(now())
 
   @@index([facilityId])
+  @@index([activityDataId])
   @@map("documents")
 }
 
@@ -458,6 +463,10 @@ model ActivityData {
   precursorEntries       PrecursorEntry[]
   calculationResult      EmissionCalculationResult?
   verificationRequest    VerificationRequest?
+  // Supporting evidence (bills/invoices) backing this submission — an empty
+  // list on a SUBMITTED entry is what "Evidence Pending" means; computed on
+  // read, not stored, so it can never go stale.
+  documents              Document[]
 
   @@index([facilityId])
   @@map("activity_data")

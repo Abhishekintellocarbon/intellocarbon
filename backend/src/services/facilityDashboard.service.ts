@@ -62,9 +62,17 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
     include: {
       facility: { include: { company: { include: { owner: true } } } },
       calculationResult: true,
+      _count: { select: { documents: { where: { documentType: "SUPPORTING_EVIDENCE" } } } },
     },
     orderBy: { periodEnd: "asc" },
   });
+
+  // "Evidence Pending" — a SUBMITTED entry with no linked supporting
+  // document. Computed on read (not stored) so it can never go stale: as
+  // soon as a document is uploaded and linked, this flips false on its own.
+  const evidencePendingFor = (entry: (typeof entries)[number]) => entry._count.documents === 0;
+  const hasEvidencePendingSubmissions = entries.some(evidencePendingFor);
+  const latestEvidencePending = entries.length > 0 ? evidencePendingFor(entries[entries.length - 1]) : false;
 
   // Draft facilities without a production route shouldn't happen for
   // submitted data in practice, but fall back to "OTHER" defensively rather
@@ -90,6 +98,7 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
         certificatePrice: latest.impact.certificatePrice,
         certificatePriceQuarter: latest.impact.certificatePriceQuarter,
         periodLabel: periodLabel(latest.ctx.periodStart, latest.ctx.periodEnd),
+        evidencePending: latestEvidencePending,
       }
     : { hasData: false as const };
 
@@ -106,6 +115,7 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
           tone: cctsTone(targetIntensity, actualIntensity),
           deltaTco2e: pos.pending ? null : round(pos.deltaTco2e, 2),
           periodLabel: periodLabel(latest.ctx.periodStart, latest.ctx.periodEnd),
+          evidencePending: latestEvidencePending,
         };
       })()
     : { hasData: false as const };
@@ -261,5 +271,6 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
     intensityTrend,
     intensityTargetLine,
     recentActivity,
+    hasEvidencePendingSubmissions,
   };
 };

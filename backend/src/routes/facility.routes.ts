@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as facilityController from "../controllers/facility.controller";
 import * as facilityDashboardController from "../controllers/facilityDashboard.controller";
 import * as facilityReportsController from "../controllers/facilityReports.controller";
+import * as evidenceDocumentController from "../controllers/evidenceDocument.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireApproved } from "../middleware/requireApproved";
 import { validate } from "../middleware/validate";
@@ -22,6 +23,8 @@ router.get("/:facilityId/reports/status", facilityReportsController.getReportGen
 router.post("/:facilityId/reports/generate", validate(generateReportSchema), facilityReportsController.generateReport);
 router.get("/:facilityId/reports", facilityReportsController.listReports);
 router.get("/:facilityId/reports/:reportId/pdf", facilityReportsController.downloadReportPdf);
+router.get("/:facilityId/documents", evidenceDocumentController.listFacilityDocuments);
+router.get("/:facilityId/documents/:documentId/download", evidenceDocumentController.downloadFacilityDocument);
 router.put("/:facilityId", validate(facilitySchema), facilityController.updateFacility);
 router.patch("/:facilityId/draft", validate(facilityDraftSchema), facilityController.autosaveFacility);
 router.post("/:facilityId/complete", validate(facilitySchema), facilityController.completeFacility);

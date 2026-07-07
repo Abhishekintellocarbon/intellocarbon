@@ -17,10 +17,20 @@ const detailInclude = {
       processMaterialEntries: true,
       precursorEntries: true,
       calculationResult: true,
+      _count: { select: { documents: { where: { documentType: "SUPPORTING_EVIDENCE" as const } } } },
     },
   },
   verifier: true,
 } as const;
+
+/** "Evidence Pending" — a SUBMITTED entry with no linked supporting document. */
+const withEvidencePending = <T extends { activityData: { status: string; _count: { documents: number } } }>(request: T) => ({
+  ...request,
+  activityData: {
+    ...request.activityData,
+    evidencePending: request.activityData.status === "SUBMITTED" && request.activityData._count.documents === 0,
+  },
+});
 
 export const submitForVerification = async (userId: string, facilityId: string, activityDataId: string) => {
   const activityData = await requireOwnedActivityData(userId, facilityId, activityDataId);
@@ -65,19 +75,23 @@ export const getVerificationStatus = async (userId: string, facilityId: string, 
   });
 };
 
-export const listPending = async () =>
-  prisma.verificationRequest.findMany({
+export const listPending = async () => {
+  const requests = await prisma.verificationRequest.findMany({
     where: { status: "PENDING" },
     include: detailInclude,
     orderBy: { submittedAt: "asc" },
   });
+  return requests.map(withEvidencePending);
+};
 
-export const listMyAssignments = async (verifierId: string) =>
-  prisma.verificationRequest.findMany({
+export const listMyAssignments = async (verifierId: string) => {
+  const requests = await prisma.verificationRequest.findMany({
     where: { verifierId },
     include: detailInclude,
     orderBy: { updatedAt: "desc" },
   });
+  return requests.map(withEvidencePending);
+};
 
 const requireRequestVisibleTo = async (verifierId: string, requestId: string) => {
   const request = await prisma.verificationRequest.findUnique({
@@ -88,7 +102,7 @@ const requireRequestVisibleTo = async (verifierId: string, requestId: string) =>
   if (request.verifierId && request.verifierId !== verifierId) {
     throw AppError.forbidden("This request has been claimed by another verifier");
   }
-  return request;
+  return withEvidencePending(request);
 };
 
 export const getRequestDetail = async (verifierId: string, requestId: string) =>

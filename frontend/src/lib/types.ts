@@ -262,6 +262,9 @@ export interface ActivityData {
   calculationResult: EmissionCalculationResult | null;
   verificationRequest?: VerificationRequest | null;
   facility?: Facility;
+  // Present wherever the backend computes it — a SUBMITTED entry with no
+  // linked SUPPORTING_EVIDENCE document. Never stored, always derived.
+  evidencePending?: boolean;
 }
 
 // BRSR Core's GHG attribute (1 of 9) isn't stored here — it's derived from the
@@ -498,6 +501,7 @@ export interface ReportCardStatus {
 
 export interface ReportGenerationStatus {
   hasAnySubscription: boolean;
+  hasEvidencePendingSubmissions: boolean;
   cards: ReportCardStatus[];
 }
 
@@ -530,6 +534,7 @@ export interface FacilityDashboardCbam {
   certificatePrice?: number;
   certificatePriceQuarter?: string;
   periodLabel?: string;
+  evidencePending?: boolean;
 }
 
 export interface FacilityDashboardCcts {
@@ -539,6 +544,7 @@ export interface FacilityDashboardCcts {
   tone?: CctsTone;
   deltaTco2e?: number | null;
   periodLabel?: string;
+  evidencePending?: boolean;
 }
 
 export interface FacilityDashboardBrsr {
@@ -597,6 +603,18 @@ export interface FacilityDashboard {
   intensityTrend: FacilityIntensityTrendPoint[];
   intensityTargetLine: number | null;
   recentActivity: FacilityActivityFeedItem[];
+  hasEvidencePendingSubmissions: boolean;
+}
+
+export interface FacilityDocument {
+  id: string;
+  documentType: "REPORT" | "SUPPORTING_EVIDENCE";
+  reportingPeriod: string;
+  verified: boolean;
+  fileName: string;
+  createdAt: string;
+  activityDataId: string | null;
+  reportId: string | null;
 }
 
 // --- Super Admin dashboard (/admin) ---

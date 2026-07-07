@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
 import { SuperAdminRoute } from "@/components/auth/super-admin-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { adminApi } from "@/lib/api";
@@ -165,15 +166,18 @@ function AdminFacilityDetailContent() {
                       <p className="text-sm font-medium text-foreground">
                         {entry.periodStart && entry.periodEnd ? `${fmtDate(entry.periodStart)} – ${fmtDate(entry.periodEnd)}` : "Draft entry"}
                       </p>
-                      <span
-                        className={
-                          entry.status === "SUBMITTED"
-                            ? "rounded-full border border-teal-500/30 bg-teal-500/10 px-2 py-0.5 text-xs font-medium text-teal-500"
-                            : "rounded-full border border-surface-border bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted-foreground"
-                        }
-                      >
-                        {entry.status}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={
+                            entry.status === "SUBMITTED"
+                              ? "rounded-full border border-teal-500/30 bg-teal-500/10 px-2 py-0.5 text-xs font-medium text-teal-500"
+                              : "rounded-full border border-surface-border bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted-foreground"
+                          }
+                        >
+                          {entry.status}
+                        </span>
+                        {entry.evidencePending && <EvidencePendingBadge />}
+                      </div>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Submitted by {facility.company.owner.name} ({facility.company.owner.email}) · Last updated {fmtDateTime(entry.updatedAt)}

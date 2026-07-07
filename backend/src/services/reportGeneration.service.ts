@@ -40,6 +40,18 @@ const periodStatusFor = (reportType: ReportType, now: Date): ReportPeriodStatus 
   return getBrsrReportPeriodStatus(now);
 };
 
+/** Any SUBMITTED activity_data entry for this facility with no linked supporting document blocks report generation entirely, not just its own period. */
+const hasEvidencePendingSubmissions = async (facilityId: string): Promise<boolean> => {
+  const pendingCount = await prisma.activityData.count({
+    where: {
+      facilityId,
+      status: "SUBMITTED",
+      documents: { none: { documentType: "SUPPORTING_EVIDENCE" } },
+    },
+  });
+  return pendingCount > 0;
+};
+
 const REPORT_TYPES: ReportType[] = ["CBAM", "CCTS", "BRSR"];
 
 export const getReportGenerationStatus = async (userId: string, facilityId: string) => {
@@ -65,7 +77,11 @@ export const getReportGenerationStatus = async (userId: string, facilityId: stri
     }),
   );
 
-  return { hasAnySubscription: cards.some((c) => c.hasAccess), cards };
+  return {
+    hasAnySubscription: cards.some((c) => c.hasAccess),
+    hasEvidencePendingSubmissions: await hasEvidencePendingSubmissions(facilityId),
+    cards,
+  };
 };
 
 /**
@@ -80,6 +96,10 @@ export const generateReport = async (userId: string, facilityId: string, reportT
 
   if (!(await hasAccess(facility.companyId, reportType))) {
     throw AppError.forbidden("Your current subscription doesn't include this report type", "REPORT_TYPE_NOT_SUBSCRIBED");
+  }
+
+  if (await hasEvidencePendingSubmissions(facilityId)) {
+    throw AppError.forbidden("Upload supporting documents to generate report.", "EVIDENCE_PENDING");
   }
 
   const now = new Date();

@@ -22,6 +22,7 @@ import type {
   AdminCompanySummary,
   AdminCompanyDetail,
   AdminFacilityDetail,
+  FacilityDocument,
 } from "./types";
 import type {
   BorderInputs,
@@ -264,6 +265,64 @@ export const reportsApi = {
     }
     if (!res.ok) {
       throw new ApiError("Couldn't download the report. Please try again.", res.status);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+};
+
+export const documentsApi = {
+  list: (facilityId: string): Promise<{ documents: FacilityDocument[] }> => apiFetch(`/api/facilities/${facilityId}/documents`),
+
+  // Multipart upload — bypasses apiFetch's JSON Content-Type so the browser
+  // can set the multipart boundary itself.
+  uploadEvidence: async (facilityId: string, dataId: string, file: File): Promise<{ document: FacilityDocument }> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const url = `${API_URL}/api/facilities/${facilityId}/activity-data/${dataId}/documents`;
+    const doUpload = () =>
+      fetch(url, {
+        method: "POST",
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+        body: formData,
+      });
+
+    let res = await doUpload();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await doUpload();
+    }
+    const data = await parseJson(res);
+    if (!res.ok) {
+      throw new ApiError(data?.error?.message ?? "Couldn't upload this document.", res.status, data?.error?.code);
+    }
+    return data;
+  },
+
+  download: async (facilityId: string, documentId: string, fileName: string): Promise<void> => {
+    const url = `${API_URL}/api/facilities/${facilityId}/documents/${documentId}/download`;
+    const fetchDoc = () =>
+      fetch(url, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchDoc();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchDoc();
+    }
+    if (!res.ok) {
+      throw new ApiError("Couldn't download this document. Please try again.", res.status);
     }
     const blob = await res.blob();
     const objectUrl = URL.createObjectURL(blob);

@@ -1,5 +1,6 @@
 import { ClipboardList } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
 import { cn } from "@/lib/utils";
 import { DashboardEmptyState } from "./dashboard-empty-state";
 import { UpsellCard } from "./upsell-card";
@@ -72,9 +73,12 @@ export function ComplianceStatusStrip({
         <StatCard title="CBAM">
           {cbam.hasData ? (
             <>
-              <StatusBadge tone={cbam.isBetterThanDefault ? "green" : "red"}>
-                {cbam.isBetterThanDefault ? "Savings confirmed" : "Certificate exposure"}
-              </StatusBadge>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone={cbam.isBetterThanDefault ? "green" : "red"}>
+                  {cbam.isBetterThanDefault ? "Savings confirmed" : "Certificate exposure"}
+                </StatusBadge>
+                {cbam.evidencePending && <EvidencePendingBadge />}
+              </div>
               <p className="mt-3 text-2xl font-semibold text-foreground">
                 {fmtIntensity(cbam.actualSee!)} <span className="text-sm font-normal text-muted-foreground">{cbam.seeUnit}</span>
               </p>
@@ -106,9 +110,12 @@ export function ComplianceStatusStrip({
         <StatCard title="CCTS">
           {ccts.hasData ? (
             <>
-              <StatusBadge tone={ccts.tone === "SURPLUS" ? "green" : ccts.tone === "ON_TRACK" ? "amber" : ccts.tone === "DEFICIT" ? "red" : "grey"}>
-                {ccts.tone === "SURPLUS" ? "CCC Surplus" : ccts.tone === "ON_TRACK" ? "On Track" : ccts.tone === "DEFICIT" ? "Deficit" : "Target not notified"}
-              </StatusBadge>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone={ccts.tone === "SURPLUS" ? "green" : ccts.tone === "ON_TRACK" ? "amber" : ccts.tone === "DEFICIT" ? "red" : "grey"}>
+                  {ccts.tone === "SURPLUS" ? "CCC Surplus" : ccts.tone === "ON_TRACK" ? "On Track" : ccts.tone === "DEFICIT" ? "Deficit" : "Target not notified"}
+                </StatusBadge>
+                {ccts.evidencePending && <EvidencePendingBadge />}
+              </div>
               <p className="mt-3 text-2xl font-semibold text-foreground">
                 {fmtIntensity(ccts.actualIntensity!)} <span className="text-sm font-normal text-muted-foreground">tCO2e/t</span>
               </p>

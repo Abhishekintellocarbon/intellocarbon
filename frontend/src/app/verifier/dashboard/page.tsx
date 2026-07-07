@@ -6,6 +6,7 @@ import { Calendar, ClipboardCheck, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
+import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
 import { VerifierRoute } from "@/components/auth/verifier-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { verifierApi, ApiError } from "@/lib/api";
@@ -35,10 +36,11 @@ function RequestCard({
   return (
     <Card className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${STATUS_STYLES[request.status]}`}>
             {request.status.replace(/_/g, " ")}
           </span>
+          {activityData.evidencePending && <EvidencePendingBadge />}
           <span className="text-sm font-medium">{facility.company.name}</span>
         </div>
         <p className="mt-1.5 text-sm text-foreground/90">

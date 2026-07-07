@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
+import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
 import { VerifierRoute } from "@/components/auth/verifier-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { verifierApi, ApiError } from "@/lib/api";
@@ -88,7 +89,10 @@ function ReviewContent() {
       </Link>
 
       <div>
-        <h1 className="text-xl font-semibold">{facility.company.name}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-xl font-semibold">{facility.company.name}</h1>
+          {activityData.evidencePending && <EvidencePendingBadge />}
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {facility.name} · {activityData.productCategory} · {formatDate(activityData.periodStart)} –{" "}
           {formatDate(activityData.periodEnd)}

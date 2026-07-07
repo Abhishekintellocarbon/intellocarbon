@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { FileText } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { GenerateReportModal } from "./generate-report-modal";
 import { reportsApi, ApiError } from "@/lib/api";
 import type { GeneratedReportType, ReportGenerationStatus } from "@/lib/types";
 
-export function GenerateReportButton({ facilityId }: { facilityId: string }) {
+export function GenerateReportButton({ facilityId, disabled }: { facilityId: string; disabled?: boolean }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<ReportGenerationStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -58,8 +59,15 @@ export function GenerateReportButton({ facilityId }: { facilityId: string }) {
     <>
       <button
         type="button"
-        onClick={handleOpen}
-        className="inline-flex items-center gap-2 rounded-lg bg-[#00D4AA] px-[28px] py-[12px] font-bold text-[#0F1923] shadow-[0_0_16px_rgba(0,212,170,0.5)] transition-all duration-150 hover:brightness-110 active:brightness-95"
+        onClick={disabled ? undefined : handleOpen}
+        disabled={disabled}
+        title={disabled ? "Upload supporting documents to generate report." : undefined}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-lg px-[28px] py-[12px] font-bold transition-all duration-150",
+          disabled
+            ? "cursor-not-allowed bg-surface-raised text-muted-foreground"
+            : "bg-[#00D4AA] text-[#0F1923] shadow-[0_0_16px_rgba(0,212,170,0.5)] hover:brightness-110 active:brightness-95",
+        )}
       >
         <FileText className="h-4 w-4" />
         Generate Report

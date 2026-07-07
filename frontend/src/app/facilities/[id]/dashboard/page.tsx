@@ -13,6 +13,7 @@ import { LiabilityTrendChart } from "@/components/facilities/dashboard/liability
 import { IntensityTrendChart } from "@/components/facilities/dashboard/intensity-trend-chart";
 import { RecentActivityFeed } from "@/components/facilities/dashboard/recent-activity-feed";
 import { GenerateReportButton } from "@/components/facilities/dashboard/generate-report-button";
+import { EvidencePendingBanner } from "@/components/facilities/dashboard/evidence-pending-banner";
 import { computeDashboardAccess } from "@/components/facilities/dashboard/dashboard-access";
 import { billingApi, facilityApi } from "@/lib/api";
 import type { Facility, FacilityDashboard as FacilityDashboardData, PlanDefinition, Subscription } from "@/lib/types";
@@ -78,11 +79,17 @@ function FacilityDashboardContent() {
               <p className="mt-1 text-sm text-muted-foreground">Compliance status, deadlines, and emissions trends for this facility.</p>
             </div>
           </div>
-          <GenerateReportButton facilityId={facility.id} />
+          <GenerateReportButton facilityId={facility.id} disabled={dashboard.hasEvidencePendingSubmissions} />
         </div>
         <Link href={`/facilities/${facility.id}`} className="mt-2 inline-block text-sm text-teal-500 hover:text-teal-400">
           Back to facility
         </Link>
+
+        {dashboard.hasEvidencePendingSubmissions && (
+          <div className="mt-6">
+            <EvidencePendingBanner facilityId={facility.id} />
+          </div>
+        )}
 
         <div className="mt-8 space-y-8">
           <ComplianceStatusStrip dashboard={dashboard} facilityId={facility.id} access={access} plans={plans} />

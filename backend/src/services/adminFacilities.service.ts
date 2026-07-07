@@ -20,6 +20,7 @@ export const getFacilityDetail = async (facilityId: string) => {
           fuelEntries: true,
           processMaterialEntries: true,
           precursorEntries: true,
+          _count: { select: { documents: { where: { documentType: "SUPPORTING_EVIDENCE" } } } },
         },
         orderBy: { periodEnd: "desc" },
       },
@@ -32,7 +33,14 @@ export const getFacilityDetail = async (facilityId: string) => {
     throw AppError.notFound("Facility not found");
   }
 
-  return facility;
+  return {
+    ...facility,
+    // "Evidence Pending" — a SUBMITTED entry with no linked supporting document.
+    activityData: facility.activityData.map((entry) => ({
+      ...entry,
+      evidencePending: entry.status === "SUBMITTED" && entry._count.documents === 0,
+    })),
+  };
 };
 
 /** Admin-scoped download — bypasses the facility-ownership check the customer-facing endpoint uses, since a Super Admin doesn't own the customer's facility. Gated by requireSuperAdmin at the router level instead. */
