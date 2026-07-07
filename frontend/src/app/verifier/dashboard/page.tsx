@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Calendar, ClipboardCheck, Loader2 } from "lucide-react";
+import { Building2, Calendar, ClipboardCheck, Factory, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
@@ -10,7 +10,7 @@ import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
 import { VerifierRoute } from "@/components/auth/verifier-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { verifierApi, ApiError } from "@/lib/api";
-import type { VerificationRequestDetail } from "@/lib/types";
+import type { VerificationRequestDetail, VerifierAssignedFacility } from "@/lib/types";
 import { useAuth } from "@/context/auth-context";
 
 const formatDate = (iso: string | null) =>
@@ -67,12 +67,14 @@ function RequestCard({
 
 function VerifierDashboardContent() {
   const { user } = useAuth();
+  const [facilities, setFacilities] = useState<VerifierAssignedFacility[] | null>(null);
   const [pending, setPending] = useState<VerificationRequestDetail[] | null>(null);
   const [mine, setMine] = useState<VerificationRequestDetail[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
 
   const refresh = () => {
+    verifierApi.listFacilities().then(({ facilities }) => setFacilities(facilities));
     verifierApi.listPending().then(({ requests }) => setPending(requests));
     verifierApi.listMine().then(({ requests }) => setMine(requests));
   };
@@ -110,7 +112,42 @@ function VerifierDashboardContent() {
           </div>
         )}
 
-        <h2 className="mt-8 mb-3 text-lg font-semibold">Pending requests</h2>
+        <h2 className="mt-8 mb-3 text-lg font-semibold">Assigned facilities</h2>
+        <p className="-mt-2 mb-3 text-xs text-muted-foreground">Facilities under companies assigned to you, with at least one submission to review.</p>
+        {facilities === null && (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-teal-500" />
+          </div>
+        )}
+        {facilities && facilities.length === 0 && (
+          <Card className="flex flex-col items-center gap-2 p-10 text-center">
+            <Building2 className="h-5 w-5 text-teal-500" />
+            <p className="text-sm text-muted-foreground">No companies have been assigned to you yet.</p>
+          </Card>
+        )}
+        {facilities && facilities.length > 0 && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {facilities.map((f) => (
+              <Link key={f.id} href={`/verifier/facilities/${f.id}`}>
+                <Card className="h-full p-5 transition-colors hover:border-teal-500/40">
+                  <div className="flex items-start justify-between">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-surface-border bg-surface-raised">
+                      <Factory className="h-4 w-4 text-teal-500" />
+                    </span>
+                    {f.evidencePending && <EvidencePendingBadge />}
+                  </div>
+                  <h3 className="mt-3 font-medium text-foreground">{f.name}</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{f.company.name}</p>
+                  <p className="mt-2 text-xs text-muted">
+                    {f.submittedEntryCount} submitted {f.submittedEntryCount === 1 ? "entry" : "entries"}
+                  </p>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <h2 className="mt-10 mb-3 text-lg font-semibold">Pending requests</h2>
         {pending === null && (
           <div className="flex justify-center py-10">
             <Loader2 className="h-6 w-6 animate-spin text-teal-500" />

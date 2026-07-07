@@ -14,6 +14,7 @@ import { IntensityTrendChart } from "@/components/facilities/dashboard/intensity
 import { RecentActivityFeed } from "@/components/facilities/dashboard/recent-activity-feed";
 import { GenerateReportButton } from "@/components/facilities/dashboard/generate-report-button";
 import { EvidencePendingBanner } from "@/components/facilities/dashboard/evidence-pending-banner";
+import { OpenQueriesSection } from "@/components/facilities/dashboard/open-queries-section";
 import { computeDashboardAccess } from "@/components/facilities/dashboard/dashboard-access";
 import { billingApi, facilityApi } from "@/lib/api";
 import type { Facility, FacilityDashboard as FacilityDashboardData, PlanDefinition, Subscription } from "@/lib/types";
@@ -92,6 +93,7 @@ function FacilityDashboardContent() {
         )}
 
         <div className="mt-8 space-y-8">
+          <OpenQueriesSection facilityId={facility.id} />
           <ComplianceStatusStrip dashboard={dashboard} facilityId={facility.id} access={access} plans={plans} />
           <DeadlineCountdown dashboard={dashboard} access={access} />
           <EmissionsBreakdownChart dashboard={dashboard} facilityId={facility.id} />

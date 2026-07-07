@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Factory, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { SuperAdminRoute } from "@/components/auth/super-admin-route";
 import { AppHeader } from "@/components/layout/app-header";
-import { adminApi } from "@/lib/api";
-import type { AdminCompanyDetail } from "@/lib/types";
+import { adminApi, ApiError } from "@/lib/api";
+import type { AdminCompanyDetail, AdminVerifierSummary } from "@/lib/types";
 
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -22,18 +24,14 @@ const tierLabel = (tier: string) =>
     .map((w) => w[0].toUpperCase() + w.slice(1))
     .join(" ");
 
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-sm text-foreground">{value ?? "—"}</p>
-    </div>
-  );
-}
-
 function AdminCompanyDetailContent() {
   const params = useParams<{ id: string }>();
   const [company, setCompany] = useState<AdminCompanyDetail | null>(null);
+  const [verifiers, setVerifiers] = useState<AdminVerifierSummary[] | null>(null);
+  const [selectedVerifierId, setSelectedVerifierId] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,7 +39,38 @@ function AdminCompanyDetailContent() {
       .getCompany(params.id)
       .then(({ company }) => setCompany(company))
       .catch(() => setError("Couldn't load this company."));
+    adminApi.listVerifiers().then(({ verifiers }) => setVerifiers(verifiers));
   }, [params.id]);
+
+  const assignedVerifierIds = new Set(company?.verifierAssignments.map((a) => a.verifier.id) ?? []);
+  const availableVerifiers = (verifiers ?? []).filter((v) => !assignedVerifierIds.has(v.id));
+
+  const handleAssign = async () => {
+    if (!selectedVerifierId) return;
+    setAssignError(null);
+    setIsAssigning(true);
+    try {
+      const { assignment } = await adminApi.assignVerifier(params.id, selectedVerifierId);
+      setCompany((prev) => (prev ? { ...prev, verifierAssignments: [...prev.verifierAssignments, assignment] } : prev));
+      setSelectedVerifierId("");
+    } catch (err) {
+      setAssignError(err instanceof ApiError ? err.message : "Couldn't assign this verifier.");
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUnassign = async (verifierId: string) => {
+    setRemovingId(verifierId);
+    try {
+      await adminApi.unassignVerifier(params.id, verifierId);
+      setCompany((prev) =>
+        prev ? { ...prev, verifierAssignments: prev.verifierAssignments.filter((a) => a.verifier.id !== verifierId) } : prev,
+      );
+    } finally {
+      setRemovingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -96,6 +125,55 @@ function AdminCompanyDetailContent() {
               <Field label="Email" value={company.owner.email} />
               <Field label="Approval Status" value={company.owner.approvalStatus} />
               <Field label="Signed Up" value={fmtDate(company.owner.createdAt)} />
+            </Card>
+
+            <h2 className="mt-8 text-lg font-semibold">Assigned verifiers</h2>
+            <Card className="mt-4 p-6">
+              {company.verifierAssignments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No verifiers assigned yet. This company&apos;s submissions won&apos;t appear in any verifier&apos;s portal until one is assigned.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {company.verifierAssignments.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-3 rounded-lg border border-surface-border p-3 text-sm">
+                      <div>
+                        <p className="font-medium text-foreground">{a.verifier.name}</p>
+                        <p className="text-xs text-muted-foreground">{a.verifier.email} · Assigned {fmtDate(a.assignedAt)}</p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        isLoading={removingId === a.verifier.id}
+                        onClick={() => handleUnassign(a.verifier.id)}
+                      >
+                        Remove
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {assignError && <p className="mt-3 text-xs text-danger">{assignError}</p>}
+
+              <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-surface-border pt-4">
+                <select
+                  value={selectedVerifierId}
+                  onChange={(e) => setSelectedVerifierId(e.target.value)}
+                  className="rounded-xl border border-surface-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-teal-500/60"
+                >
+                  <option value="">Select a verifier…</option>
+                  {availableVerifiers.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} ({v.email})
+                    </option>
+                  ))}
+                </select>
+                <Button size="sm" onClick={handleAssign} isLoading={isAssigning} disabled={!selectedVerifierId}>
+                  Assign verifier
+                </Button>
+                {verifiers && verifiers.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No users with the Verifier role exist yet.</p>
+                )}
+              </div>
             </Card>
 
             <h2 className="mt-8 text-lg font-semibold">Subscriptions</h2>

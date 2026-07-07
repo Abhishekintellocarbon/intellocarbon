@@ -319,3 +319,19 @@ export const sendNewVerificationRequestEmail = async (to: string, facilityName: 
   );
   await sendEmail({ to, subject: "New verification request available", html });
 };
+
+export const sendVerificationQueryRaisedEmail = async (
+  to: string,
+  facilityName: string,
+  queryText: string,
+  facilityId: string,
+): Promise<void> => {
+  const html = emailShell(
+    "Verifier query — action needed",
+    `<p>Your independent verifier has raised a query on <strong>${facilityName}</strong>'s submitted activity data:</p>
+     <blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #00D4AA;background:#0F1923;color:#E8F0F7;">${queryText}</blockquote>
+     <p>Respond from the facility dashboard so the verifier can continue their review.</p>
+     ${button(`${env.CLIENT_URL}/facilities/${facilityId}/dashboard`, "Respond to query")}`,
+  );
+  await sendEmail({ to, subject: `Verifier query on ${facilityName} — action needed`, html });
+};

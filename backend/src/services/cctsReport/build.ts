@@ -624,6 +624,11 @@ function buildVerification(pb: PageBuilder, ctx: ReportContext) {
       : "Not yet issued.";
   pb.paragraph(opinion, { color: isApproved ? undefined : MUTED });
 
+  if (isApproved && vr?.qualifications) {
+    pb.heading("Qualifications / emphasis of matter");
+    pb.paragraph(vr.qualifications);
+  }
+
   pb.heading("Digital signature");
   if (isApproved) {
     pb.paragraph(

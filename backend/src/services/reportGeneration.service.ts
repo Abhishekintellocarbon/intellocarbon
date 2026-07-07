@@ -124,6 +124,7 @@ export const generateReport = async (userId: string, facilityId: string, reportT
       include: {
         facility: { include: { company: { include: { owner: true } } } },
         calculationResult: true,
+        verificationRequest: { include: { verifier: true } },
       },
       orderBy: { periodEnd: "desc" },
     });

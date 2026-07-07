@@ -44,10 +44,12 @@ model User {
   refreshTokens            RefreshToken[]
   passwordResetTokens      PasswordResetToken[]
   company                  Company?
-  verificationsHandled     VerificationRequest[]     @relation("VerifierAssignments")
-  brsrVerificationsHandled BrsrVerificationRequest[] @relation("BrsrVerifierAssignments")
+  verificationsHandled     VerificationRequest[]       @relation("VerifierAssignments")
+  brsrVerificationsHandled BrsrVerificationRequest[]   @relation("BrsrVerifierAssignments")
   notifications            Notification[]
   auditLogs                AuditLog[]
+  queriesRaised            VerificationQuery[]         @relation("QueriesRaised")
+  verifierCompanyAssignments VerifierCompanyAssignment[] @relation("VerifierCompanyAssignments")
 
   @@map("users")
 }
@@ -106,6 +108,8 @@ model Company {
   auditLogs            AuditLog[]
   reports              Report[]
   documents            Document[]
+  verificationQueries  VerificationQuery[]
+  verifierAssignments  VerifierCompanyAssignment[]
 
   @@map("companies")
 }
@@ -181,15 +185,74 @@ model VerificationRequest {
   verifierOrg         String?
   accreditationNumber String?
   statement           String?
+  // Free-text "qualifications or emphasis of matter" — deliberately separate
+  // from `statement` (the verifier's main opinion) so the PDF can render them
+  // as distinct labelled sections, matching Annex VI verification report style.
+  qualifications      String?
   comments            String?
+  // Annex VI checklist tick state — { [checklistItemId]: boolean }. The
+  // canonical item list lives in data/annexVIChecklist.ts, not here, so
+  // adding/editing items never needs a migration; decideRequest() checks
+  // every canonical id is present and true before allowing APPROVED.
+  checklistState      Json               @default("{}")
   submittedAt         DateTime           @default(now())
   decidedAt           DateTime?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
+  queries VerificationQuery[]
+
   @@index([companyId])
   @@index([verifierId])
   @@map("verification_requests")
+}
+
+enum VerificationQueryStatus {
+  OPEN
+  RESOLVED
+}
+
+// A verifier's question/concern raised against a specific verification
+// request — the company admin sees and responds to it from their facility
+// dashboard. Deciding a request (issuing the verification statement) is
+// blocked while any query on it is still OPEN.
+model VerificationQuery {
+  id                    String                  @id @default(cuid())
+  verificationRequestId String
+  verificationRequest   VerificationRequest     @relation(fields: [verificationRequestId], references: [id], onDelete: Cascade)
+  companyId             String
+  company               Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId            String
+  facility              Facility                @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  raisedByVerifierId    String
+  raisedByVerifier      User                    @relation("QueriesRaised", fields: [raisedByVerifierId], references: [id])
+  queryText             String
+  status                VerificationQueryStatus @default(OPEN)
+  responseText          String?
+  respondedAt           DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  @@index([verificationRequestId])
+  @@index([companyId])
+  @@index([facilityId])
+  @@map("verification_queries")
+}
+
+// Which companies a verifier is allowed to see and work on — the verifier
+// portal's dashboard/queue only ever shows requests for assigned companies,
+// not the full platform. Managed from the Super Admin company detail page.
+model VerifierCompanyAssignment {
+  id         String   @id @default(cuid())
+  verifierId String
+  verifier   User     @relation("VerifierCompanyAssignments", fields: [verifierId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([verifierId, companyId])
+  @@index([companyId])
+  @@map("verifier_company_assignments")
 }
 
 enum NotificationType {
@@ -381,12 +444,13 @@ model Facility {
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
-  activityData    ActivityData[]
-  notifications   Notification[]
-  brsrCoreReports BrsrCoreReport[]
-  auditLogs       AuditLog[]
-  reports         Report[]
-  documents       Document[]
+  activityData        ActivityData[]
+  notifications       Notification[]
+  brsrCoreReports     BrsrCoreReport[]
+  auditLogs           AuditLog[]
+  reports             Report[]
+  documents           Document[]
+  verificationQueries VerificationQuery[]
 
   @@index([companyId])
   @@map("facilities")

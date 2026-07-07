@@ -1,6 +1,8 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { requireOwnedActivityData } from "./activityData.service";
+import { getAssignedCompanyIds } from "./verifierAssignment.service";
+import { isAnnexVIChecklistComplete, ANNEX_VI_CHECKLIST_IDS } from "../data/annexVIChecklist";
 import {
   sendVerificationSubmittedEmail,
   sendVerificationDecidedEmail,
@@ -61,8 +63,13 @@ export const submitForVerification = async (userId: string, facilityId: string, 
 
   sendVerificationSubmittedEmail(facility.company.owner.email, facility.name).catch(() => {});
 
-  const verifiers = await prisma.user.findMany({ where: { role: "VERIFIER" }, select: { email: true } });
-  Promise.all(verifiers.map((v) => sendNewVerificationRequestEmail(v.email, facility.name))).catch(() => {});
+  // Only notify verifiers actually assigned to this company — the portal
+  // no longer exposes an open pool of every company's requests.
+  const assignedVerifiers = await prisma.verifierCompanyAssignment.findMany({
+    where: { companyId: facility.companyId },
+    include: { verifier: { select: { email: true } } },
+  });
+  Promise.all(assignedVerifiers.map((a) => sendNewVerificationRequestEmail(a.verifier.email, facility.name))).catch(() => {});
 
   return request;
 };
@@ -75,9 +82,10 @@ export const getVerificationStatus = async (userId: string, facilityId: string, 
   });
 };
 
-export const listPending = async () => {
+export const listPending = async (verifierId: string) => {
+  const companyIds = await getAssignedCompanyIds(verifierId);
   const requests = await prisma.verificationRequest.findMany({
-    where: { status: "PENDING" },
+    where: { status: "PENDING", companyId: { in: companyIds } },
     include: detailInclude,
     orderBy: { submittedAt: "asc" },
   });
@@ -102,6 +110,12 @@ const requireRequestVisibleTo = async (verifierId: string, requestId: string) =>
   if (request.verifierId && request.verifierId !== verifierId) {
     throw AppError.forbidden("This request has been claimed by another verifier");
   }
+  if (!request.verifierId) {
+    const companyIds = await getAssignedCompanyIds(verifierId);
+    if (!companyIds.includes(request.companyId)) {
+      throw AppError.forbidden("You are not assigned to this company", "NOT_ASSIGNED");
+    }
+  }
   return withEvidencePending(request);
 };
 
@@ -119,6 +133,28 @@ export const claimRequest = async (verifierId: string, requestId: string) => {
   });
 };
 
+export const updateChecklist = async (verifierId: string, requestId: string, incoming: Record<string, boolean>) => {
+  const request = await prisma.verificationRequest.findUnique({ where: { id: requestId } });
+  if (!request) throw AppError.notFound("Verification request not found");
+  if (request.verifierId !== verifierId) {
+    throw AppError.forbidden("You can only update the checklist for requests assigned to you");
+  }
+  if (request.status !== "IN_REVIEW") {
+    throw AppError.conflict("This request is not currently under review", "NOT_IN_REVIEW");
+  }
+
+  const existingState = (request.checklistState ?? {}) as Record<string, unknown>;
+  const merged: Record<string, boolean> = { ...existingState } as Record<string, boolean>;
+  for (const id of ANNEX_VI_CHECKLIST_IDS) {
+    if (id in incoming) merged[id] = Boolean(incoming[id]);
+  }
+
+  return prisma.verificationRequest.update({
+    where: { id: requestId },
+    data: { checklistState: merged },
+  });
+};
+
 export const decideRequest = async (
   verifierId: string,
   requestId: string,
@@ -133,6 +169,24 @@ export const decideRequest = async (
     throw AppError.conflict("This request is not currently under review", "NOT_IN_REVIEW");
   }
 
+  if (input.status === "APPROVED") {
+    if (!isAnnexVIChecklistComplete(request.checklistState)) {
+      throw AppError.badRequest(
+        "Complete every Annex VI checklist item before issuing the verification statement",
+        "CHECKLIST_INCOMPLETE",
+      );
+    }
+    const openQueryCount = await prisma.verificationQuery.count({
+      where: { verificationRequestId: requestId, status: "OPEN" },
+    });
+    if (openQueryCount > 0) {
+      throw AppError.badRequest(
+        "Resolve every open query before issuing the verification statement",
+        "OPEN_QUERIES_REMAIN",
+      );
+    }
+  }
+
   const verifier = await prisma.user.findUniqueOrThrow({ where: { id: verifierId } });
 
   const updated = await prisma.verificationRequest.update({
@@ -142,6 +196,7 @@ export const decideRequest = async (
       verifierOrg: input.verifierOrg || null,
       accreditationNumber: input.accreditationNumber || null,
       statement: input.statement || null,
+      qualifications: input.qualifications || null,
       comments: input.comments || null,
       decidedAt: new Date(),
     },

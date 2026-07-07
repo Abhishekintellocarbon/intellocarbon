@@ -449,13 +449,77 @@ export interface VerificationRequest {
   verifierOrg: string | null;
   accreditationNumber: string | null;
   statement: string | null;
+  qualifications: string | null;
   comments: string | null;
+  checklistState: Record<string, boolean>;
   submittedAt: string;
   decidedAt: string | null;
 }
 
 export interface VerificationRequestDetail extends VerificationRequest {
   activityData: ActivityData & { facility: Facility & { company: Company } };
+}
+
+export type VerificationQueryStatus = "OPEN" | "RESOLVED";
+
+export interface VerificationQuery {
+  id: string;
+  verificationRequestId: string;
+  companyId: string;
+  facilityId: string;
+  raisedByVerifierId: string;
+  raisedByVerifier?: { name: string };
+  queryText: string;
+  status: VerificationQueryStatus;
+  responseText: string | null;
+  respondedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AnnexVIChecklistItem {
+  id: string;
+  label: string;
+  description: string;
+}
+
+// --- Verifier portal ---
+// Mirrors backend/src/services/verifierFacility.service.ts.
+
+export interface VerifierAssignedFacility {
+  id: string;
+  name: string;
+  company: { id: string; name: string; sector: Sector };
+  submittedEntryCount: number;
+  evidencePending: boolean;
+}
+
+export interface VerificationMethodologyNote {
+  formula: string;
+  source: string;
+}
+
+export interface VerifierEntryFinancials {
+  actualSee: number;
+  defaultSee: number;
+  seeUnit: string;
+  certificatesRequired: number;
+  certificatePrice: number;
+  certificatePriceQuarter: string;
+  grossLiabilityEur: number;
+  article9DeductionTonnes: number;
+  article9DeductionEur: number;
+  netLiabilityEur: number;
+  ghgIntensityCcts: number;
+  cctsTargetIntensity: number | null;
+  cctsDeltaTco2e: number | null;
+  methodology: Record<"see" | "cbamLiability" | "cctsIntensity" | "article9", VerificationMethodologyNote>;
+}
+
+export interface VerifierFacilityDetail {
+  facility: Facility & { company: Company & { owner: { id: string; name: string; email: string } } };
+  activityData: (ActivityData & { evidencePending: boolean; financials: VerifierEntryFinancials | null })[];
+  documents: AdminDocument[];
 }
 
 export type NotificationType = "MONTHLY_REMINDER" | "DEADLINE_WARNING_30D" | "DEADLINE_URGENT_7D";
@@ -666,10 +730,23 @@ export interface AdminCompanySummary {
   createdAt: string;
 }
 
+export interface AdminVerifierSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface CompanyVerifierAssignment {
+  id: string;
+  verifier: AdminVerifierSummary;
+  assignedAt: string;
+}
+
 export interface AdminCompanyDetail extends Company {
   owner: { id: string; name: string; email: string; approvalStatus: string; createdAt: string };
   subscriptions: Subscription[];
   facilities: (Facility & { _count: { activityData: number } })[];
+  verifierAssignments: CompanyVerifierAssignment[];
 }
 
 export interface AdminDocument {

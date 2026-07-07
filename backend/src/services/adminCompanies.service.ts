@@ -48,6 +48,10 @@ export const getCompanyDetail = async (companyId: string) => {
         include: { _count: { select: { activityData: true } } },
         orderBy: { createdAt: "desc" },
       },
+      verifierAssignments: {
+        include: { verifier: { select: { id: true, name: true, email: true } } },
+        orderBy: { assignedAt: "asc" },
+      },
     },
   });
 

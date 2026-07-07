@@ -23,6 +23,12 @@ import type {
   AdminCompanyDetail,
   AdminFacilityDetail,
   FacilityDocument,
+  VerificationQuery,
+  VerifierAssignedFacility,
+  VerifierFacilityDetail,
+  AdminVerifierSummary,
+  CompanyVerifierAssignment,
+  AnnexVIChecklistItem,
 } from "./types";
 import type {
   BorderInputs,
@@ -579,9 +585,19 @@ export const adminApi = {
     link.remove();
     URL.revokeObjectURL(objectUrl);
   },
+
+  listVerifiers: (): Promise<{ verifiers: AdminVerifierSummary[] }> => apiFetch("/api/admin/verifiers"),
+
+  assignVerifier: (companyId: string, verifierId: string): Promise<{ assignment: CompanyVerifierAssignment }> =>
+    apiFetch(`/api/admin/companies/${companyId}/verifiers`, { method: "POST", body: JSON.stringify({ verifierId }) }),
+
+  unassignVerifier: (companyId: string, verifierId: string) =>
+    apiFetch(`/api/admin/companies/${companyId}/verifiers/${verifierId}`, { method: "DELETE" }),
 };
 
 export const verifierApi = {
+  getChecklistItems: (): Promise<{ items: AnnexVIChecklistItem[] }> => apiFetch("/api/verifier/checklist-items"),
+
   listPending: (): Promise<{ requests: VerificationRequestDetail[] }> =>
     apiFetch("/api/verifier/requests/pending"),
 
@@ -599,8 +615,58 @@ export const verifierApi = {
       verifierOrg?: string;
       accreditationNumber?: string;
       statement?: string;
+      qualifications?: string;
       comments?: string;
     },
   ): Promise<{ request: VerificationRequestDetail }> =>
     apiFetch(`/api/verifier/requests/${id}/decide`, { method: "POST", body: JSON.stringify(input) }),
+
+  updateChecklist: (id: string, checklistState: Record<string, boolean>): Promise<{ request: VerificationRequestDetail }> =>
+    apiFetch(`/api/verifier/requests/${id}/checklist`, { method: "PATCH", body: JSON.stringify({ checklistState }) }),
+
+  raiseQuery: (id: string, queryText: string): Promise<{ query: VerificationQuery }> =>
+    apiFetch(`/api/verifier/requests/${id}/queries`, { method: "POST", body: JSON.stringify({ queryText }) }),
+
+  listQueries: (id: string): Promise<{ queries: VerificationQuery[] }> => apiFetch(`/api/verifier/requests/${id}/queries`),
+
+  listFacilities: (): Promise<{ facilities: VerifierAssignedFacility[] }> => apiFetch("/api/verifier/facilities"),
+
+  getFacility: (facilityId: string): Promise<VerifierFacilityDetail> => apiFetch(`/api/verifier/facilities/${facilityId}`),
+
+  downloadDocument: async (facilityId: string, documentId: string, fileName: string): Promise<void> => {
+    const url = `${API_URL}/api/verifier/facilities/${facilityId}/documents/${documentId}/download`;
+    const fetchDoc = () =>
+      fetch(url, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchDoc();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchDoc();
+    }
+    if (!res.ok) {
+      throw new ApiError("Couldn't download this document. Please try again.", res.status);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+};
+
+export const queriesApi = {
+  list: (facilityId: string): Promise<{ queries: VerificationQuery[] }> => apiFetch(`/api/facilities/${facilityId}/queries`),
+
+  respond: (facilityId: string, queryId: string, responseText: string): Promise<{ query: VerificationQuery }> =>
+    apiFetch(`/api/facilities/${facilityId}/queries/${queryId}/respond`, {
+      method: "POST",
+      body: JSON.stringify({ responseText }),
+    }),
 };
