@@ -21,6 +21,14 @@ const envSchema = z.object({
   // their `Role` (which governs the normal company/verifier product, not this).
   SUPER_ADMIN_EMAILS: z.string().default("abhishek@intellocarbon.com"),
 
+  // WhatsApp (Twilio) — leave blank in dev to log the pending-signup alert to
+  // the console instead of sending. TWILIO_WHATSAPP_FROM is the Twilio-assigned
+  // sender number, with or without the "whatsapp:" prefix (e.g. the sandbox
+  // number "whatsapp:+14155238886"). Configured at https://console.twilio.com.
+  TWILIO_ACCOUNT_SID: z.string().optional().default(""),
+  TWILIO_AUTH_TOKEN: z.string().optional().default(""),
+  TWILIO_WHATSAPP_FROM: z.string().optional().default(""),
+
   RAZORPAY_KEY_ID: z.string().optional().default(""),
   RAZORPAY_KEY_SECRET: z.string().optional().default(""),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(""),

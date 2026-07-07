@@ -274,6 +274,43 @@ export const sendLeadComplyEmail = async (
   });
 };
 
+export const sendAdminNewSignupEmail = async (
+  to: string,
+  signup: { name: string; email: string; companyName: string | null; sector: string; accountType: string },
+): Promise<void> => {
+  const html = emailShell(
+    "New signup awaiting approval",
+    `<p>A new user has signed up and is waiting for approval.</p>
+     <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+       ${row("Name", signup.name)}
+       ${row("Email", signup.email)}
+       ${row("Company", signup.companyName ?? "—")}
+       ${row("Sector", signup.sector)}
+       ${row("Account type", signup.accountType)}
+     </table>
+     ${button(`${env.CLIENT_URL}/admin/approvals`, "Review in Super Admin panel")}`,
+  );
+  await sendEmail({ to, subject: `New signup awaiting approval: ${signup.name}`, html });
+};
+
+export const sendAccountApprovedEmail = async (to: string, name: string): Promise<void> => {
+  const html = emailShell(
+    `You're approved, ${name}`,
+    `<p>Your Intellocarbon account has been reviewed and approved. You can log in now and get started.</p>
+     ${button(`${env.CLIENT_URL}/login`, "Log in to Intellocarbon")}`,
+  );
+  await sendEmail({ to, subject: "Your Intellocarbon account is approved", html });
+};
+
+export const sendAccountRejectedEmail = async (to: string, name: string): Promise<void> => {
+  const html = emailShell(
+    `About your Intellocarbon application`,
+    `<p>Hi ${name}, thanks for your interest in Intellocarbon. After review, we're not able to approve this account at this time.</p>
+     <p>If you believe this is a mistake, reply to this email or write to abhishek@intellocarbon.com and we'll take another look.</p>`,
+  );
+  await sendEmail({ to, subject: "Your Intellocarbon account application", html });
+};
+
 export const sendNewVerificationRequestEmail = async (to: string, facilityName: string): Promise<void> => {
   const html = emailShell(
     "New verification request available",

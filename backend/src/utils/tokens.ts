@@ -6,6 +6,7 @@ export interface AccessTokenPayload {
   sub: string;
   email: string;
   role: string;
+  approvalStatus: string;
 }
 
 export const signAccessToken = (payload: AccessTokenPayload): string =>

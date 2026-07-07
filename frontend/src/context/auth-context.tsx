@@ -14,7 +14,7 @@ interface AuthContextValue {
     password: string;
     companyName?: string;
     accountType?: "COMPANY" | "VERIFIER";
-  }) => Promise<void>;
+  }) => Promise<ApiUser>;
   logout: () => Promise<void>;
   refetchUser: () => Promise<void>;
 }
@@ -69,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await authApi.signup(input);
       setAccessToken(data.accessToken);
       setUser(data.user);
+      return data.user;
     },
     [],
   );

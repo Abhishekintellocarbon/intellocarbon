@@ -30,7 +30,11 @@ export function AppHeader() {
 
   const navLinks = user?.role === "VERIFIER" ? VERIFIER_NAV_LINKS : COMPANY_NAV_LINKS;
   const allNavLinks = user?.isSuperAdmin
-    ? [...navLinks, { href: "/admin/leads", label: "IntelloCalc Leads" }]
+    ? [
+        ...navLinks,
+        { href: "/admin/leads", label: "IntelloCalc Leads" },
+        { href: "/admin/approvals", label: "Pending Approvals" },
+      ]
     : navLinks;
 
   const handleLogout = async () => {

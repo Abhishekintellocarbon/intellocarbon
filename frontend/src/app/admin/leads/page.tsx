@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SuperAdminRoute } from "@/components/auth/super-admin-route";
 import { AppHeader } from "@/components/layout/app-header";
+import { AdminTabs } from "@/components/admin/admin-tabs";
 import { adminApi } from "@/lib/api";
 import type { LeadCapture } from "@/lib/intellocalc-types";
 
@@ -56,7 +57,9 @@ function AdminLeadsContent() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-6xl px-6 py-10">
-        <h1 className="text-2xl font-semibold">IntelloCalc Leads</h1>
+        <AdminTabs />
+
+        <h1 className="mt-6 text-2xl font-semibold">IntelloCalc Leads</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           All leads captured across IntelloCalc Border, India, and Comply.
         </p>

@@ -39,8 +39,12 @@ export function SignupForm() {
   const onSubmit = async (values: SignupFormValues) => {
     setServerError(null);
     try {
-      await signup(values);
-      router.push(values.accountType === "VERIFIER" ? "/verifier/dashboard" : "/dashboard");
+      const user = await signup(values);
+      if (user.approvalStatus !== "APPROVED") {
+        router.push("/pending-approval");
+      } else {
+        router.push(values.accountType === "VERIFIER" ? "/verifier/dashboard" : "/dashboard");
+      }
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     }

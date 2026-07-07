@@ -1,13 +1,14 @@
 import { Router } from "express";
 import * as facilityController from "../controllers/facility.controller";
 import { requireAuth } from "../middleware/requireAuth";
+import { requireApproved } from "../middleware/requireApproved";
 import { validate } from "../middleware/validate";
 import { facilitySchema, facilityDraftSchema } from "../validators/facility.validators";
 import activityDataRoutes from "./activityData.routes";
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth, requireApproved);
 
 router.get("/", facilityController.listFacilities);
 router.post("/", validate(facilitySchema), facilityController.createFacility);

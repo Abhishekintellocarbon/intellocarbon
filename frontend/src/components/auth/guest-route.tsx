@@ -10,7 +10,10 @@ export function GuestRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (isLoading || !isAuthenticated) return;
+    if (user?.approvalStatus !== "APPROVED") {
+      router.replace("/pending-approval");
+    } else {
       router.replace(user?.role === "VERIFIER" ? "/verifier/dashboard" : "/dashboard");
     }
   }, [isLoading, isAuthenticated, user, router]);

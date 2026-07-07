@@ -18,18 +18,28 @@ enum Role {
   VERIFIER
 }
 
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
-  id               String    @id @default(cuid())
+  id               String         @id @default(cuid())
   name             String
-  email            String    @unique
+  email            String         @unique
   passwordHash     String
   companyName      String?
-  role             Role      @default(ADMIN)
-  emailVerified    Boolean   @default(false)
-  failedLoginCount Int       @default(0)
+  role             Role           @default(ADMIN)
+  // Gates dashboard/API access — set on signup, flipped by a super admin from
+  // the Pending Approvals panel. Existing pre-feature accounts were backfilled
+  // to APPROVED (see migration), so this only blocks new signups.
+  approvalStatus   ApprovalStatus @default(PENDING)
+  emailVerified    Boolean        @default(false)
+  failedLoginCount Int            @default(0)
   lockedUntil      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   refreshTokens            RefreshToken[]
   passwordResetTokens      PasswordResetToken[]

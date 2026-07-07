@@ -31,7 +31,11 @@ export function LoginForm() {
     setServerError(null);
     try {
       const user = await login(values.email, values.password);
-      router.push(user.role === "VERIFIER" ? "/verifier/dashboard" : "/dashboard");
+      if (user.approvalStatus !== "APPROVED") {
+        router.push("/pending-approval");
+      } else {
+        router.push(user.role === "VERIFIER" ? "/verifier/dashboard" : "/dashboard");
+      }
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     }

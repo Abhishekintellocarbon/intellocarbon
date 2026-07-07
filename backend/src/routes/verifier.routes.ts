@@ -1,13 +1,14 @@
 import { Router } from "express";
 import * as verificationController from "../controllers/verification.controller";
 import { requireAuth } from "../middleware/requireAuth";
+import { requireApproved } from "../middleware/requireApproved";
 import { requireRole } from "../middleware/requireRole";
 import { validate } from "../middleware/validate";
 import { decideVerificationSchema } from "../validators/verification.validators";
 
 const router = Router();
 
-router.use(requireAuth, requireRole("VERIFIER"));
+router.use(requireAuth, requireApproved, requireRole("VERIFIER"));
 
 router.get("/requests/pending", verificationController.listPending);
 router.get("/requests/mine", verificationController.listMyAssignments);

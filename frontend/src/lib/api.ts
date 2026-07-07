@@ -32,9 +32,19 @@ export interface ApiUser {
   email: string;
   companyName: string | null;
   role: string;
+  approvalStatus: "PENDING" | "APPROVED" | "REJECTED";
   emailVerified: boolean;
   createdAt: string;
   isSuperAdmin: boolean;
+}
+
+export interface PendingUser {
+  id: string;
+  name: string;
+  email: string;
+  companyName: string | null;
+  role: string;
+  createdAt: string;
 }
 
 export class ApiError extends Error {
@@ -415,6 +425,14 @@ export const adminApi = {
     const qs = params.toString();
     return apiFetch(`/api/admin/leads${qs ? `?${qs}` : ""}`);
   },
+
+  listPendingUsers: (): Promise<{ users: PendingUser[] }> => apiFetch("/api/admin/pending-users"),
+
+  approveUser: (userId: string): Promise<{ user: PendingUser }> =>
+    apiFetch(`/api/admin/pending-users/${userId}/approve`, { method: "POST" }),
+
+  rejectUser: (userId: string): Promise<{ user: PendingUser }> =>
+    apiFetch(`/api/admin/pending-users/${userId}/reject`, { method: "POST" }),
 };
 
 export const verifierApi = {

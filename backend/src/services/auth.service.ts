@@ -8,7 +8,8 @@ import {
   msFromDuration,
   signAccessToken,
 } from "../utils/tokens";
-import { sendPasswordResetEmail, sendWelcomeEmail } from "./email.service";
+import { sendAdminNewSignupEmail, sendPasswordResetEmail, sendWelcomeEmail } from "./email.service";
+import { sendAdminNewSignupWhatsApp } from "./whatsapp.service";
 import type { LoginInput, SignupInput } from "../validators/auth.validators";
 
 const MAX_FAILED_ATTEMPTS = 5;
@@ -25,22 +26,28 @@ const superAdminEmails = env.SUPER_ADMIN_EMAILS.split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
 
-const publicUser = (user: { id: string; name: string; email: string; companyName: string | null; role: string; emailVerified: boolean; createdAt: Date }) => ({
+const publicUser = (user: { id: string; name: string; email: string; companyName: string | null; role: string; approvalStatus: string; emailVerified: boolean; createdAt: Date }) => ({
   id: user.id,
   name: user.name,
   email: user.email,
   companyName: user.companyName,
   role: user.role,
+  approvalStatus: user.approvalStatus,
   emailVerified: user.emailVerified,
   createdAt: user.createdAt,
   isSuperAdmin: superAdminEmails.includes(user.email.toLowerCase()),
 });
 
 const issueTokenPair = async (
-  user: { id: string; email: string; role: string },
+  user: { id: string; email: string; role: string; approvalStatus: string },
   meta: RequestMeta,
 ) => {
-  const accessToken = signAccessToken({ sub: user.id, email: user.email, role: user.role });
+  const accessToken = signAccessToken({
+    sub: user.id,
+    email: user.email,
+    role: user.role,
+    approvalStatus: user.approvalStatus,
+  });
 
   const { token: refreshToken, tokenHash } = generateOpaqueToken();
   const expiresAt = new Date(Date.now() + msFromDuration(env.JWT_REFRESH_EXPIRES_IN));
@@ -64,6 +71,10 @@ export const signup = async (input: SignupInput, meta: RequestMeta) => {
     throw AppError.conflict("An account with this email already exists", "EMAIL_TAKEN");
   }
 
+  // Super admins bootstrap themselves — otherwise nobody could ever approve
+  // the first account. Everyone else starts PENDING (see schema default).
+  const isSuperAdmin = superAdminEmails.includes(input.email.toLowerCase());
+
   const passwordHash = await hashPassword(input.password);
   const user = await prisma.user.create({
     data: {
@@ -72,12 +83,35 @@ export const signup = async (input: SignupInput, meta: RequestMeta) => {
       passwordHash,
       companyName: input.accountType === "VERIFIER" ? null : input.companyName || null,
       role: input.accountType === "VERIFIER" ? "VERIFIER" : "ADMIN",
+      approvalStatus: isSuperAdmin ? "APPROVED" : "PENDING",
     },
   });
 
   const tokens = await issueTokenPair(user, meta);
 
-  sendWelcomeEmail(user.email, user.name).catch(() => {});
+  if (isSuperAdmin) {
+    sendWelcomeEmail(user.email, user.name).catch(() => {});
+  } else {
+    // Sector is only captured during company onboarding, which happens after
+    // approval — nothing to report yet at signup time.
+    const sector = "Not selected yet (set during onboarding)";
+
+    superAdminEmails.forEach((adminEmail) => {
+      sendAdminNewSignupEmail(adminEmail, {
+        name: user.name,
+        email: user.email,
+        companyName: user.companyName,
+        sector,
+        accountType: input.accountType,
+      }).catch(() => {});
+    });
+
+    sendAdminNewSignupWhatsApp({
+      name: user.name,
+      companyName: user.companyName,
+      sector,
+    }).catch(() => {});
+  }
 
   return { user: publicUser(user), ...tokens };
 };
@@ -125,6 +159,15 @@ export const login = async (input: LoginInput, meta: RequestMeta) => {
       where: { id: user.id },
       data: { failedLoginCount: 0, lockedUntil: null },
     });
+  }
+
+  // PENDING users can still log in — they just land on /pending-approval.
+  // REJECTED accounts are locked out entirely, with a clear reason.
+  if (user.approvalStatus === "REJECTED") {
+    throw AppError.forbidden(
+      "Your account application was not approved. Contact abhishek@intellocarbon.com if you believe this is a mistake.",
+      "ACCOUNT_REJECTED",
+    );
   }
 
   const tokens = await issueTokenPair(user, meta);
