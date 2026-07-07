@@ -12,20 +12,25 @@ import { EmissionsBreakdownChart } from "@/components/facilities/dashboard/emiss
 import { LiabilityTrendChart } from "@/components/facilities/dashboard/liability-trend-chart";
 import { IntensityTrendChart } from "@/components/facilities/dashboard/intensity-trend-chart";
 import { RecentActivityFeed } from "@/components/facilities/dashboard/recent-activity-feed";
-import { facilityApi } from "@/lib/api";
-import type { Facility, FacilityDashboard as FacilityDashboardData } from "@/lib/types";
+import { computeDashboardAccess } from "@/components/facilities/dashboard/dashboard-access";
+import { billingApi, facilityApi } from "@/lib/api";
+import type { Facility, FacilityDashboard as FacilityDashboardData, PlanDefinition, Subscription } from "@/lib/types";
 
 function FacilityDashboardContent() {
   const params = useParams<{ id: string }>();
   const [facility, setFacility] = useState<Facility | null>(null);
   const [dashboard, setDashboard] = useState<FacilityDashboardData | null>(null);
+  const [subscriptions, setSubscriptions] = useState<Subscription[] | null>(null);
+  const [plans, setPlans] = useState<PlanDefinition[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([facilityApi.get(params.id), facilityApi.dashboard(params.id)])
-      .then(([facilityRes, dashboardRes]) => {
+    Promise.all([facilityApi.get(params.id), facilityApi.dashboard(params.id), billingApi.subscription()])
+      .then(([facilityRes, dashboardRes, billingRes]) => {
         setFacility(facilityRes.facility);
         setDashboard(dashboardRes.dashboard);
+        setSubscriptions(billingRes.subscriptions);
+        setPlans(billingRes.plans);
       })
       .catch(() => setError("Couldn't load this facility's dashboard. It may not exist or you may not have access."));
   }, [params.id]);
@@ -44,7 +49,7 @@ function FacilityDashboardContent() {
     );
   }
 
-  if (!facility || !dashboard) {
+  if (!facility || !dashboard || !subscriptions || !plans) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
@@ -54,6 +59,8 @@ function FacilityDashboardContent() {
       </div>
     );
   }
+
+  const access = computeDashboardAccess(subscriptions);
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,8 +81,8 @@ function FacilityDashboardContent() {
         </Link>
 
         <div className="mt-8 space-y-8">
-          <ComplianceStatusStrip dashboard={dashboard} facilityId={facility.id} />
-          <DeadlineCountdown dashboard={dashboard} />
+          <ComplianceStatusStrip dashboard={dashboard} facilityId={facility.id} access={access} plans={plans} />
+          <DeadlineCountdown dashboard={dashboard} access={access} />
           <EmissionsBreakdownChart dashboard={dashboard} facilityId={facility.id} />
           <LiabilityTrendChart dashboard={dashboard} facilityId={facility.id} />
           <IntensityTrendChart dashboard={dashboard} facilityId={facility.id} />
