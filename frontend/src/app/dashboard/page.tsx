@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DraftBadge } from "@/components/ui/draft-badge";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
+import { PlanBanner } from "@/components/billing/plan-banner";
 import { useAuth } from "@/context/auth-context";
 import { billingApi, companyApi, facilityApi } from "@/lib/api";
 import type { Company, Facility, Subscription } from "@/lib/types";
@@ -76,6 +77,8 @@ function DashboardContent() {
 
         {company && (
           <>
+            <PlanBanner facilityCount={facilities?.length ?? 0} />
+
             <Card className="mt-8 p-6">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
