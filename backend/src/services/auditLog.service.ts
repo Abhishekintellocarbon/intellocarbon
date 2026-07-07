@@ -12,8 +12,9 @@ export const logFacilityAudit = (
   companyId: string,
   action: AuditLogAction,
   detail: string,
+  userId?: string,
 ): void => {
-  prisma.auditLog.create({ data: { facilityId, companyId, action, detail } }).catch((err) => {
+  prisma.auditLog.create({ data: { facilityId, companyId, action, detail, userId } }).catch((err) => {
     logger.error(`Failed to write audit log for facility ${facilityId}`, err);
   });
 };

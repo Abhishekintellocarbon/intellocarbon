@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/admin/leads", label: "IntelloCalc Leads" },
+  { href: "/admin", label: "Overview" },
+  { href: "/admin/companies", label: "Companies" },
+  { href: "/admin/leads", label: "Leads" },
   { href: "/admin/approvals", label: "Pending Approvals" },
 ];
 
@@ -15,7 +17,10 @@ export function AdminTabs() {
   return (
     <div className="flex gap-1 rounded-xl border border-surface-border bg-surface p-1">
       {TABS.map((tab) => {
-        const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+        // "/admin" would prefix-match every other tab's route too, so it only
+        // counts as active on an exact match — the rest still match sub-routes
+        // (e.g. /admin/companies/[id] keeps "Companies" highlighted).
+        const active = tab.href === "/admin" ? pathname === "/admin" : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
         return (
           <Link
             key={tab.href}

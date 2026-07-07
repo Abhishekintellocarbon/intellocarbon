@@ -165,7 +165,7 @@ export const generateReport = async (userId: string, facilityId: string, reportT
     update: { fileName, fileData: pdfBuffer, reportingPeriod: period.period },
   });
 
-  logFacilityAudit(facilityId, facility.companyId, "REPORT_GENERATED", `${reportType} report — ${period.displayLabel}`);
+  logFacilityAudit(facilityId, facility.companyId, "REPORT_GENERATED", `${reportType} report — ${period.displayLabel}`, userId);
 
   return report;
 };

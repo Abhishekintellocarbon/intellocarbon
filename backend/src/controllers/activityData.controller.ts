@@ -66,7 +66,13 @@ const downloadReport = (type: ReportType) =>
     const ctx = await getReportContext(req.user!.sub, req.params.facilityId, req.params.dataId, type);
     const doc = await generateReportPdf(ctx, type);
 
-    logFacilityAudit(ctx.facility.id, ctx.facility.companyId, "REPORT_GENERATED", `${type} report — ${ctx.periodStart.toLocaleDateString("en-IN")} to ${ctx.periodEnd.toLocaleDateString("en-IN")}`);
+    logFacilityAudit(
+      ctx.facility.id,
+      ctx.facility.companyId,
+      "REPORT_GENERATED",
+      `${type} report — ${ctx.periodStart.toLocaleDateString("en-IN")} to ${ctx.periodEnd.toLocaleDateString("en-IN")}`,
+      req.user!.sub,
+    );
 
     const filename = `${type.toLowerCase()}-report-${ctx.facility.name.replace(/\s+/g, "-").toLowerCase()}-${ctx.id.slice(-8)}.pdf`;
     res.setHeader("Content-Type", "application/pdf");

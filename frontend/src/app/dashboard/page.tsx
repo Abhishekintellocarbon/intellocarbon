@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Building2, CreditCard, Factory, Loader2, MapPin, Plus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { ArrowRight, Building2, CreditCard, Factory, Loader2, MapPin, Plus, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { DraftBadge } from "@/components/ui/draft-badge";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
@@ -19,6 +21,8 @@ const labelFor = (options: readonly { value: string; label: string }[], value: s
 
 function DashboardContent() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const [showForbiddenBanner, setShowForbiddenBanner] = useState(searchParams.get("error") === "403");
   const [company, setCompany] = useState<Company | null | undefined>(undefined);
   const [facilities, setFacilities] = useState<Facility[] | null>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[] | undefined>(undefined);
@@ -50,6 +54,24 @@ function DashboardContent() {
         <p className="mt-1.5 text-sm text-muted-foreground">
           Your compliance and emissions workspace.
         </p>
+
+        {showForbiddenBanner && (
+          <div className="mt-6">
+            <Alert variant="error">
+              <div className="flex items-center justify-between gap-3">
+                <span>403 — You don&apos;t have access to the Super Admin dashboard.</span>
+                <button
+                  type="button"
+                  onClick={() => setShowForbiddenBanner(false)}
+                  aria-label="Dismiss"
+                  className="shrink-0 text-danger transition-opacity hover:opacity-80"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </Alert>
+          </div>
+        )}
 
         {company === undefined && (
           <div className="mt-16 flex justify-center">
@@ -195,7 +217,9 @@ function SchemeBadge({ label }: { label: string }) {
 export default function DashboardPage() {
   return (
     <ProtectedRoute>
-      <DashboardContent />
+      <Suspense fallback={null}>
+        <DashboardContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }

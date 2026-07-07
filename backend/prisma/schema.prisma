@@ -47,6 +47,7 @@ model User {
   verificationsHandled     VerificationRequest[]     @relation("VerifierAssignments")
   brsrVerificationsHandled BrsrVerificationRequest[] @relation("BrsrVerifierAssignments")
   notifications            Notification[]
+  auditLogs                AuditLog[]
 
   @@map("users")
 }
@@ -234,16 +235,21 @@ enum AuditLogAction {
 }
 
 // Minimal append-only event log for the per-facility "Recent Activity" feed
-// (see facilityDashboard.service.ts). Only covers actions with no other
-// timestamped record to source from — data submissions, verifier
-// claims/decisions, and deadline alerts are read directly off ActivityData,
-// VerificationRequest, and Notification instead of being duplicated here.
+// (see facilityDashboard.service.ts) and the Super Admin overview's
+// platform-wide activity feed. Only covers actions with no other timestamped
+// record to source from — data submissions, verifier claims/decisions, and
+// deadline alerts are read directly off ActivityData, VerificationRequest,
+// and Notification instead of being duplicated here.
 model AuditLog {
   id         String          @id @default(cuid())
   facilityId String
   facility   Facility        @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   companyId  String
   company    Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Who triggered the action — nullable since not every future action type
+  // will necessarily have one (e.g. a system/cron-triggered event).
+  userId     String?
+  user       User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
   action     AuditLogAction
   detail     String
   createdAt  DateTime        @default(now())

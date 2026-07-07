@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,10 +32,13 @@ const sectorOf = (lead: LeadCapture): string => {
   return inputs?.sector ?? "—";
 };
 
+const csvEscape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+
 function AdminLeadsContent() {
   const [leads, setLeads] = useState<LeadCapture[] | null>(null);
   const [tool, setTool] = useState("");
   const [sector, setSector] = useState("");
+  const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -49,9 +53,33 @@ function AdminLeadsContent() {
 
   const filteredLeads = useMemo(() => {
     if (!leads) return [];
-    if (!sector.trim()) return leads;
-    return leads.filter((l) => sectorOf(l).toLowerCase().includes(sector.trim().toLowerCase()));
-  }, [leads, sector]);
+    let result = leads;
+    if (sector.trim()) {
+      result = result.filter((l) => sectorOf(l).toLowerCase().includes(sector.trim().toLowerCase()));
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(
+        (l) => l.email.toLowerCase().includes(q) || (l.name ?? "").toLowerCase().includes(q) || (l.company ?? "").toLowerCase().includes(q),
+      );
+    }
+    return result;
+  }, [leads, sector, search]);
+
+  const exportToCsv = () => {
+    const headers = ["Name", "Company", "Email", "Tool", "Sector", "Submitted"];
+    const rows = filteredLeads.map((l) => [l.name ?? "", l.company ?? "", l.email, l.toolUsed, sectorOf(l), l.createdAt]);
+    const csv = [headers, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `leads-export-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -59,12 +87,24 @@ function AdminLeadsContent() {
       <main className="mx-auto max-w-6xl px-6 py-10">
         <AdminTabs />
 
-        <h1 className="mt-6 text-2xl font-semibold">IntelloCalc Leads</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          All leads captured across IntelloCalc Border, India, and Comply.
-        </p>
+        <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Leads</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              All leads captured across IntelloCalc Border, India, and Comply.
+            </p>
+          </div>
+          <Button size="sm" variant="secondary" onClick={exportToCsv} disabled={filteredLeads.length === 0}>
+            <Download className="h-3.5 w-3.5" />
+            Export to CSV
+          </Button>
+        </div>
 
-        <Card className="mt-6 grid gap-4 p-5 sm:grid-cols-4">
+        <Card className="mt-6 grid gap-4 p-5 sm:grid-cols-5">
+          <div>
+            <Label htmlFor="search">Search</Label>
+            <Input id="search" placeholder="Name, email, or company" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
           <div>
             <Label htmlFor="tool">Tool</Label>
             <Select id="tool" value={tool} onChange={(e) => setTool(e.target.value)}>

@@ -18,6 +18,10 @@ import type {
   ReportGenerationStatus,
   GeneratedReport,
   GeneratedReportType,
+  AdminOverview,
+  AdminCompanySummary,
+  AdminCompanyDetail,
+  AdminFacilityDetail,
 } from "./types";
 import type {
   BorderInputs,
@@ -479,6 +483,43 @@ export const adminApi = {
 
   rejectUser: (userId: string): Promise<{ user: PendingUser }> =>
     apiFetch(`/api/admin/pending-users/${userId}/reject`, { method: "POST" }),
+
+  overview: (): Promise<AdminOverview> => apiFetch("/api/admin/overview"),
+
+  listCompanies: (): Promise<{ companies: AdminCompanySummary[] }> => apiFetch("/api/admin/companies"),
+
+  getCompany: (companyId: string): Promise<{ company: AdminCompanyDetail }> =>
+    apiFetch(`/api/admin/companies/${companyId}`),
+
+  getFacility: (facilityId: string): Promise<{ facility: AdminFacilityDetail }> =>
+    apiFetch(`/api/admin/facilities/${facilityId}`),
+
+  downloadDocument: async (documentId: string, fileName: string): Promise<void> => {
+    const url = `${API_URL}/api/admin/documents/${documentId}/download`;
+    const fetchDoc = () =>
+      fetch(url, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchDoc();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchDoc();
+    }
+    if (!res.ok) {
+      throw new ApiError("Couldn't download this document. Please try again.", res.status);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
 };
 
 export const verifierApi = {

@@ -1,3 +1,5 @@
+import type { LeadCapture } from "./intellocalc-types";
+
 export type Sector = "STEEL" | "CEMENT" | "ALUMINIUM" | "FERTILIZER" | "HYDROGEN" | "ELECTRICITY" | "OTHER";
 export type FacilityType =
   | "INTEGRATED_STEEL_PLANT"
@@ -595,4 +597,84 @@ export interface FacilityDashboard {
   intensityTrend: FacilityIntensityTrendPoint[];
   intensityTargetLine: number | null;
   recentActivity: FacilityActivityFeedItem[];
+}
+
+// --- Super Admin dashboard (/admin) ---
+// Mirrors backend/src/services/adminOverview.service.ts, adminCompanies.service.ts,
+// adminFacilities.service.ts.
+
+export interface AdminOverviewMetrics {
+  totalCompanies: number;
+  totalUsers: number;
+  totalReports: number;
+  totalLeadCaptures: number;
+}
+
+export interface AdminRecentSignup {
+  id: string;
+  name: string;
+  email: string;
+  companyName: string | null;
+  sector: Sector | null;
+  plans: SubscriptionTier[];
+  approvalStatus: "PENDING" | "APPROVED" | "REJECTED";
+  createdAt: string;
+}
+
+export interface AdminActivityLogEntry {
+  id: string;
+  userEmail: string | null;
+  action: string;
+  detail: string;
+  createdAt: string;
+}
+
+export interface AdminOverview {
+  metrics: AdminOverviewMetrics;
+  recentSignups: AdminRecentSignup[];
+  recentActivity: AdminActivityLogEntry[];
+  recentLeads: LeadCapture[];
+}
+
+export interface AdminCompanySummary {
+  id: string;
+  name: string;
+  registrationNumber: string | null;
+  sector: Sector;
+  ownerEmail: string;
+  plans: SubscriptionTier[];
+  facilityCount: number;
+  lastActivity: string;
+  createdAt: string;
+}
+
+export interface AdminCompanyDetail extends Company {
+  owner: { id: string; name: string; email: string; approvalStatus: string; createdAt: string };
+  subscriptions: Subscription[];
+  facilities: (Facility & { _count: { activityData: number } })[];
+}
+
+export interface AdminDocument {
+  id: string;
+  documentType: string;
+  reportingPeriod: string;
+  verified: boolean;
+  fileName: string;
+  createdAt: string;
+}
+
+export interface AdminReport {
+  id: string;
+  reportType: GeneratedReportType;
+  period: string;
+  generatedAt: string;
+  status: string;
+  document: { id: string } | null;
+}
+
+export interface AdminFacilityDetail extends Facility {
+  company: Company & { owner: { id: string; name: string; email: string } };
+  activityData: ActivityData[];
+  documents: AdminDocument[];
+  reports: AdminReport[];
 }

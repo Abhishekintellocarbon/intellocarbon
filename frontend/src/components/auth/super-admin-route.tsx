@@ -16,7 +16,7 @@ export function SuperAdminRoute({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated) {
       router.replace("/login");
     } else if (!user?.isSuperAdmin) {
-      router.replace("/dashboard");
+      router.replace("/dashboard?error=403");
     }
   }, [isLoading, isAuthenticated, user, router]);
 
