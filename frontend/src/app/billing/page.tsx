@@ -155,6 +155,11 @@ function PlanCard({
       >
         {isCurrent ? "Active" : isSwitchable ? "Switch plan" : "Get Started"}
       </Button>
+
+      <p className="mt-3 text-xs leading-relaxed text-muted">
+        One-time compliance onboarding fee: ₹25,000 (single facility) or ₹40,000 (multi-facility). Covers
+        baseline data setup, facility configuration, and first-month guidance.
+      </p>
     </Card>
   );
 }
