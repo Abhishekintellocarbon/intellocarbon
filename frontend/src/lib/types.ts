@@ -749,6 +749,46 @@ export interface AdminCompanyDetail extends Company {
   verifierAssignments: CompanyVerifierAssignment[];
 }
 
+export interface AdminRevenueMetrics {
+  totalMrrInr: number;
+  totalCompaniesPaying: number;
+  projectedArrInr: number;
+  cancelledThisMonth: number;
+}
+
+export interface AdminRevenuePlanDistributionEntry {
+  tier: SubscriptionTier;
+  planName: string;
+  subscriberCount: number;
+  mrrInr: number;
+}
+
+export interface AdminRevenueSubscriptionRow {
+  id: string;
+  companyName: string;
+  ownerEmail: string;
+  tier: SubscriptionTier;
+  facilityCount: number;
+  monthlyPriceInr: number;
+  status: SubscriptionStatus;
+  subscribedAt: string;
+  cancelledAt: string | null;
+}
+
+export interface AdminRevenueTrendPoint {
+  month: string;
+  monthLabel: string;
+  mrrInr: number;
+}
+
+export interface AdminRevenue {
+  metrics: AdminRevenueMetrics;
+  planDistribution: AdminRevenuePlanDistributionEntry[];
+  subscriptions: AdminRevenueSubscriptionRow[];
+  trend: AdminRevenueTrendPoint[];
+  trendHasFullHistory: boolean;
+}
+
 export interface AdminDocument {
   id: string;
   documentType: string;

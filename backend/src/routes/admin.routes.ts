@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as leadCaptureController from "../controllers/leadCapture.controller";
 import * as userApprovalController from "../controllers/userApproval.controller";
 import * as adminOverviewController from "../controllers/adminOverview.controller";
+import * as adminRevenueController from "../controllers/adminRevenue.controller";
 import * as adminCompaniesController from "../controllers/adminCompanies.controller";
 import * as adminFacilitiesController from "../controllers/adminFacilities.controller";
 import * as adminVerifiersController from "../controllers/adminVerifiers.controller";
@@ -15,6 +16,7 @@ const router = Router();
 router.use(requireAuth, requireSuperAdmin);
 
 router.get("/overview", adminOverviewController.getOverview);
+router.get("/revenue", adminRevenueController.getRevenue);
 
 router.get("/companies", adminCompaniesController.listCompanies);
 router.get("/companies/:companyId", adminCompaniesController.getCompanyDetail);

@@ -19,6 +19,7 @@ import type {
   GeneratedReport,
   GeneratedReportType,
   AdminOverview,
+  AdminRevenue,
   AdminCompanySummary,
   AdminCompanyDetail,
   AdminFacilityDetail,
@@ -550,6 +551,8 @@ export const adminApi = {
     apiFetch(`/api/admin/pending-users/${userId}/reject`, { method: "POST" }),
 
   overview: (): Promise<AdminOverview> => apiFetch("/api/admin/overview"),
+
+  revenue: (): Promise<AdminRevenue> => apiFetch("/api/admin/revenue"),
 
   listCompanies: (): Promise<{ companies: AdminCompanySummary[] }> => apiFetch("/api/admin/companies"),
 
