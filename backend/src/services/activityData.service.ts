@@ -1,6 +1,6 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
-import { requireOwnedFacility } from "./facility.service";
+import { requireAccessibleFacility } from "./facility.service";
 import { calculateEmissionsForActivityData } from "./emissionCalculation.service";
 import type { ActivityDataInput, ActivityDataDraftInput } from "../validators/activityData.validators";
 
@@ -42,7 +42,7 @@ const draftPrecursorEntries = (input: ActivityDataDraftInput) =>
     }));
 
 const requireOwnedActivityData = async (userId: string, facilityId: string, activityDataId: string) => {
-  await requireOwnedFacility(userId, facilityId);
+  await requireAccessibleFacility(userId, facilityId);
 
   const activityData = await prisma.activityData.findUnique({
     where: { id: activityDataId },
@@ -56,7 +56,7 @@ const requireOwnedActivityData = async (userId: string, facilityId: string, acti
 };
 
 export const listActivityData = async (userId: string, facilityId: string) => {
-  await requireOwnedFacility(userId, facilityId);
+  await requireAccessibleFacility(userId, facilityId);
 
   return prisma.activityData.findMany({
     where: { facilityId },
@@ -70,7 +70,7 @@ export const createActivityData = async (
   facilityId: string,
   input: ActivityDataInput,
 ) => {
-  const facility = await requireOwnedFacility(userId, facilityId);
+  const facility = await requireAccessibleFacility(userId, facilityId);
 
   const created = await prisma.activityData.create({
     data: {
@@ -154,7 +154,7 @@ export const autosaveActivityData = async (
   activityDataId: string | undefined,
   input: ActivityDataDraftInput,
 ) => {
-  const facility = await requireOwnedFacility(userId, facilityId);
+  const facility = await requireAccessibleFacility(userId, facilityId);
 
   const scalarData = {
     periodStart: input.periodStart ?? null,

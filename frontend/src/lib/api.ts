@@ -30,6 +30,10 @@ import type {
   AdminVerifierSummary,
   CompanyVerifierAssignment,
   AnnexVIChecklistItem,
+  AdminInternalOperatorSummary,
+  FacilityAssignmentSummary,
+  InternalAssignedFacility,
+  InternalFacilityDetail,
 } from "./types";
 import type {
   BorderInputs,
@@ -596,6 +600,28 @@ export const adminApi = {
 
   unassignVerifier: (companyId: string, verifierId: string) =>
     apiFetch(`/api/admin/companies/${companyId}/verifiers/${verifierId}`, { method: "DELETE" }),
+
+  listInternalOperators: (): Promise<{ operators: AdminInternalOperatorSummary[] }> =>
+    apiFetch("/api/admin/internal-operators"),
+
+  createInternalOperator: (input: { name: string; email: string; password: string }): Promise<{ operator: AdminInternalOperatorSummary }> =>
+    apiFetch("/api/admin/internal-operators", { method: "POST", body: JSON.stringify(input) }),
+
+  listFacilityAssignments: (facilityId: string): Promise<{ assignments: FacilityAssignmentSummary[] }> =>
+    apiFetch(`/api/admin/facilities/${facilityId}/assignments`),
+
+  assignOperator: (facilityId: string, userId: string): Promise<{ assignment: FacilityAssignmentSummary }> =>
+    apiFetch(`/api/admin/facilities/${facilityId}/assignments`, { method: "POST", body: JSON.stringify({ userId }) }),
+
+  unassignOperator: (facilityId: string, userId: string) =>
+    apiFetch(`/api/admin/facilities/${facilityId}/assignments/${userId}`, { method: "DELETE" }),
+};
+
+export const internalDataEntryApi = {
+  listFacilities: (): Promise<{ facilities: InternalAssignedFacility[] }> => apiFetch("/api/internal-data-entry/facilities"),
+
+  getFacility: (facilityId: string): Promise<InternalFacilityDetail> =>
+    apiFetch(`/api/internal-data-entry/facilities/${facilityId}`),
 };
 
 export const verifierApi = {

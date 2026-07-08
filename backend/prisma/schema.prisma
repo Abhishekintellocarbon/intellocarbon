@@ -16,6 +16,10 @@ enum Role {
   ADMIN
   MEMBER
   VERIFIER
+  // Intellocarbon's own staff, entering data on behalf of assigned client
+  // facilities — distinct from a client's own ADMIN/MEMBER users. Scoped
+  // entirely by FacilityAssignment rather than Company ownership.
+  DATA_ENTRY_INTERNAL
 }
 
 enum ApprovalStatus {
@@ -50,6 +54,8 @@ model User {
   auditLogs                AuditLog[]
   queriesRaised            VerificationQuery[]         @relation("QueriesRaised")
   verifierCompanyAssignments VerifierCompanyAssignment[] @relation("VerifierCompanyAssignments")
+  facilityAssignments      FacilityAssignment[]         @relation("InternalOperatorAssignments")
+  facilityAssignmentsMade  FacilityAssignment[]         @relation("FacilityAssignmentsMadeBy")
 
   @@map("users")
 }
@@ -451,9 +457,29 @@ model Facility {
   reports             Report[]
   documents           Document[]
   verificationQueries VerificationQuery[]
+  assignments         FacilityAssignment[]
 
   @@index([companyId])
   @@map("facilities")
+}
+
+// Which internal (DATA_ENTRY_INTERNAL) operators may enter data for a given
+// facility on Intellocarbon's behalf — the single access-control chokepoint
+// for the internal data-entry portal, same role VerifierCompanyAssignment
+// plays for the verifier portal. Managed from the Super Admin facility page.
+model FacilityAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("InternalOperatorAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+  assignedBy String
+  assignedByUser User  @relation("FacilityAssignmentsMadeBy", fields: [assignedBy], references: [id])
+
+  @@unique([userId, facilityId])
+  @@index([facilityId])
+  @@map("facility_assignments")
 }
 
 enum DataEntryStatus {

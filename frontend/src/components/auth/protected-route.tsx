@@ -18,10 +18,18 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       router.replace("/pending-approval");
     } else if (user?.role === "VERIFIER") {
       router.replace("/verifier/dashboard");
+    } else if (user?.role === "DATA_ENTRY_INTERNAL") {
+      router.replace("/internal-data-entry");
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading || !isAuthenticated || user?.approvalStatus !== "APPROVED" || user?.role === "VERIFIER") {
+  if (
+    isLoading ||
+    !isAuthenticated ||
+    user?.approvalStatus !== "APPROVED" ||
+    user?.role === "VERIFIER" ||
+    user?.role === "DATA_ENTRY_INTERNAL"
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-teal-500" />

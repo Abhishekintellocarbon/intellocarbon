@@ -38,6 +38,36 @@ const requireOwnedFacility = async (userId: string, facilityId: string) => {
   return facility;
 };
 
+// Like requireOwnedFacility, but also admits a DATA_ENTRY_INTERNAL operator
+// with a FacilityAssignment for this facility — used only by the activity
+// data / evidence document flows the internal portal reuses. Everything
+// else (facility settings, dashboard, reports, queries) stays owner-only
+// via requireOwnedFacility above, which is the intended boundary: internal
+// operators get data entry, not the rest of the owner's tools.
+const requireAccessibleFacility = async (userId: string, facilityId: string) => {
+  const facility = await prisma.facility.findUnique({
+    where: { id: facilityId },
+    include: { company: true },
+  });
+
+  if (!facility) {
+    throw AppError.notFound("Facility not found");
+  }
+
+  if (facility.company.ownerId === userId) {
+    return facility;
+  }
+
+  const assignment = await prisma.facilityAssignment.findUnique({
+    where: { userId_facilityId: { userId, facilityId } },
+  });
+  if (!assignment) {
+    throw AppError.notFound("Facility not found");
+  }
+
+  return facility;
+};
+
 export const listFacilities = async (userId: string) => {
   const company = await requireMyCompany(userId);
   return prisma.facility.findMany({
@@ -188,4 +218,4 @@ export const completeFacility = async (userId: string, facilityId: string, input
   });
 };
 
-export { requireOwnedFacility };
+export { requireOwnedFacility, requireAccessibleFacility };

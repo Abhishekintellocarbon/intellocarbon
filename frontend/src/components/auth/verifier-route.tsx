@@ -18,7 +18,7 @@ export function VerifierRoute({ children }: { children: React.ReactNode }) {
     } else if (user?.approvalStatus !== "APPROVED") {
       router.replace("/pending-approval");
     } else if (user?.role !== "VERIFIER") {
-      router.replace("/dashboard");
+      router.replace(user?.role === "DATA_ENTRY_INTERNAL" ? "/internal-data-entry" : "/dashboard");
     }
   }, [isLoading, isAuthenticated, user, router]);
 

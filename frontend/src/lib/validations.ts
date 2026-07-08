@@ -38,6 +38,13 @@ export const resetPasswordSchema = z
   });
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
+export const createInternalOperatorSchema = z.object({
+  name: z.string().trim().min(2, "Enter the operator's full name"),
+  email: z.string().trim().email("Enter a valid email address"),
+  password: passwordSchema,
+});
+export type CreateInternalOperatorFormValues = z.infer<typeof createInternalOperatorSchema>;
+
 export const passwordRules = [
   { label: "At least 8 characters", test: (v: string) => v.length >= 8 },
   { label: "One uppercase letter", test: (v: string) => /[A-Z]/.test(v) },

@@ -26,6 +26,10 @@ export const getFacilityDetail = async (facilityId: string) => {
       },
       documents: { orderBy: { createdAt: "desc" } },
       reports: { include: { document: { select: { id: true } } }, orderBy: { generatedAt: "desc" } },
+      assignments: {
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { assignedAt: "asc" },
+      },
     },
   });
 

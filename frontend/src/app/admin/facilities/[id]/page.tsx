@@ -10,9 +10,9 @@ import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
 import { Field } from "@/components/ui/field";
 import { SuperAdminRoute } from "@/components/auth/super-admin-route";
 import { AppHeader } from "@/components/layout/app-header";
-import { adminApi } from "@/lib/api";
+import { adminApi, ApiError } from "@/lib/api";
 import { ACTIVITY_DATA_FIELDS, CALC_RESULT_FIELDS, formatFieldValue } from "@/lib/activity-data-fields";
-import type { AdminFacilityDetail } from "@/lib/types";
+import type { AdminFacilityDetail, AdminInternalOperatorSummary } from "@/lib/types";
 
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -22,6 +22,11 @@ const fmtDateTime = (iso: string) =>
 function AdminFacilityDetailContent() {
   const params = useParams<{ id: string }>();
   const [facility, setFacility] = useState<AdminFacilityDetail | null>(null);
+  const [operators, setOperators] = useState<AdminInternalOperatorSummary[] | null>(null);
+  const [selectedOperatorId, setSelectedOperatorId] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
@@ -30,6 +35,7 @@ function AdminFacilityDetailContent() {
       .getFacility(params.id)
       .then(({ facility }) => setFacility(facility))
       .catch(() => setError("Couldn't load this facility."));
+    adminApi.listInternalOperators().then(({ operators }) => setOperators(operators));
   }, [params.id]);
 
   const handleDownload = async (documentId: string, fileName: string) => {
@@ -38,6 +44,34 @@ function AdminFacilityDetailContent() {
       await adminApi.downloadDocument(documentId, fileName);
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const assignedOperatorIds = new Set(facility?.assignments.map((a) => a.user.id) ?? []);
+  const availableOperators = (operators ?? []).filter((op) => !assignedOperatorIds.has(op.id));
+
+  const handleAssignOperator = async () => {
+    if (!selectedOperatorId) return;
+    setAssignError(null);
+    setIsAssigning(true);
+    try {
+      const { assignment } = await adminApi.assignOperator(params.id, selectedOperatorId);
+      setFacility((prev) => (prev ? { ...prev, assignments: [...prev.assignments, assignment] } : prev));
+      setSelectedOperatorId("");
+    } catch (err) {
+      setAssignError(err instanceof ApiError ? err.message : "Couldn't assign this operator.");
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUnassignOperator = async (userId: string) => {
+    setRemovingId(userId);
+    try {
+      await adminApi.unassignOperator(params.id, userId);
+      setFacility((prev) => (prev ? { ...prev, assignments: prev.assignments.filter((a) => a.user.id !== userId) } : prev));
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -84,6 +118,65 @@ function AdminFacilityDetailContent() {
               <Field label="Draft" value={facility.isDraft ? "Yes" : "No"} />
               <Field label="Created" value={fmtDate(facility.createdAt)} />
               <Field label="Last Updated" value={fmtDate(facility.updatedAt)} />
+            </Card>
+
+            {/* Assigned internal data entry staff */}
+            <h2 className="mt-8 text-lg font-semibold">Assigned Data Entry Staff</h2>
+            <Card className="mt-4 p-6">
+              {facility.assignments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No internal operators assigned yet. This facility won&apos;t appear in any operator&apos;s internal data-entry
+                  portal until one is assigned.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {facility.assignments.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-3 rounded-lg border border-surface-border p-3 text-sm">
+                      <div>
+                        <p className="font-medium text-foreground">{a.user.name}</p>
+                        <p className="text-xs text-muted-foreground">{a.user.email} · Assigned {fmtDate(a.assignedAt)}</p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        isLoading={removingId === a.user.id}
+                        onClick={() => handleUnassignOperator(a.user.id)}
+                      >
+                        Remove
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {assignError && <p className="mt-3 text-xs text-danger">{assignError}</p>}
+
+              <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-surface-border pt-4">
+                <select
+                  value={selectedOperatorId}
+                  onChange={(e) => setSelectedOperatorId(e.target.value)}
+                  className="rounded-xl border border-surface-border bg-surface px-3 py-2 text-sm text-foreground outline-none focus:border-teal-500/60"
+                >
+                  <option value="">Assign operator…</option>
+                  {availableOperators.map((op) => (
+                    <option key={op.id} value={op.id}>
+                      {op.name} ({op.email})
+                    </option>
+                  ))}
+                </select>
+                <Button size="sm" onClick={handleAssignOperator} isLoading={isAssigning} disabled={!selectedOperatorId}>
+                  Assign operator
+                </Button>
+                {operators && operators.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No internal operators exist yet — create one from{" "}
+                    <Link href="/admin/internal-operators" className="text-teal-500 hover:text-teal-400">
+                      Internal Operators
+                    </Link>
+                    .
+                  </p>
+                )}
+              </div>
             </Card>
 
             {/* Activity data */}

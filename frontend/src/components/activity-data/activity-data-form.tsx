@@ -21,20 +21,48 @@ import { FUEL_UNIT_LABELS, HYDROGEN_ROUTE_OPTIONS } from "@/lib/constants";
 
 const toDateInputValue = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
 
-export function ActivityDataForm({ facilityId, existingEntry }: { facilityId: string; existingEntry?: ActivityData }) {
+export function ActivityDataForm({
+  facilityId,
+  existingEntry,
+  sectorOverride,
+  onSubmitted,
+}: {
+  facilityId: string;
+  existingEntry?: ActivityData;
+  // Set by callers that aren't the logged-in user's own company — e.g. the
+  // internal data-entry portal, where the operator has no Company row of
+  // their own and the sector must come from the assigned facility instead.
+  sectorOverride?: Sector;
+  // Overrides the default post-submit navigation (the owner-facing
+  // ResultsView, which surfaces calculation-engine detail and report
+  // downloads the internal portal deliberately doesn't expose).
+  onSubmitted?: (entryId: string) => void;
+}) {
   const router = useRouter();
   const [reference, setReference] = useState<EmissionFactorReference | null>(null);
-  const [sector, setSector] = useState<Sector>(existingEntry?.sector ?? "STEEL");
+  const [sector, setSector] = useState<Sector>(existingEntry?.sector ?? sectorOverride ?? "STEEL");
   const [serverError, setServerError] = useState<string | null>(null);
   const savedDataId = useRef<string | undefined>(existingEntry?.id);
 
   useEffect(() => {
-    Promise.all([referenceApi.emissionFactors(), companyApi.getMine()])
-      .then(([ref, { company }]) => {
-        setReference(ref);
-        if (company && !existingEntry) setSector(company.sector);
-      })
+    referenceApi
+      .emissionFactors()
+      .then(setReference)
       .catch(() => setServerError("Couldn't load emission factor reference data."));
+
+    if (existingEntry) return;
+    if (sectorOverride) {
+      setSector(sectorOverride);
+      return;
+    }
+    // Only the owner flow reaches here — the internal portal always passes
+    // sectorOverride, since the operator has no Company of their own.
+    companyApi
+      .getMine()
+      .then(({ company }) => {
+        if (company) setSector(company.sector);
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -249,7 +277,11 @@ export function ActivityDataForm({ facilityId, existingEntry }: { facilityId: st
       const { entry } = savedDataId.current
         ? await activityDataApi.submit(facilityId, savedDataId.current, payload)
         : await activityDataApi.create(facilityId, payload);
-      router.push(`/facilities/${facilityId}/data-entry/${entry.id}`);
+      if (onSubmitted) {
+        onSubmitted(entry.id);
+      } else {
+        router.push(`/facilities/${facilityId}/data-entry/${entry.id}`);
+      }
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     }

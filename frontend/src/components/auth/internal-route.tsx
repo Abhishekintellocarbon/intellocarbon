@@ -6,8 +6,8 @@ import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { InactivityGuard } from "./inactivity-guard";
 
-/** Like ProtectedRoute, but only admits users on the SUPER_ADMIN_EMAILS allowlist. */
-export function SuperAdminRoute({ children }: { children: React.ReactNode }) {
+/** Like ProtectedRoute, but only admits users with the DATA_ENTRY_INTERNAL role. */
+export function InternalRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const router = useRouter();
 
@@ -15,12 +15,14 @@ export function SuperAdminRoute({ children }: { children: React.ReactNode }) {
     if (isLoading) return;
     if (!isAuthenticated) {
       router.replace("/login");
-    } else if (!user?.isSuperAdmin) {
-      router.replace(user?.role === "DATA_ENTRY_INTERNAL" ? "/internal-data-entry" : "/dashboard?error=403");
+    } else if (user?.approvalStatus !== "APPROVED") {
+      router.replace("/pending-approval");
+    } else if (user?.role !== "DATA_ENTRY_INTERNAL") {
+      router.replace(user?.role === "VERIFIER" ? "/verifier/dashboard" : "/dashboard");
     }
   }, [isLoading, isAuthenticated, user, router]);
 
-  if (isLoading || !isAuthenticated || !user?.isSuperAdmin) {
+  if (isLoading || !isAuthenticated || user?.approvalStatus !== "APPROVED" || user?.role !== "DATA_ENTRY_INTERNAL") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-teal-500" />

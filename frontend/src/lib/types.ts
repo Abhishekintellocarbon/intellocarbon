@@ -807,9 +807,60 @@ export interface AdminReport {
   document: { id: string } | null;
 }
 
+export interface AdminInternalOperatorSummary {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+}
+
+export interface FacilityAssignmentSummary {
+  id: string;
+  user: AdminInternalOperatorSummary;
+  assignedAt: string;
+}
+
 export interface AdminFacilityDetail extends Facility {
   company: Company & { owner: { id: string; name: string; email: string } };
   activityData: ActivityData[];
   documents: AdminDocument[];
   reports: AdminReport[];
+  assignments: FacilityAssignmentSummary[];
+}
+
+// --- Internal data-entry portal (DATA_ENTRY_INTERNAL) ---
+// Mirrors backend/src/services/internalDataEntry.service.ts. Deliberately
+// thin — no financials, no calculation breakdown, no billing — this portal
+// is scoped to data entry only.
+
+export interface InternalAssignedFacility {
+  id: string;
+  name: string;
+  sector: Sector;
+  company: { id: string; name: string; sector: Sector };
+  entryCount: number;
+  evidencePending: boolean;
+}
+
+export interface InternalActivityDataSummary {
+  id: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  productCategory: string | null;
+  productionQuantityT: number | null;
+  status: "DRAFT" | "SUBMITTED";
+  evidencePending: boolean;
+  updatedAt: string;
+}
+
+export interface InternalFacilityDetail {
+  facility: {
+    id: string;
+    name: string;
+    sector: Sector;
+    productionRoute: ProductionRoute | null;
+    isDraft: boolean;
+    company: { id: string; name: string; sector: Sector };
+  };
+  entries: InternalActivityDataSummary[];
 }

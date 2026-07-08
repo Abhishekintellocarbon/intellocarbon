@@ -33,8 +33,12 @@ export function LoginForm() {
       const user = await login(values.email, values.password);
       if (user.approvalStatus !== "APPROVED") {
         router.push("/pending-approval");
+      } else if (user.role === "VERIFIER") {
+        router.push("/verifier/dashboard");
+      } else if (user.role === "DATA_ENTRY_INTERNAL") {
+        router.push("/internal-data-entry");
       } else {
-        router.push(user.role === "VERIFIER" ? "/verifier/dashboard" : "/dashboard");
+        router.push("/dashboard");
       }
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");

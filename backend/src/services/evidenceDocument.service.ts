@@ -1,6 +1,6 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
-import { requireOwnedFacility } from "./facility.service";
+import { requireAccessibleFacility } from "./facility.service";
 import { requireOwnedActivityData } from "./activityData.service";
 
 const fmt = (d: Date) => d.toISOString().slice(0, 10);
@@ -11,7 +11,7 @@ export const uploadEvidenceDocument = async (
   activityDataId: string,
   file: { originalname: string; buffer: Buffer },
 ) => {
-  const facility = await requireOwnedFacility(userId, facilityId);
+  const facility = await requireAccessibleFacility(userId, facilityId);
   const activityData = await requireOwnedActivityData(userId, facilityId, activityDataId);
 
   const reportingPeriod =
@@ -34,7 +34,7 @@ export const uploadEvidenceDocument = async (
 };
 
 export const listFacilityDocuments = async (userId: string, facilityId: string) => {
-  await requireOwnedFacility(userId, facilityId);
+  await requireAccessibleFacility(userId, facilityId);
   return prisma.document.findMany({
     where: { facilityId },
     orderBy: { createdAt: "desc" },
@@ -52,7 +52,7 @@ export const listFacilityDocuments = async (userId: string, facilityId: string) 
 };
 
 export const getFacilityDocumentFile = async (userId: string, facilityId: string, documentId: string) => {
-  await requireOwnedFacility(userId, facilityId);
+  await requireAccessibleFacility(userId, facilityId);
   const document = await prisma.document.findUnique({ where: { id: documentId } });
   if (!document || document.facilityId !== facilityId) {
     throw AppError.notFound("Document not found");
