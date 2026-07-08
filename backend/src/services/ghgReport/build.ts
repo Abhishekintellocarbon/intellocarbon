@@ -1,6 +1,7 @@
 import type { GhgEngagement } from "@prisma/client";
 import { GhgPageBuilder } from "./layout";
-import { fmt, fmtDate, NAVY, NAVY_LIGHT, GREY } from "./theme";
+import { donutChart, sourceBarChart } from "./charts";
+import { fmt, fmtDate, NAVY, NAVY_LIGHT, GREY, MARGIN_X, CONTENT_WIDTH } from "./theme";
 import { GHG_JURISDICTIONS } from "../../data/ghgJurisdictions";
 import type { GhgCalculationResult } from "../ghgCalculation.service";
 
@@ -8,8 +9,9 @@ const periodLabel = (start: Date, end: Date) => `${fmtDate(start)} – ${fmtDate
 
 /**
  * Assembles the full white-label GHG Protocol Scope 1 + 2 inventory PDF —
- * cover, methodology, Scope 1 detail, Scope 2 detail, totals summary with a
- * simple chart, a fillable "Prepared by" block, and a disclaimers page.
+ * cover, methodology, Scope 1 detail (with a per-source bar chart once
+ * there's more than one source to compare), Scope 2 detail, a totals
+ * summary donut, a fillable "Prepared by" block, and a disclaimers page.
  * Every number here comes from `calc`, already computed by
  * ghgCalculation.service.ts using the engagement's own frozen entries and
  * jurisdiction — this module only lays it out.
@@ -88,6 +90,20 @@ export function buildGhgInventoryReport(doc: PDFKit.PDFDocument, engagement: Ghg
     for (const r of calc.scope1Results) {
       pb.note(`${r.label}: ${r.source}`);
     }
+    if (calc.scope1Results.length > 1) {
+      pb.ensureSpace(calc.scope1Results.length * 34 + 30);
+      pb.heading("Contribution by source");
+      pb.y = sourceBarChart(pb.doc, {
+        x: MARGIN_X,
+        y: pb.y,
+        width: CONTENT_WIDTH,
+        unit: "tCO2e",
+        color: NAVY_LIGHT,
+        data: [...calc.scope1Results]
+          .sort((a, b) => b.co2eTonnes - a.co2eTonnes)
+          .map((r) => ({ label: r.label, value: r.co2eTonnes })),
+      });
+    }
   }
   pb.summaryBox("Scope 1 total", [["Total direct emissions", `${fmt(calc.scope1TotalTco2e, 2)} tCO2e`]]);
 
@@ -125,14 +141,22 @@ export function buildGhgInventoryReport(doc: PDFKit.PDFDocument, engagement: Ghg
   // ---- Section 04 — Total emissions summary ----
   pb.startSection(4, "Total Emissions Summary");
   pb.paragraph(`Combined Scope 1 and Scope 2 emissions for ${periodLabel(engagement.reportingPeriodStart, engagement.reportingPeriodEnd)}.`);
-  pb.simpleBarChart(
-    [
-      { label: "Scope 1", value: calc.scope1TotalTco2e, color: NAVY },
-      { label: "Scope 2", value: calc.scope2TotalTco2e, color: NAVY_LIGHT },
-      { label: "Total", value: calc.totalTco2e, color: GREY },
-    ],
-    "tCO2e",
-  );
+  if (calc.totalTco2e > 0) {
+    pb.ensureSpace(160);
+    pb.y = donutChart(pb.doc, {
+      x: MARGIN_X,
+      y: pb.y,
+      diameter: 130,
+      unit: "tCO2e",
+      centerLabel: "Total",
+      segments: [
+        { label: "Scope 1 (direct)", value: calc.scope1TotalTco2e, color: NAVY },
+        { label: "Scope 2 (indirect)", value: calc.scope2TotalTco2e, color: NAVY_LIGHT },
+      ],
+    });
+  } else {
+    pb.paragraph("No emissions were reported for this period.", { color: GREY });
+  }
   pb.summaryBox("Total emissions", [
     ["Scope 1 (direct)", `${fmt(calc.scope1TotalTco2e, 2)} tCO2e`],
     ["Scope 2 (indirect, location-based)", `${fmt(calc.scope2TotalTco2e, 2)} tCO2e`],

@@ -15,12 +15,6 @@ export interface TableOptions {
   highlightRowIndex?: number;
 }
 
-export interface BarChartItem {
-  label: string;
-  value: number;
-  color: string;
-}
-
 /**
  * Leaner sibling of cbamReport/layout.ts's PageBuilder — same pdfkit
  * techniques (rect/roundedRect fills, alternating table rows, a running `y`
@@ -234,36 +228,6 @@ export class GhgPageBuilder {
     }
 
     this.y = boxY + boxHeight + 10;
-  }
-
-  /** Simple horizontal bar chart — Scope 1 / Scope 2 / Total, proportional bars only, no external chart library. */
-  simpleBarChart(items: BarChartItem[], unit: string) {
-    const maxValue = Math.max(...items.map((i) => i.value), 1);
-    const barHeight = 20;
-    const gap = 14;
-    const labelWidth = 110;
-    const valueWidth = 100;
-    const barAreaWidth = CONTENT_WIDTH - labelWidth - valueWidth;
-    this.ensureSpace(items.length * (barHeight + gap) + 10);
-
-    for (const item of items) {
-      const barWidth = Math.max(2, (item.value / maxValue) * barAreaWidth);
-      this.doc
-        .fillColor(NAVY)
-        .font("Helvetica-Bold")
-        .fontSize(9)
-        .text(item.label, MARGIN_X, this.y + barHeight / 2 - 5, { width: labelWidth - 8 });
-      this.doc.rect(MARGIN_X + labelWidth, this.y, barAreaWidth, barHeight).fillColor(GREY_LIGHT).fill();
-      this.doc.rect(MARGIN_X + labelWidth, this.y, barWidth, barHeight).fillColor(item.color).fill();
-      this.doc
-        .fillColor(NAVY)
-        .font("Helvetica-Bold")
-        .fontSize(9.5)
-        .text(`${item.value.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${unit}`, MARGIN_X + labelWidth + barAreaWidth + 8, this.y + barHeight / 2 - 5, {
-          width: valueWidth - 8,
-        });
-      this.y += barHeight + gap;
-    }
   }
 
   /** A label with a blank underscored line beside it — for the consultant to fill in by hand or in a text editor before sending. */
