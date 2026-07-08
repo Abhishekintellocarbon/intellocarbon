@@ -5,13 +5,17 @@ import { z } from "zod";
 // Factor Manager's source field.
 const sourceSchema = z.string().trim().min(5, "Cite the regulation/source this factor comes from");
 
+// Prints verbatim as the "Source" column in the client-facing PDF — block
+// placeholder text like "ho" from ever reaching a report.
+const labelSchema = z.string().trim().min(3, "Source name must be at least 3 characters");
+
 const jurisdictionSchema = z.enum(["US_CALIFORNIA", "UK", "AUSTRALIA", "UAE_MIDDLE_EAST", "EU", "OTHER_GHG_PROTOCOL"]);
 
 const scope1EntrySchema = z
   .object({
     id: z.string().min(1),
     sourceType: z.string().min(1),
-    label: z.string().min(1),
+    label: labelSchema,
     quantity: z.number(),
     unit: z.string().min(1),
     isCustom: z.boolean(),
@@ -25,7 +29,7 @@ const scope1EntrySchema = z
 
 const scope2EntrySchema = z.object({
   id: z.string().min(1),
-  label: z.string().min(1),
+  label: labelSchema,
   quantityValue: z.number(),
   quantityUnit: z.enum(["kWh", "MWh"]),
   gridFactorValue: z.number(),
@@ -43,17 +47,32 @@ const scope3EntrySchema = z.object({
   source: z.string(),
 });
 
-export const createGhgEngagementSchema = z.object({
-  organizationName: z.string().trim().min(1, "Organization name is required"),
-  country: z.string().trim().min(1, "Country is required"),
-  reportingPeriodStart: z.coerce.date(),
-  reportingPeriodEnd: z.coerce.date(),
-  jurisdiction: jurisdictionSchema,
-  numberOfSites: z.number().int().positive().optional(),
-  scope1Entries: z.array(scope1EntrySchema).default([]),
-  scope2Entries: z.array(scope2EntrySchema).default([]),
-  scope3Entries: z.array(scope3EntrySchema).default([]),
-});
+// Prints on the report cover and methodology section — require a properly
+// capitalized name (e.g. "India", "United States") rather than free
+// lowercase text. Doesn't force full title-case on abbreviations like "UK"
+// or "UAE", just that each word starts with a capital letter.
+const countrySchema = z
+  .string()
+  .trim()
+  .min(1, "Country is required")
+  .regex(/^[A-Z][A-Za-z.'-]*(\s[A-Z][A-Za-z.'-]*)*$/, 'Enter the country name with proper capitalization (e.g. "United States")');
+
+export const createGhgEngagementSchema = z
+  .object({
+    organizationName: z.string().trim().min(1, "Organization name is required"),
+    country: countrySchema,
+    reportingPeriodStart: z.coerce.date(),
+    reportingPeriodEnd: z.coerce.date(),
+    jurisdiction: jurisdictionSchema,
+    numberOfSites: z.number().int().positive().optional(),
+    scope1Entries: z.array(scope1EntrySchema).default([]),
+    scope2Entries: z.array(scope2EntrySchema).default([]),
+    scope3Entries: z.array(scope3EntrySchema).default([]),
+  })
+  .refine((data) => data.reportingPeriodEnd > data.reportingPeriodStart, {
+    message: "Reporting period end date must be after the start date",
+    path: ["reportingPeriodEnd"],
+  });
 export type CreateGhgEngagementInput = z.infer<typeof createGhgEngagementSchema>;
 
 // Same shape as create — the whole engagement is re-submitted on every save,

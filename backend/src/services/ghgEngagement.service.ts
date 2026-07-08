@@ -84,7 +84,12 @@ export const updateEngagement = async (id: string, input: UpdateGhgEngagementInp
 };
 
 export const finalizeEngagement = async (id: string) => {
-  await requireDraftEngagement(id);
+  const engagement = await requireDraftEngagement(id);
+  // Belt-and-suspenders for drafts saved before date-order validation existed
+  // at the schema level — never let a reversed period reach PDF generation.
+  if (engagement.reportingPeriodEnd <= engagement.reportingPeriodStart) {
+    throw AppError.badRequest("Reporting period end date must be after the start date", "INVALID_REPORTING_PERIOD");
+  }
   return prisma.ghgEngagement.update({ where: { id }, data: { status: "FINALIZED" } });
 };
 

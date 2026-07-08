@@ -32,7 +32,7 @@ const emptyScope1Entry = (fuels: FuelDefinition[]): GhgScope1Entry => {
   return {
     id: newId(),
     sourceType: first?.key ?? "CUSTOM",
-    label: first?.label ?? "Custom source",
+    label: first?.label ?? "",
     quantity: 0,
     unit: first?.unit ?? "",
     isCustom: !first,
@@ -50,6 +50,20 @@ const emptyScope2Entry = (): GhgScope2Entry => ({
 });
 
 const toDateInputValue = (iso: string) => iso.slice(0, 10);
+
+// Mirrors the backend's countrySchema regex — each word must start with a
+// capital letter (e.g. "India", "United States"), not free lowercase text.
+const COUNTRY_NAME_PATTERN = /^[A-Z][A-Za-z.'-]*(\s[A-Z][A-Za-z.'-]*)*$/;
+
+const titleCase = (value: string) =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+// Mirrors the backend's labelSchema — this text prints verbatim as the
+// "Source" column in the client-facing PDF, so no placeholder text like "ho".
+const MIN_SOURCE_NAME_LENGTH = 3;
 
 export function GhgEngagementForm({
   existingEngagement,
@@ -94,7 +108,7 @@ export function GhgEngagementForm({
   const handleScope1SourceChange = (id: string, sourceType: string) => {
     if (sourceType === "CUSTOM") {
       setScope1Entries((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, sourceType: "CUSTOM", isCustom: true, label: "Custom source", unit: "", source: "" } : e)),
+        prev.map((e) => (e.id === id ? { ...e, sourceType: "CUSTOM", isCustom: true, label: "", unit: "", source: "" } : e)),
       );
       return;
     }
@@ -130,6 +144,19 @@ export function GhgEngagementForm({
   const handleSave = async () => {
     if (!organizationName.trim() || !country.trim() || !reportingPeriodStart || !reportingPeriodEnd) {
       setError("Organization name, country, and reporting period are required.");
+      return;
+    }
+    if (new Date(reportingPeriodEnd) <= new Date(reportingPeriodStart)) {
+      setError("Reporting period end date must be after the start date.");
+      return;
+    }
+    if (!COUNTRY_NAME_PATTERN.test(country.trim())) {
+      setError('Enter the country name with proper capitalization (e.g. "United States").');
+      return;
+    }
+    const shortSource = [...scope1Entries, ...scope2Entries].find((e) => e.label.trim().length < MIN_SOURCE_NAME_LENGTH);
+    if (shortSource) {
+      setError(`Every source name must be at least ${MIN_SOURCE_NAME_LENGTH} characters — check "${shortSource.label || "(blank)"}".`);
       return;
     }
     setError(null);
@@ -171,7 +198,13 @@ export function GhgEngagementForm({
           </div>
           <div>
             <Label htmlFor="country">Country</Label>
-            <Input id="country" value={country} onChange={(e) => setCountry(e.target.value)} />
+            <Input
+              id="country"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              onBlur={(e) => setCountry(titleCase(e.target.value))}
+              placeholder="e.g. India, United States"
+            />
           </div>
           <div>
             <Label htmlFor="period-start">Reporting period start</Label>
@@ -179,7 +212,16 @@ export function GhgEngagementForm({
           </div>
           <div>
             <Label htmlFor="period-end">Reporting period end</Label>
-            <Input id="period-end" type="date" value={reportingPeriodEnd} onChange={(e) => setReportingPeriodEnd(e.target.value)} />
+            <Input
+              id="period-end"
+              type="date"
+              value={reportingPeriodEnd}
+              min={reportingPeriodStart || undefined}
+              onChange={(e) => setReportingPeriodEnd(e.target.value)}
+            />
+            {reportingPeriodStart && reportingPeriodEnd && new Date(reportingPeriodEnd) <= new Date(reportingPeriodStart) && (
+              <p className="mt-1 text-xs text-danger">End date must be after the start date.</p>
+            )}
           </div>
           <div>
             <Label htmlFor="jurisdiction">Jurisdiction</Label>
@@ -258,6 +300,16 @@ export function GhgEngagementForm({
                 )}
               </div>
               <div className="mt-3 flex items-end gap-3">
+                {entry.isCustom && (
+                  <div className="flex-1">
+                    <Label>Source name</Label>
+                    <Input
+                      value={entry.label}
+                      onChange={(e) => updateScope1Row(entry.id, { label: e.target.value })}
+                      placeholder="e.g. Backup diesel generator"
+                    />
+                  </div>
+                )}
                 <div className="flex-1">
                   <Label>Source citation</Label>
                   <Input
