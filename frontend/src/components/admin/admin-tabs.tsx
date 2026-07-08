@@ -12,6 +12,7 @@ const TABS = [
   { href: "/admin/approvals", label: "Pending Approvals" },
   { href: "/admin/internal-operators", label: "Internal Operators" },
   { href: "/admin/emission-factors", label: "Emission Factors" },
+  { href: "/admin/ghg-runner", label: "GHG Runner" },
 ];
 
 export function AdminTabs() {

@@ -10,6 +10,7 @@ import leadCaptureRoutes from "./leadCapture.routes";
 import adminRoutes from "./admin.routes";
 import notificationRoutes from "./notification.routes";
 import brsrRoutes from "./brsr.routes";
+import ghgEngagementRoutes from "./ghgEngagement.routes";
 
 const router = Router();
 
@@ -28,5 +29,6 @@ router.use("/leads", leadCaptureRoutes);
 router.use("/admin", adminRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/brsr", brsrRoutes);
+router.use("/ghg-runner", ghgEngagementRoutes);
 
 export default router;

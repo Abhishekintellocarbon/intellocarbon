@@ -38,6 +38,14 @@ import type {
   CreateEmissionFactorInput,
   UpdateEmissionFactorInput,
   QuickUpdateValueInput,
+  GhgJurisdictionConfig,
+  GhgJurisdictionKey,
+  GhgEngagement,
+  GhgEngagementSummary,
+  GhgEngagementInput,
+  GhgCalculationResult,
+  GhgScope1Entry,
+  GhgScope2Entry,
 } from "./types";
 import type {
   BorderInputs,
@@ -719,4 +727,63 @@ export const queriesApi = {
       method: "POST",
       body: JSON.stringify({ responseText }),
     }),
+};
+
+export const ghgRunnerApi = {
+  listJurisdictions: (): Promise<{ jurisdictions: GhgJurisdictionConfig[] }> => apiFetch("/api/ghg-runner/jurisdictions"),
+
+  list: (search?: string): Promise<{ engagements: GhgEngagementSummary[] }> =>
+    apiFetch(`/api/ghg-runner/engagements${search ? `?search=${encodeURIComponent(search)}` : ""}`),
+
+  get: (id: string): Promise<{ engagement: GhgEngagement; calculation: GhgCalculationResult }> =>
+    apiFetch(`/api/ghg-runner/engagements/${id}`),
+
+  create: (input: GhgEngagementInput): Promise<{ engagement: GhgEngagement; calculation: GhgCalculationResult }> =>
+    apiFetch("/api/ghg-runner/engagements", { method: "POST", body: JSON.stringify(input) }),
+
+  update: (id: string, input: GhgEngagementInput): Promise<{ engagement: GhgEngagement; calculation: GhgCalculationResult }> =>
+    apiFetch(`/api/ghg-runner/engagements/${id}`, { method: "PUT", body: JSON.stringify(input) }),
+
+  finalize: (id: string): Promise<{ engagement: GhgEngagement; calculation: GhgCalculationResult }> =>
+    apiFetch(`/api/ghg-runner/engagements/${id}/finalize`, { method: "POST" }),
+
+  duplicate: (id: string): Promise<{ engagement: GhgEngagement; calculation: GhgCalculationResult }> =>
+    apiFetch(`/api/ghg-runner/engagements/${id}/duplicate`, { method: "POST" }),
+
+  calculate: (input: {
+    scope1Entries: GhgScope1Entry[];
+    scope2Entries: GhgScope2Entry[];
+    jurisdiction: GhgJurisdictionKey;
+  }): Promise<{ calculation: GhgCalculationResult }> =>
+    apiFetch("/api/ghg-runner/calculate", { method: "POST", body: JSON.stringify(input) }),
+
+  generateReport: (id: string): Promise<{ engagement: GhgEngagement }> =>
+    apiFetch(`/api/ghg-runner/engagements/${id}/generate-report`, { method: "POST" }),
+
+  downloadReport: async (id: string, fileName: string): Promise<void> => {
+    const url = `${API_URL}/api/ghg-runner/engagements/${id}/report`;
+    const fetchDoc = () =>
+      fetch(url, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchDoc();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchDoc();
+    }
+    if (!res.ok) {
+      throw new ApiError("Couldn't download this report. Please try again.", res.status);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
 };

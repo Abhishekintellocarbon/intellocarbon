@@ -914,3 +914,129 @@ export interface QuickUpdateValueInput {
   value: number;
   source: string;
 }
+
+// --- GHG Runner (/admin/ghg-runner) ---
+// Mirrors backend/src/data/ghgJurisdictions.ts and
+// backend/src/services/ghgCalculation.service.ts. Foreign consulting
+// engagements — organization-based, not facility-based, no client login.
+
+export type GhgJurisdictionKey = "US_CALIFORNIA" | "UK" | "AUSTRALIA" | "UAE_MIDDLE_EAST" | "EU" | "OTHER_GHG_PROTOCOL";
+export type GhgEngagementStatus = "DRAFT" | "FINALIZED";
+
+export interface GhgJurisdictionGwpSet {
+  scheme: "AR5" | "AR6";
+  co2: number;
+  ch4: number;
+  n2o: number;
+}
+
+export interface GhgJurisdictionConfig {
+  key: GhgJurisdictionKey;
+  label: string;
+  regulationLabel: string;
+  gwp: GhgJurisdictionGwpSet;
+  gwpSource: string;
+}
+
+export interface GhgScope1Entry {
+  id: string;
+  /** A FUEL_LIBRARY key (see FuelDefinition), or "CUSTOM". */
+  sourceType: string;
+  label: string;
+  quantity: number;
+  unit: string;
+  isCustom: boolean;
+  customFactorValue?: number;
+  source: string;
+}
+
+export interface GhgScope1EntryResult extends GhgScope1Entry {
+  co2eTonnes: number;
+  factorApplied: string;
+}
+
+export interface GhgScope2Entry {
+  id: string;
+  label: string;
+  quantityValue: number;
+  quantityUnit: "kWh" | "MWh";
+  gridFactorValue: number;
+  source: string;
+}
+
+export interface GhgScope2EntryResult extends GhgScope2Entry {
+  co2eTonnes: number;
+}
+
+/** Schema-ready, UI-disabled — "Coming soon" in the data entry form. */
+export interface GhgScope3Entry {
+  id: string;
+  scope3Category: number;
+  description: string;
+  quantity: number;
+  factor: number;
+  source: string;
+}
+
+export interface GhgCalculationResult {
+  jurisdiction: GhgJurisdictionKey;
+  gwpScheme: string;
+  gwpSource: string;
+  scope1Results: GhgScope1EntryResult[];
+  scope2Results: GhgScope2EntryResult[];
+  scope1TotalTco2e: number;
+  scope2TotalTco2e: number;
+  totalTco2e: number;
+}
+
+export interface GhgEngagementSummary {
+  id: string;
+  organizationName: string;
+  country: string;
+  jurisdiction: GhgJurisdictionKey;
+  reportingPeriodStart: string;
+  reportingPeriodEnd: string;
+  numberOfSites: number | null;
+  status: GhgEngagementStatus;
+  scope1TotalTco2e: number | null;
+  scope2TotalTco2e: number | null;
+  totalTco2e: number | null;
+  reportGeneratedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GhgEngagement {
+  id: string;
+  organizationName: string;
+  country: string;
+  reportingPeriodStart: string;
+  reportingPeriodEnd: string;
+  jurisdiction: GhgJurisdictionKey;
+  numberOfSites: number | null;
+  scope1Entries: GhgScope1Entry[];
+  scope2Entries: GhgScope2Entry[];
+  scope3Entries: GhgScope3Entry[];
+  scope1TotalTco2e: number | null;
+  scope2TotalTco2e: number | null;
+  totalTco2e: number | null;
+  gwpSchemeUsed: string | null;
+  status: GhgEngagementStatus;
+  reportPdfFileName: string | null;
+  reportGeneratedAt: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GhgEngagementInput {
+  organizationName: string;
+  country: string;
+  reportingPeriodStart: string;
+  reportingPeriodEnd: string;
+  jurisdiction: GhgJurisdictionKey;
+  numberOfSites?: number;
+  scope1Entries: GhgScope1Entry[];
+  scope2Entries: GhgScope2Entry[];
+  scope3Entries: GhgScope3Entry[];
+}

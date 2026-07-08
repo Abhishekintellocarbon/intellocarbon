@@ -56,6 +56,7 @@ model User {
   verifierCompanyAssignments VerifierCompanyAssignment[] @relation("VerifierCompanyAssignments")
   facilityAssignments        FacilityAssignment[]        @relation("InternalOperatorAssignments")
   facilityAssignmentsMade    FacilityAssignment[]        @relation("FacilityAssignmentsMadeBy")
+  ghgEngagementsCreated      GhgEngagement[]
 
   @@map("users")
 }
@@ -834,4 +835,80 @@ model EmissionFactor {
   @@index([isCurrent])
   @@index([fuelType])
   @@map("emission_factors")
+}
+
+// Which GWP table (and reporting-standard label) a GHG Runner engagement
+// uses — see data/ghgJurisdictions.ts, the single source of truth for the
+// actual GWP values. This enum only names the jurisdiction; adding one
+// doesn't require touching the calculation engine beyond that config file.
+enum GhgJurisdiction {
+  US_CALIFORNIA
+  UK
+  AUSTRALIA
+  UAE_MIDDLE_EAST
+  EU
+  OTHER_GHG_PROTOCOL
+}
+
+enum GhgEngagementStatus {
+  DRAFT
+  FINALIZED
+}
+
+// One manual GHG Protocol engagement for Intellocarbon's foreign consulting
+// work — organization-based (not facility-based like the Indian CBAM/CCTS
+// product), entered entirely by a Super Admin with no client login. Scope 1/2/3
+// entries are stored as Json rather than child tables: they're small,
+// engagement-scoped lists with no cross-engagement querying need, and Scope 3
+// in particular is deliberately schema-ready-but-UI-disabled — see
+// ghgCalculation.service.ts for the Scope1Entry/Scope2Entry/Scope3Entry shapes
+// these columns hold.
+model GhgEngagement {
+  id                   String          @id @default(cuid())
+  organizationName     String
+  country              String
+  reportingPeriodStart DateTime
+  reportingPeriodEnd   DateTime
+  jurisdiction         GhgJurisdiction
+  // Informational only — not used in any calculation.
+  numberOfSites        Int?
+
+  scope1Entries Json @default("[]")
+  scope2Entries Json @default("[]")
+  // Coming soon — collected in the schema now (scope3Category 1-15,
+  // description, quantity, factor, source) so turning it on later is a UI
+  // change, not a migration. Never included in totalTco2e.
+  scope3Entries Json @default("[]")
+
+  // Frozen at every create/update from the entries + jurisdiction GWP table
+  // as they stood at save time — once FINALIZED, the engagement can no
+  // longer be edited (see requireDraftEngagement), so these numbers never
+  // drift even if the Emission Factor Manager's library values change later.
+  scope1TotalTco2e Float?
+  scope2TotalTco2e Float?
+  totalTco2e       Float?
+  // Snapshot of which GWP scheme (AR5/AR6) was applied — see
+  // data/ghgJurisdictions.ts — so the PDF can always state exactly what was
+  // used even if a jurisdiction's config is later corrected.
+  gwpSchemeUsed    String?
+
+  status GhgEngagementStatus @default(DRAFT)
+
+  // White-label PDF, generated only once FINALIZED — bytes in Postgres,
+  // same storage approach as the Document table, but engagements have no
+  // Company/Facility to hang a Document row off, so this lives directly on
+  // the engagement instead of extending that shared multi-tenant table.
+  reportPdfFileName String?
+  reportPdfData     Bytes?
+  reportGeneratedAt DateTime?
+
+  createdBy     String
+  createdByUser User   @relation(fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationName])
+  @@index([status])
+  @@map("ghg_engagements")
 }
