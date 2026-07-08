@@ -198,9 +198,29 @@ export const PRECURSOR_LIBRARY: Record<string, PrecursorDefinition> = {
   },
 };
 
-/** tCO2 per MWh — India grid average emission factor; override per facility/period where a verified CEA baseline figure is available. */
-export const DEFAULT_GRID_EMISSION_FACTOR = 0.716;
-export const DEFAULT_GRID_EMISSION_FACTOR_SOURCE = "CEA Grid Emission Factor Report FY2025-26";
+/**
+ * tCO2 per MWh — India grid average emission factor; override per
+ * facility/period where a verified CEA baseline figure is available.
+ *
+ * Mutable module state rather than a bare constant: the Super Admin
+ * Emission Factor Manager (/admin/emission-factors) can update this at
+ * runtime via PUT /api/admin/cea-grid-factor, which supersedes the current
+ * "CEA Grid Emission Factor" EmissionFactor row (preserving history) and
+ * then calls setGridEmissionFactor() so every consumer — the calculation
+ * engine and the PDF report builders — picks up the new value immediately,
+ * without an async DB read at every call site. Hydrated from the DB at
+ * server startup by hydrateEmissionFactorCache() in emissionFactor.service.ts.
+ */
+let currentGridEmissionFactor = 0.716;
+let currentGridEmissionFactorSource = "CEA Grid Emission Factor Report FY2025-26";
+
+export const getGridEmissionFactor = (): number => currentGridEmissionFactor;
+export const getGridEmissionFactorSource = (): string => currentGridEmissionFactorSource;
+
+export const setGridEmissionFactor = (value: number, source: string): void => {
+  currentGridEmissionFactor = value;
+  currentGridEmissionFactorSource = source;
+};
 
 /** tCO2 per GJ of imported steam — indicative default for a natural-gas-fired boiler. */
 export const DEFAULT_STEAM_EMISSION_FACTOR = 0.07;

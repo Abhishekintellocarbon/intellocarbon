@@ -18,6 +18,8 @@ export interface CbamCertificatePriceReference {
   source: string;
 }
 
+const quarterLabelFor = (date: Date): string => `Q${Math.floor(date.getUTCMonth() / 3) + 1} ${date.getUTCFullYear()}`;
+
 /**
  * Official CBAM certificate reference price.
  *
@@ -27,13 +29,33 @@ export interface CbamCertificatePriceReference {
  * but the Commission has been publishing a quarterly reference price since
  * Q1 2026 (EUR 75.36, published 7 Apr 2026). This is that published figure,
  * updated each quarter from the Commission's price page — not an estimate.
+ *
+ * Mutable module state rather than a bare constant: the Super Admin
+ * Emission Factor Manager (/admin/emission-factors) can update this at
+ * runtime via PUT /api/admin/cbam-certificate-price, which supersedes the
+ * current "CBAM Certificate Price" EmissionFactor row (preserving history)
+ * and then calls setCbamCertificatePrice() so every consumer picks up the
+ * new value immediately. quarterLabel/asOfDate are derived from the row's
+ * validFrom rather than entered separately. Hydrated from the DB at server
+ * startup by hydrateEmissionFactorCache() in emissionFactor.service.ts.
  */
-export const CBAM_CERTIFICATE_PRICE: CbamCertificatePriceReference = {
+let currentCertificatePrice: CbamCertificatePriceReference = {
   pricePerTonneEur: 75.28,
   quarterLabel: "Q2 2026",
   asOfDate: "2026-07-06",
   source:
     "European Commission — https://taxation-customs.ec.europa.eu/carbon-border-adjustment-mechanism/price-cbam-certificates_en",
+};
+
+export const getCbamCertificatePrice = (): CbamCertificatePriceReference => currentCertificatePrice;
+
+export const setCbamCertificatePrice = (value: number, source: string, validFrom: Date): void => {
+  currentCertificatePrice = {
+    pricePerTonneEur: value,
+    quarterLabel: quarterLabelFor(validFrom),
+    asOfDate: validFrom.toISOString().slice(0, 10),
+    source,
+  };
 };
 
 export interface EuDefaultSeeReference {

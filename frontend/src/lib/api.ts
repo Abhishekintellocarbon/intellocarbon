@@ -34,6 +34,10 @@ import type {
   FacilityAssignmentSummary,
   InternalAssignedFacility,
   InternalFacilityDetail,
+  EmissionFactor,
+  CreateEmissionFactorInput,
+  UpdateEmissionFactorInput,
+  QuickUpdateValueInput,
 } from "./types";
 import type {
   BorderInputs,
@@ -615,6 +619,23 @@ export const adminApi = {
 
   unassignOperator: (facilityId: string, userId: string) =>
     apiFetch(`/api/admin/facilities/${facilityId}/assignments/${userId}`, { method: "DELETE" }),
+
+  listEmissionFactors: (): Promise<{ factors: EmissionFactor[] }> => apiFetch("/api/admin/emission-factors"),
+
+  createEmissionFactor: (input: CreateEmissionFactorInput): Promise<{ factor: EmissionFactor }> =>
+    apiFetch("/api/admin/emission-factors", { method: "POST", body: JSON.stringify(input) }),
+
+  updateEmissionFactor: (id: string, input: UpdateEmissionFactorInput): Promise<{ factor: EmissionFactor }> =>
+    apiFetch(`/api/admin/emission-factors/${id}`, { method: "PUT", body: JSON.stringify(input) }),
+
+  supersedeEmissionFactor: (id: string, input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
+    apiFetch(`/api/admin/emission-factors/${id}/supersede`, { method: "PUT", body: JSON.stringify(input) }),
+
+  updateCbamCertificatePrice: (input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
+    apiFetch("/api/admin/cbam-certificate-price", { method: "PUT", body: JSON.stringify(input) }),
+
+  updateCeaGridFactor: (input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
+    apiFetch("/api/admin/cea-grid-factor", { method: "PUT", body: JSON.stringify(input) }),
 };
 
 export const internalDataEntryApi = {

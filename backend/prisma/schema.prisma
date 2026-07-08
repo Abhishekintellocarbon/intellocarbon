@@ -45,17 +45,17 @@ model User {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  refreshTokens            RefreshToken[]
-  passwordResetTokens      PasswordResetToken[]
-  company                  Company?
-  verificationsHandled     VerificationRequest[]       @relation("VerifierAssignments")
-  brsrVerificationsHandled BrsrVerificationRequest[]   @relation("BrsrVerifierAssignments")
-  notifications            Notification[]
-  auditLogs                AuditLog[]
-  queriesRaised            VerificationQuery[]         @relation("QueriesRaised")
+  refreshTokens              RefreshToken[]
+  passwordResetTokens        PasswordResetToken[]
+  company                    Company?
+  verificationsHandled       VerificationRequest[]       @relation("VerifierAssignments")
+  brsrVerificationsHandled   BrsrVerificationRequest[]   @relation("BrsrVerifierAssignments")
+  notifications              Notification[]
+  auditLogs                  AuditLog[]
+  queriesRaised              VerificationQuery[]         @relation("QueriesRaised")
   verifierCompanyAssignments VerifierCompanyAssignment[] @relation("VerifierCompanyAssignments")
-  facilityAssignments      FacilityAssignment[]         @relation("InternalOperatorAssignments")
-  facilityAssignmentsMade  FacilityAssignment[]         @relation("FacilityAssignmentsMadeBy")
+  facilityAssignments        FacilityAssignment[]        @relation("InternalOperatorAssignments")
+  facilityAssignmentsMade    FacilityAssignment[]        @relation("FacilityAssignmentsMadeBy")
 
   @@map("users")
 }
@@ -310,18 +310,18 @@ enum AuditLogAction {
 // deadline alerts are read directly off ActivityData, VerificationRequest,
 // and Notification instead of being duplicated here.
 model AuditLog {
-  id         String          @id @default(cuid())
+  id         String         @id @default(cuid())
   facilityId String
-  facility   Facility        @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facility   Facility       @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   companyId  String
-  company    Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   // Who triggered the action — nullable since not every future action type
   // will necessarily have one (e.g. a system/cron-triggered event).
   userId     String?
-  user       User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user       User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   action     AuditLogAction
   detail     String
-  createdAt  DateTime        @default(now())
+  createdAt  DateTime       @default(now())
 
   @@index([facilityId])
   @@map("audit_logs")
@@ -468,14 +468,14 @@ model Facility {
 // for the internal data-entry portal, same role VerifierCompanyAssignment
 // plays for the verifier portal. Managed from the Super Admin facility page.
 model FacilityAssignment {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation("InternalOperatorAssignments", fields: [userId], references: [id], onDelete: Cascade)
-  facilityId String
-  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  assignedAt DateTime @default(now())
-  assignedBy String
-  assignedByUser User  @relation("FacilityAssignmentsMadeBy", fields: [assignedBy], references: [id])
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation("InternalOperatorAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  facilityId     String
+  facility       Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  assignedAt     DateTime @default(now())
+  assignedBy     String
+  assignedByUser User     @relation("FacilityAssignmentsMadeBy", fields: [assignedBy], references: [id])
 
   @@unique([userId, facilityId])
   @@index([facilityId])
@@ -797,4 +797,41 @@ model LeadCapture {
   @@index([toolUsed])
   @@index([createdAt])
   @@map("lead_captures")
+}
+
+// Super-Admin-managed registry of emission/reference factors, with full
+// history preserved rather than overwritten — every value change supersedes
+// the current row (isCurrent -> false, validTo -> today) and creates a new
+// one (isCurrent -> true, validFrom -> today) instead of mutating value in
+// place. Two rows (name "CBAM Certificate Price" and "CEA Grid Emission
+// Factor") are also the live source of truth the calculation engine reads
+// at runtime — see getCbamCertificatePrice()/getGridEmissionFactor() in
+// data/cbamReferenceData.ts / data/emissionFactors.ts, hydrated from this
+// table at server startup and kept in sync on every quick-update write.
+// Every other row is a documentation/audit record only — the fuel/material/
+// precursor calculation library remains code-defined, not DB-driven.
+model EmissionFactor {
+  id                  String    @id @default(cuid())
+  name                String
+  // Free-text, not a Prisma enum — the two "quick update" values (CBAM
+  // certificate price, CEA grid factor) aren't fuels at all, and the fuel
+  // library itself already has its own key space (see FUEL_LIBRARY).
+  fuelType            String?
+  greenhouseGas       String?
+  value               Float
+  unit                String
+  // Hard platform rule: no assumed values — every factor must cite the
+  // regulation/annex it comes from. Enforced non-empty at the validator
+  // layer on every create/update/supersede, not just at the DB level.
+  source              String
+  validFrom           DateTime
+  validTo             DateTime?
+  sectorApplicability String?
+  isCurrent           Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([isCurrent])
+  @@index([fuelType])
+  @@map("emission_factors")
 }

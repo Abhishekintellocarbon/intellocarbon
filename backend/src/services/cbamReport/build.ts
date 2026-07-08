@@ -24,8 +24,8 @@ import {
   FUEL_LIBRARY,
   PROCESS_MATERIAL_LIBRARY,
   PRECURSOR_LIBRARY,
-  DEFAULT_GRID_EMISSION_FACTOR,
-  DEFAULT_GRID_EMISSION_FACTOR_SOURCE,
+  getGridEmissionFactor,
+  getGridEmissionFactorSource,
   DEFAULT_STEAM_EMISSION_FACTOR,
 } from "../../data/emissionFactors";
 import { GWP_AR5, GWP_AR2_BUR3 } from "../../data/gwpTables";
@@ -581,8 +581,8 @@ function buildIndirectAndPrecursors(pb: PageBuilder, ctx: ReportContext) {
 
   pb.paragraph("Emissions embedded in purchased electricity and imported steam.");
 
-  const gridEfUsed = ctx.gridEmissionFactorOverride ?? DEFAULT_GRID_EMISSION_FACTOR;
-  const gridSource = ctx.gridEmissionFactorOverride != null ? "Facility override" : DEFAULT_GRID_EMISSION_FACTOR_SOURCE;
+  const gridEfUsed = ctx.gridEmissionFactorOverride ?? getGridEmissionFactor();
+  const gridSource = ctx.gridEmissionFactorOverride != null ? "Facility override" : getGridEmissionFactorSource();
   const electricityCo2e = ctx.gridElectricityMwh * gridEfUsed;
 
   const sources: string[] = [gridSource];
@@ -622,7 +622,7 @@ function buildIndirectAndPrecursors(pb: PageBuilder, ctx: ReportContext) {
   });
 
   pb.note(
-    `${legend}. Grid emission factor default: ${fmt(DEFAULT_GRID_EMISSION_FACTOR, 3)} tCO2/MWh — ${DEFAULT_GRID_EMISSION_FACTOR_SOURCE}.`,
+    `${legend}. Grid emission factor default: ${fmt(getGridEmissionFactor(), 3)} tCO2/MWh — ${getGridEmissionFactorSource()}.`,
   );
 
   pb.heading("Precursor Embedded Emissions");
@@ -715,7 +715,7 @@ function buildMethodology(pb: PageBuilder) {
 
   pb.heading("Grid emission factor");
   pb.paragraph(
-    `Indirect electricity emissions use the default India grid emission factor of ${fmt(DEFAULT_GRID_EMISSION_FACTOR, 3)} tCO2/MWh, sourced from the ${DEFAULT_GRID_EMISSION_FACTOR_SOURCE}, unless a facility-specific override was supplied at data entry.`,
+    `Indirect electricity emissions use the default India grid emission factor of ${fmt(getGridEmissionFactor(), 3)} tCO2/MWh, sourced from the ${getGridEmissionFactorSource()}, unless a facility-specific override was supplied at data entry.`,
   );
 }
 

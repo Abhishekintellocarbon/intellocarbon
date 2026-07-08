@@ -3,9 +3,9 @@ import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import {
   CEMENT_CALCINATION_EMISSION_FACTOR,
-  DEFAULT_GRID_EMISSION_FACTOR,
   DEFAULT_STEAM_EMISSION_FACTOR,
   FUEL_LIBRARY,
+  getGridEmissionFactor,
   NATURAL_GAS_FEEDSTOCK_EMISSION_FACTOR,
   PRECURSOR_LIBRARY,
   PROCESS_MATERIAL_LIBRARY,
@@ -184,7 +184,7 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
   const directN2oProcessCo2eAr4 = netN2oTonnes * GWP_AR2_BUR3.n2o;
 
   // --- Indirect emissions (Scope 2): electricity + imported steam ---
-  const gridEmissionFactorUsed = activityData.gridEmissionFactorOverride ?? DEFAULT_GRID_EMISSION_FACTOR;
+  const gridEmissionFactorUsed = activityData.gridEmissionFactorOverride ?? getGridEmissionFactor();
   const indirectElectricityCo2e = activityData.gridElectricityMwh * gridEmissionFactorUsed;
 
   const steamEmissionFactorUsed = activityData.steamEmissionFactorOverride ?? DEFAULT_STEAM_EMISSION_FACTOR;

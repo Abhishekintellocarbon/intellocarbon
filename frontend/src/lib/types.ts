@@ -864,3 +864,53 @@ export interface InternalFacilityDetail {
   };
   entries: InternalActivityDataSummary[];
 }
+
+// --- Emission Factor Manager (/admin/emission-factors) ---
+// Mirrors backend/src/services/emissionFactor.service.ts. Every value
+// change preserves history — see the /supersede endpoint — rather than
+// overwriting a row in place, so `validTo` is only ever set on rows that
+// have since been superseded.
+
+export interface EmissionFactor {
+  id: string;
+  name: string;
+  fuelType: string | null;
+  greenhouseGas: string | null;
+  value: number;
+  unit: string;
+  source: string;
+  validFrom: string;
+  validTo: string | null;
+  sectorApplicability: string | null;
+  isCurrent: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateEmissionFactorInput {
+  name: string;
+  fuelType?: string;
+  greenhouseGas?: string;
+  value: number;
+  unit: string;
+  source: string;
+  validFrom: string;
+  validTo?: string;
+  sectorApplicability?: string;
+}
+
+export interface UpdateEmissionFactorInput {
+  name?: string;
+  fuelType?: string;
+  greenhouseGas?: string;
+  unit?: string;
+  source: string;
+  validFrom?: string;
+  validTo?: string;
+  sectorApplicability?: string;
+}
+
+export interface QuickUpdateValueInput {
+  value: number;
+  source: string;
+}

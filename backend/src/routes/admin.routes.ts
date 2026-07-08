@@ -7,11 +7,18 @@ import * as adminCompaniesController from "../controllers/adminCompanies.control
 import * as adminFacilitiesController from "../controllers/adminFacilities.controller";
 import * as adminVerifiersController from "../controllers/adminVerifiers.controller";
 import * as adminFacilityAssignmentsController from "../controllers/adminFacilityAssignments.controller";
+import * as adminEmissionFactorsController from "../controllers/adminEmissionFactors.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireSuperAdmin } from "../middleware/requireSuperAdmin";
 import { validate } from "../middleware/validate";
 import { assignVerifierSchema } from "../validators/verifierAssignment.validators";
 import { assignFacilityOperatorSchema, createInternalOperatorSchema } from "../validators/facilityAssignment.validators";
+import {
+  createEmissionFactorSchema,
+  updateEmissionFactorSchema,
+  supersedeEmissionFactorSchema,
+  quickUpdateValueSchema,
+} from "../validators/emissionFactor.validators";
 
 const router = Router();
 
@@ -49,5 +56,20 @@ router.post(
   adminFacilityAssignmentsController.assignOperator,
 );
 router.delete("/facilities/:facilityId/assignments/:userId", adminFacilityAssignmentsController.unassignOperator);
+
+router.get("/emission-factors", adminEmissionFactorsController.listFactors);
+router.post("/emission-factors", validate(createEmissionFactorSchema), adminEmissionFactorsController.createFactor);
+router.put("/emission-factors/:id", validate(updateEmissionFactorSchema), adminEmissionFactorsController.updateFactor);
+router.put(
+  "/emission-factors/:id/supersede",
+  validate(supersedeEmissionFactorSchema),
+  adminEmissionFactorsController.supersedeFactor,
+);
+router.put(
+  "/cbam-certificate-price",
+  validate(quickUpdateValueSchema),
+  adminEmissionFactorsController.updateCbamCertificatePrice,
+);
+router.put("/cea-grid-factor", validate(quickUpdateValueSchema), adminEmissionFactorsController.updateCeaGridFactor);
 
 export default router;

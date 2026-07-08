@@ -1,5 +1,5 @@
 import type { ReportContext } from "./report.service";
-import { CBAM_CERTIFICATE_PRICE, getEuDefaultSee, getCbamActivity } from "../data/cbamReferenceData";
+import { getCbamCertificatePrice, getEuDefaultSee, getCbamActivity } from "../data/cbamReferenceData";
 
 const round = (value: number, decimals = 4) => {
   const factor = 10 ** decimals;
@@ -81,7 +81,8 @@ export const computeCbamFinancialImpact = (ctx: ReportContext, reportType: CbamR
   const defaultSee = defaultRef.valueTco2ePerTonne;
   const varianceFromDefault = defaultSee - actualSee;
 
-  const certificatePrice = CBAM_CERTIFICATE_PRICE.pricePerTonneEur;
+  const cbamCertificatePrice = getCbamCertificatePrice();
+  const certificatePrice = cbamCertificatePrice.pricePerTonneEur;
   const certificatesRequired = result.totalEmissionsCbamAr5;
 
   const carbonPricePaidEurPerTonne = ctx.carbonPricePaidEurPerTonne ?? 0;
@@ -117,9 +118,9 @@ export const computeCbamFinancialImpact = (ctx: ReportContext, reportType: CbamR
     varianceIsBetterThanDefault: varianceFromDefault >= 0,
 
     certificatePrice,
-    certificatePriceQuarter: CBAM_CERTIFICATE_PRICE.quarterLabel,
-    certificatePriceAsOfDate: CBAM_CERTIFICATE_PRICE.asOfDate,
-    certificatePriceSource: CBAM_CERTIFICATE_PRICE.source,
+    certificatePriceQuarter: cbamCertificatePrice.quarterLabel,
+    certificatePriceAsOfDate: cbamCertificatePrice.asOfDate,
+    certificatePriceSource: cbamCertificatePrice.source,
 
     certificatesRequired: round(certificatesRequired, 2),
     carbonPricePaidEurPerTonne,
