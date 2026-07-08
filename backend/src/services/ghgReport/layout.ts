@@ -240,17 +240,24 @@ export class GhgPageBuilder {
   }
 
   private drawFooter(pageNumber: number, total: number) {
+    // pdfkit auto-paginates if a text call's computed bottom edge
+    // (y + line height) crosses `page.height - margins.bottom` — even with an
+    // explicit y and lineBreak:false — so these two lines must stay well clear
+    // of that threshold (bottom margin is 20, see PDFDocument construction).
+    // The old -40/-28 offsets here didn't leave enough clearance and
+    // silently doubled the PDF's page count (a blank footer-only page after
+    // every real one); same fix already applied in cbamReport/layout.ts.
     const height = this.doc.page.height;
     this.doc
       .fillColor(GREY)
       .font("Helvetica")
       .fontSize(7.5)
-      .text(FOOTER_NOTE, MARGIN_X, height - 40, { width: CONTENT_WIDTH, align: "center", lineBreak: false });
+      .text(FOOTER_NOTE, MARGIN_X, height - 46, { width: CONTENT_WIDTH, align: "center", lineBreak: false });
     this.doc
       .fillColor(GREY)
       .font("Helvetica")
       .fontSize(7.5)
-      .text(`Page ${pageNumber} of ${total}`, MARGIN_X, height - 28, { width: CONTENT_WIDTH, align: "center", lineBreak: false });
+      .text(`Page ${pageNumber} of ${total}`, MARGIN_X, height - 34, { width: CONTENT_WIDTH, align: "center", lineBreak: false });
   }
 
   /** Stamp the footer on every page (including the cover) now that total page count is known. */
