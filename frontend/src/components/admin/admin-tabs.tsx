@@ -11,6 +11,7 @@ const TABS = [
   { href: "/admin/leads", label: "Leads" },
   { href: "/admin/approvals", label: "Pending Approvals" },
   { href: "/admin/internal-operators", label: "Internal Operators" },
+  { href: "/admin/verifiers", label: "Verifiers" },
   { href: "/admin/emission-factors", label: "Emission Factors" },
   { href: "/admin/ghg-runner", label: "GHG Runner" },
 ];

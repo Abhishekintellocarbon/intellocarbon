@@ -26,6 +26,8 @@ import type {
   FacilityDocument,
   VerificationQuery,
   VerifierAssignedFacility,
+  VerifierAssignedCompany,
+  VerifierCompanyDetail,
   VerifierFacilityDetail,
   AdminVerifierSummary,
   CompanyVerifierAssignment,
@@ -607,6 +609,9 @@ export const adminApi = {
 
   listVerifiers: (): Promise<{ verifiers: AdminVerifierSummary[] }> => apiFetch("/api/admin/verifiers"),
 
+  createVerifier: (input: { name: string; email: string; password: string }): Promise<{ verifier: AdminVerifierSummary }> =>
+    apiFetch("/api/admin/verifiers", { method: "POST", body: JSON.stringify(input) }),
+
   assignVerifier: (companyId: string, verifierId: string): Promise<{ assignment: CompanyVerifierAssignment }> =>
     apiFetch(`/api/admin/companies/${companyId}/verifiers`, { method: "POST", body: JSON.stringify({ verifierId }) }),
 
@@ -688,6 +693,10 @@ export const verifierApi = {
   listQueries: (id: string): Promise<{ queries: VerificationQuery[] }> => apiFetch(`/api/verifier/requests/${id}/queries`),
 
   listFacilities: (): Promise<{ facilities: VerifierAssignedFacility[] }> => apiFetch("/api/verifier/facilities"),
+
+  listCompanies: (): Promise<{ companies: VerifierAssignedCompany[] }> => apiFetch("/api/verifier/companies"),
+
+  getCompany: (companyId: string): Promise<VerifierCompanyDetail> => apiFetch(`/api/verifier/companies/${companyId}`),
 
   getFacility: (facilityId: string): Promise<VerifierFacilityDetail> => apiFetch(`/api/verifier/facilities/${facilityId}`),
 

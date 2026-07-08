@@ -26,6 +26,9 @@ router.patch("/requests/:id/checklist", validate(updateChecklistSchema), verific
 router.post("/requests/:id/queries", validate(raiseQuerySchema), verificationController.raiseQuery);
 router.get("/requests/:id/queries", verificationController.listQueriesForRequest);
 
+router.get("/companies", verifierFacilityController.listAssignedCompanies);
+router.get("/companies/:companyId", verifierFacilityController.getCompanyDetail);
+
 router.get("/facilities", verifierFacilityController.listAssignedFacilities);
 router.get("/facilities/:facilityId", verifierFacilityController.getFacilityDetail);
 router.get("/facilities/:facilityId/documents/:documentId/download", verifierFacilityController.downloadDocument);

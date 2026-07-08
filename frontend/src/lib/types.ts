@@ -494,6 +494,18 @@ export interface VerifierAssignedFacility {
   evidencePending: boolean;
 }
 
+export interface VerifierAssignedCompany {
+  id: string;
+  name: string;
+  sector: Sector;
+  facilities: VerifierAssignedFacility[];
+}
+
+export interface VerifierCompanyDetail {
+  company: { id: string; name: string; sector: Sector };
+  facilities: VerifierAssignedFacility[];
+}
+
 export interface VerificationMethodologyNote {
   formula: string;
   source: string;
@@ -734,6 +746,8 @@ export interface AdminVerifierSummary {
   id: string;
   name: string;
   email: string;
+  createdAt?: string;
+  assignedCompanyCount?: number;
 }
 
 export interface CompanyVerifierAssignment {

@@ -45,6 +45,13 @@ export const createInternalOperatorSchema = z.object({
 });
 export type CreateInternalOperatorFormValues = z.infer<typeof createInternalOperatorSchema>;
 
+export const createVerifierSchema = z.object({
+  name: z.string().trim().min(2, "Enter the verifier's full name"),
+  email: z.string().trim().email("Enter a valid email address"),
+  password: passwordSchema,
+});
+export type CreateVerifierFormValues = z.infer<typeof createVerifierSchema>;
+
 export const passwordRules = [
   { label: "At least 8 characters", test: (v: string) => v.length >= 8 },
   { label: "One uppercase letter", test: (v: string) => /[A-Z]/.test(v) },

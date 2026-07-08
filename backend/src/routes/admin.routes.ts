@@ -11,7 +11,7 @@ import * as adminEmissionFactorsController from "../controllers/adminEmissionFac
 import { requireAuth } from "../middleware/requireAuth";
 import { requireSuperAdmin } from "../middleware/requireSuperAdmin";
 import { validate } from "../middleware/validate";
-import { assignVerifierSchema } from "../validators/verifierAssignment.validators";
+import { assignVerifierSchema, createVerifierSchema } from "../validators/verifierAssignment.validators";
 import { assignFacilityOperatorSchema, createInternalOperatorSchema } from "../validators/facilityAssignment.validators";
 import {
   createEmissionFactorSchema,
@@ -40,6 +40,7 @@ router.post("/pending-users/:userId/approve", userApprovalController.approveUser
 router.post("/pending-users/:userId/reject", userApprovalController.rejectUser);
 
 router.get("/verifiers", adminVerifiersController.listVerifiers);
+router.post("/verifiers", validate(createVerifierSchema), adminVerifiersController.createVerifier);
 router.post("/companies/:companyId/verifiers", validate(assignVerifierSchema), adminVerifiersController.assignVerifier);
 router.delete("/companies/:companyId/verifiers/:verifierId", adminVerifiersController.unassignVerifier);
 

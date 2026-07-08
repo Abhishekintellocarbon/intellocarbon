@@ -6,6 +6,16 @@ export const listAssignedFacilities = asyncHandler(async (req, res) => {
   res.status(200).json({ facilities });
 });
 
+export const listAssignedCompanies = asyncHandler(async (req, res) => {
+  const companies = await verifierFacilityService.listAssignedCompanies(req.user!.sub);
+  res.status(200).json({ companies });
+});
+
+export const getCompanyDetail = asyncHandler(async (req, res) => {
+  const detail = await verifierFacilityService.getCompanyDetail(req.user!.sub, req.params.companyId);
+  res.status(200).json(detail);
+});
+
 export const getFacilityDetail = asyncHandler(async (req, res) => {
   const facility = await verifierFacilityService.getFacilityDetail(req.user!.sub, req.params.facilityId);
   res.status(200).json(facility);

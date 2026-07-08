@@ -1,14 +1,47 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
+import { hashPassword } from "../utils/password";
+import type { CreateVerifierInput } from "../validators/verifierAssignment.validators";
 
-export const listVerifiers = () =>
-  prisma.user.findMany({
+export const listVerifiers = async () => {
+  const verifiers = await prisma.user.findMany({
     where: { role: "VERIFIER" },
-    select: { id: true, name: true, email: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true,
+      _count: { select: { verifierCompanyAssignments: true } },
+    },
     orderBy: { name: "asc" },
   });
+  return verifiers.map(({ _count, ...v }) => ({ ...v, assignedCompanyCount: _count.verifierCompanyAssignments }));
+};
 
-export const assignVerifierToCompany = async (companyId: string, verifierId: string) => {
+// Verifiers can also self-signup via the public /signup accountType toggle
+// (see auth.service.ts) — this is the alternate path where a Super Admin
+// creates the account directly, already APPROVED, same as
+// facilityAssignment.service.ts's createInternalOperator.
+export const createVerifier = async (input: CreateVerifierInput) => {
+  const existing = await prisma.user.findUnique({ where: { email: input.email } });
+  if (existing) {
+    throw AppError.conflict("An account with this email already exists", "EMAIL_TAKEN");
+  }
+
+  const passwordHash = await hashPassword(input.password);
+  return prisma.user.create({
+    data: {
+      name: input.name,
+      email: input.email,
+      passwordHash,
+      role: "VERIFIER",
+      approvalStatus: "APPROVED",
+    },
+    select: { id: true, name: true, email: true, createdAt: true },
+  });
+};
+
+export const assignVerifierToCompany = async (companyId: string, verifierId: string, assignedBy: string) => {
   const verifier = await prisma.user.findUnique({ where: { id: verifierId } });
   if (!verifier || verifier.role !== "VERIFIER") {
     throw AppError.badRequest("That user is not a verifier", "NOT_A_VERIFIER");
@@ -16,7 +49,7 @@ export const assignVerifierToCompany = async (companyId: string, verifierId: str
 
   return prisma.verifierCompanyAssignment.upsert({
     where: { verifierId_companyId: { verifierId, companyId } },
-    create: { verifierId, companyId },
+    create: { verifierId, companyId, assignedBy },
     update: {},
     include: { verifier: { select: { id: true, name: true, email: true } } },
   });

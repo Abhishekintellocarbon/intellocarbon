@@ -54,6 +54,7 @@ model User {
   auditLogs                  AuditLog[]
   queriesRaised              VerificationQuery[]         @relation("QueriesRaised")
   verifierCompanyAssignments VerifierCompanyAssignment[] @relation("VerifierCompanyAssignments")
+  verifierAssignmentsMade    VerifierCompanyAssignment[] @relation("VerifierAssignmentsMadeBy")
   facilityAssignments        FacilityAssignment[]        @relation("InternalOperatorAssignments")
   facilityAssignmentsMade    FacilityAssignment[]        @relation("FacilityAssignmentsMadeBy")
   ghgEngagementsCreated      GhgEngagement[]
@@ -256,6 +257,10 @@ model VerifierCompanyAssignment {
   companyId  String
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignedAt DateTime @default(now())
+  // Nullable — backfilled rows from before this column existed have no
+  // recorded assigner. Same audit-trail shape as FacilityAssignment.assignedBy.
+  assignedBy     String?
+  assignedByUser User?   @relation("VerifierAssignmentsMadeBy", fields: [assignedBy], references: [id])
 
   @@unique([verifierId, companyId])
   @@index([companyId])
