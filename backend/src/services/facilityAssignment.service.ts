@@ -6,7 +6,7 @@ import type { CreateInternalOperatorInput } from "../validators/facilityAssignme
 export const listInternalOperators = () =>
   prisma.user.findMany({
     where: { role: "DATA_ENTRY_INTERNAL" },
-    select: { id: true, name: true, email: true, createdAt: true },
+    select: { id: true, name: true, email: true, createdAt: true, active: true },
     orderBy: { name: "asc" },
   });
 
@@ -53,6 +53,32 @@ export const assignOperatorToFacility = async (facilityId: string, userId: strin
 
 export const unassignOperatorFromFacility = async (facilityId: string, userId: string) => {
   await prisma.facilityAssignment.deleteMany({ where: { facilityId, userId } });
+};
+
+const findInternalOperatorOrThrow = async (userId: string) => {
+  const operator = await prisma.user.findUnique({ where: { id: userId } });
+  if (!operator || operator.role !== "DATA_ENTRY_INTERNAL") {
+    throw AppError.badRequest("That user is not an internal data entry operator", "NOT_AN_INTERNAL_OPERATOR");
+  }
+  return operator;
+};
+
+// Deactivation unassigns every facility and revokes existing sessions so
+// access is lost immediately — but never touches historical records
+// (activity data entries, etc. stay attributed to this user). Reactivating
+// never restores the old assignments.
+export const deactivateInternalOperator = async (userId: string) => {
+  await findInternalOperatorOrThrow(userId);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { active: false } }),
+    prisma.facilityAssignment.deleteMany({ where: { userId } }),
+    prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+  ]);
+};
+
+export const reactivateInternalOperator = async (userId: string) => {
+  await findInternalOperatorOrThrow(userId);
+  await prisma.user.update({ where: { id: userId }, data: { active: true } });
 };
 
 export const listAssignmentsForFacility = (facilityId: string) =>

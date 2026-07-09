@@ -24,3 +24,13 @@ export const unassignVerifier = asyncHandler(async (req, res) => {
   await verifierAssignmentService.unassignVerifierFromCompany(req.params.companyId, req.params.verifierId);
   res.status(204).send();
 });
+
+export const deactivateVerifier = asyncHandler(async (req, res) => {
+  await verifierAssignmentService.deactivateVerifier(req.params.verifierId);
+  res.status(200).json({ success: true });
+});
+
+export const reactivateVerifier = asyncHandler(async (req, res) => {
+  await verifierAssignmentService.reactivateVerifier(req.params.verifierId);
+  res.status(200).json({ success: true });
+});

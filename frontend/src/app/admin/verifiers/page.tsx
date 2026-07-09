@@ -22,6 +22,7 @@ function AdminVerifiersContent() {
   const [verifiers, setVerifiers] = useState<AdminVerifierSummary[] | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
 
   const {
     register,
@@ -43,13 +44,48 @@ function AdminVerifiersContent() {
       const { verifier } = await adminApi.createVerifier(values);
       setVerifiers((prev) =>
         prev
-          ? [...prev, { ...verifier, assignedCompanyCount: 0 }].sort((a, b) => a.name.localeCompare(b.name))
-          : [{ ...verifier, assignedCompanyCount: 0 }],
+          ? [...prev, { ...verifier, assignedCompanyCount: 0, active: true }].sort((a, b) => a.name.localeCompare(b.name))
+          : [{ ...verifier, assignedCompanyCount: 0, active: true }],
       );
       setSuccessMessage(`${verifier.name}'s account is ready — share their email and password so they can log in at /login.`);
       reset();
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Couldn't create this account.");
+    }
+  };
+
+  const handleDeactivate = async (v: AdminVerifierSummary) => {
+    if (
+      !window.confirm(
+        `Deactivate ${v.name}? They will immediately lose login access and be unassigned from all companies/facilities. Their historical actions will remain on record. This can be reversed later.`,
+      )
+    )
+      return;
+    setStatusChangingId(v.id);
+    setServerError(null);
+    try {
+      await adminApi.deactivateVerifier(v.id);
+      setVerifiers((prev) =>
+        prev?.map((x) => (x.id === v.id ? { ...x, active: false, assignedCompanyCount: 0 } : x)) ?? prev,
+      );
+    } catch (err) {
+      setServerError(err instanceof ApiError ? err.message : "Couldn't deactivate this account.");
+    } finally {
+      setStatusChangingId(null);
+    }
+  };
+
+  const handleReactivate = async (v: AdminVerifierSummary) => {
+    if (!window.confirm(`Reactivate ${v.name}? They will regain login access but will need to be reassigned.`)) return;
+    setStatusChangingId(v.id);
+    setServerError(null);
+    try {
+      await adminApi.reactivateVerifier(v.id);
+      setVerifiers((prev) => prev?.map((x) => (x.id === v.id ? { ...x, active: true } : x)) ?? prev);
+    } catch (err) {
+      setServerError(err instanceof ApiError ? err.message : "Couldn't reactivate this account.");
+    } finally {
+      setStatusChangingId(null);
     }
   };
 
@@ -127,6 +163,8 @@ function AdminVerifiersContent() {
                   <th className="px-5 py-3 font-medium">Name</th>
                   <th className="px-5 py-3 font-medium">Email</th>
                   <th className="px-5 py-3 font-medium">Companies assigned</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -135,6 +173,38 @@ function AdminVerifiersContent() {
                     <td className="px-5 py-3 font-medium text-foreground">{v.name}</td>
                     <td className="px-5 py-3 text-muted-foreground">{v.email}</td>
                     <td className="px-5 py-3 text-muted-foreground">{v.assignedCompanyCount ?? 0}</td>
+                    <td className="px-5 py-3">
+                      {v.active === false ? (
+                        <span className="rounded-full border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">
+                          Deactivated
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-teal-500/30 bg-teal-500/10 px-2 py-0.5 text-xs font-medium text-teal-500">
+                          Active
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {v.active === false ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          isLoading={statusChangingId === v.id}
+                          onClick={() => handleReactivate(v)}
+                        >
+                          Reactivate
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          isLoading={statusChangingId === v.id}
+                          onClick={() => handleDeactivate(v)}
+                        >
+                          Deactivate
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

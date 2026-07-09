@@ -11,6 +11,7 @@ export const listVerifiers = async () => {
       name: true,
       email: true,
       createdAt: true,
+      active: true,
       _count: { select: { verifierCompanyAssignments: true } },
     },
     orderBy: { name: "asc" },
@@ -57,6 +58,32 @@ export const assignVerifierToCompany = async (companyId: string, verifierId: str
 
 export const unassignVerifierFromCompany = async (companyId: string, verifierId: string) => {
   await prisma.verifierCompanyAssignment.deleteMany({ where: { companyId, verifierId } });
+};
+
+const findVerifierOrThrow = async (verifierId: string) => {
+  const verifier = await prisma.user.findUnique({ where: { id: verifierId } });
+  if (!verifier || verifier.role !== "VERIFIER") {
+    throw AppError.badRequest("That user is not a verifier", "NOT_A_VERIFIER");
+  }
+  return verifier;
+};
+
+// Deactivation unassigns every company and revokes existing sessions so
+// access is lost immediately — but never touches historical records
+// (cross-check reviews, verification statements, etc. stay attributed to
+// this user). Reactivating never restores the old assignments.
+export const deactivateVerifier = async (verifierId: string) => {
+  await findVerifierOrThrow(verifierId);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: verifierId }, data: { active: false } }),
+    prisma.verifierCompanyAssignment.deleteMany({ where: { verifierId } }),
+    prisma.refreshToken.updateMany({ where: { userId: verifierId, revokedAt: null }, data: { revokedAt: new Date() } }),
+  ]);
+};
+
+export const reactivateVerifier = async (verifierId: string) => {
+  await findVerifierOrThrow(verifierId);
+  await prisma.user.update({ where: { id: verifierId }, data: { active: true } });
 };
 
 /** Company ids this verifier is allowed to see anywhere in the portal — the single access-control chokepoint for every verifier-scoped query. */

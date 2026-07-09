@@ -778,6 +778,7 @@ export interface AdminVerifierSummary {
   email: string;
   createdAt?: string;
   assignedCompanyCount?: number;
+  active?: boolean;
 }
 
 export interface CompanyVerifierAssignment {
@@ -856,6 +857,7 @@ export interface AdminInternalOperatorSummary {
   name: string;
   email: string;
   createdAt: string;
+  active?: boolean;
 }
 
 export interface FacilityAssignmentSummary {

@@ -25,6 +25,7 @@ function AdminInternalOperatorsContent() {
   const [operators, setOperators] = useState<AdminInternalOperatorSummary[] | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [statusChangingId, setStatusChangingId] = useState<string | null>(null);
 
   const {
     register,
@@ -44,11 +45,47 @@ function AdminInternalOperatorsContent() {
     setSuccessMessage(null);
     try {
       const { operator } = await adminApi.createInternalOperator(values);
-      setOperators((prev) => (prev ? [...prev, operator].sort((a, b) => a.name.localeCompare(b.name)) : [operator]));
+      const operatorWithStatus = { ...operator, active: true };
+      setOperators((prev) =>
+        prev ? [...prev, operatorWithStatus].sort((a, b) => a.name.localeCompare(b.name)) : [operatorWithStatus],
+      );
       setSuccessMessage(`${operator.name}'s account is ready — share their email and password so they can log in at /login.`);
       reset();
     } catch (err) {
       setServerError(err instanceof ApiError ? err.message : "Couldn't create this account.");
+    }
+  };
+
+  const handleDeactivate = async (op: AdminInternalOperatorSummary) => {
+    if (
+      !window.confirm(
+        `Deactivate ${op.name}? They will immediately lose login access and be unassigned from all companies/facilities. Their historical actions will remain on record. This can be reversed later.`,
+      )
+    )
+      return;
+    setStatusChangingId(op.id);
+    setServerError(null);
+    try {
+      await adminApi.deactivateInternalOperator(op.id);
+      setOperators((prev) => prev?.map((x) => (x.id === op.id ? { ...x, active: false } : x)) ?? prev);
+    } catch (err) {
+      setServerError(err instanceof ApiError ? err.message : "Couldn't deactivate this account.");
+    } finally {
+      setStatusChangingId(null);
+    }
+  };
+
+  const handleReactivate = async (op: AdminInternalOperatorSummary) => {
+    if (!window.confirm(`Reactivate ${op.name}? They will regain login access but will need to be reassigned.`)) return;
+    setStatusChangingId(op.id);
+    setServerError(null);
+    try {
+      await adminApi.reactivateInternalOperator(op.id);
+      setOperators((prev) => prev?.map((x) => (x.id === op.id ? { ...x, active: true } : x)) ?? prev);
+    } catch (err) {
+      setServerError(err instanceof ApiError ? err.message : "Couldn't reactivate this account.");
+    } finally {
+      setStatusChangingId(null);
     }
   };
 
@@ -126,6 +163,8 @@ function AdminInternalOperatorsContent() {
                   <th className="px-5 py-3 font-medium">Name</th>
                   <th className="px-5 py-3 font-medium">Email</th>
                   <th className="px-5 py-3 font-medium">Created</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -134,6 +173,38 @@ function AdminInternalOperatorsContent() {
                     <td className="px-5 py-3 font-medium text-foreground">{op.name}</td>
                     <td className="px-5 py-3 text-muted-foreground">{op.email}</td>
                     <td className="px-5 py-3 text-muted-foreground">{fmtDate(op.createdAt)}</td>
+                    <td className="px-5 py-3">
+                      {op.active === false ? (
+                        <span className="rounded-full border border-danger/30 bg-danger/10 px-2 py-0.5 text-xs font-medium text-danger">
+                          Deactivated
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-teal-500/30 bg-teal-500/10 px-2 py-0.5 text-xs font-medium text-teal-500">
+                          Active
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {op.active === false ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          isLoading={statusChangingId === op.id}
+                          onClick={() => handleReactivate(op)}
+                        >
+                          Reactivate
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          isLoading={statusChangingId === op.id}
+                          onClick={() => handleDeactivate(op)}
+                        >
+                          Deactivate
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

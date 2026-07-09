@@ -170,6 +170,15 @@ export const login = async (input: LoginInput, meta: RequestMeta) => {
     );
   }
 
+  // Independent of approvalStatus — a Super Admin can deactivate a
+  // previously-approved account without touching its approval history.
+  if (!user.active) {
+    throw AppError.forbidden(
+      "This account has been deactivated. Contact abhishek@intellocarbon.com if you believe this is a mistake.",
+      "ACCOUNT_DEACTIVATED",
+    );
+  }
+
   const tokens = await issueTokenPair(user, meta);
 
   return { user: publicUser(user), ...tokens };

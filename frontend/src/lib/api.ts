@@ -640,6 +640,12 @@ export const adminApi = {
   unassignVerifier: (companyId: string, verifierId: string) =>
     apiFetch(`/api/admin/companies/${companyId}/verifiers/${verifierId}`, { method: "DELETE" }),
 
+  deactivateVerifier: (verifierId: string) =>
+    apiFetch(`/api/admin/verifiers/${verifierId}/deactivate`, { method: "PATCH" }),
+
+  reactivateVerifier: (verifierId: string) =>
+    apiFetch(`/api/admin/verifiers/${verifierId}/reactivate`, { method: "PATCH" }),
+
   listInternalOperators: (): Promise<{ operators: AdminInternalOperatorSummary[] }> =>
     apiFetch("/api/admin/internal-operators"),
 
@@ -654,6 +660,12 @@ export const adminApi = {
 
   unassignOperator: (facilityId: string, userId: string) =>
     apiFetch(`/api/admin/facilities/${facilityId}/assignments/${userId}`, { method: "DELETE" }),
+
+  deactivateInternalOperator: (userId: string) =>
+    apiFetch(`/api/admin/internal-operators/${userId}/deactivate`, { method: "PATCH" }),
+
+  reactivateInternalOperator: (userId: string) =>
+    apiFetch(`/api/admin/internal-operators/${userId}/reactivate`, { method: "PATCH" }),
 
   listEmissionFactors: (): Promise<{ factors: EmissionFactor[] }> => apiFetch("/api/admin/emission-factors"),
 

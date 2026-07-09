@@ -29,3 +29,13 @@ export const unassignOperator = asyncHandler(async (req, res) => {
   await facilityAssignmentService.unassignOperatorFromFacility(req.params.facilityId, req.params.userId);
   res.status(204).send();
 });
+
+export const deactivateInternalOperator = asyncHandler(async (req, res) => {
+  await facilityAssignmentService.deactivateInternalOperator(req.params.userId);
+  res.status(200).json({ success: true });
+});
+
+export const reactivateInternalOperator = asyncHandler(async (req, res) => {
+  await facilityAssignmentService.reactivateInternalOperator(req.params.userId);
+  res.status(200).json({ success: true });
+});

@@ -43,6 +43,8 @@ router.get("/verifiers", adminVerifiersController.listVerifiers);
 router.post("/verifiers", validate(createVerifierSchema), adminVerifiersController.createVerifier);
 router.post("/companies/:companyId/verifiers", validate(assignVerifierSchema), adminVerifiersController.assignVerifier);
 router.delete("/companies/:companyId/verifiers/:verifierId", adminVerifiersController.unassignVerifier);
+router.patch("/verifiers/:verifierId/deactivate", adminVerifiersController.deactivateVerifier);
+router.patch("/verifiers/:verifierId/reactivate", adminVerifiersController.reactivateVerifier);
 
 router.get("/internal-operators", adminFacilityAssignmentsController.listInternalOperators);
 router.post(
@@ -57,6 +59,8 @@ router.post(
   adminFacilityAssignmentsController.assignOperator,
 );
 router.delete("/facilities/:facilityId/assignments/:userId", adminFacilityAssignmentsController.unassignOperator);
+router.patch("/internal-operators/:userId/deactivate", adminFacilityAssignmentsController.deactivateInternalOperator);
+router.patch("/internal-operators/:userId/reactivate", adminFacilityAssignmentsController.reactivateInternalOperator);
 
 router.get("/emission-factors", adminEmissionFactorsController.listFactors);
 router.post("/emission-factors", validate(createEmissionFactorSchema), adminEmissionFactorsController.createFactor);
