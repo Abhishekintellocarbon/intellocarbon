@@ -63,7 +63,9 @@ function GhgRunnerContent() {
           <div>
             <p className="text-sm font-medium text-foreground">Pricing reference (internal only)</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              US California SB 253 — $4,500 · UK / Australia / UAE / Other — $5,000 flat.
+              US (SB 253): $3,500 · UK/Australia/EU/Japan: $3,000 · UAE/Gulf/Other: $2,500 — volume: 5+ reports −20%,
+              10+ reports −30% (approx). Floor: $1,500. Complex engagements (multi-country, 20+ sites): custom
+              $5,000–8,000.
             </p>
             <p className="mt-1 text-xs text-muted">Display only — not connected to any billing logic.</p>
           </div>
