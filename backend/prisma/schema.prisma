@@ -39,6 +39,12 @@ model User {
   // the Pending Approvals panel. Existing pre-feature accounts were backfilled
   // to APPROVED (see migration), so this only blocks new signups.
   approvalStatus   ApprovalStatus @default(PENDING)
+  // Independent of approvalStatus — a Super Admin can deactivate a
+  // previously-approved verifier or internal operator (revokes login +
+  // clears their current company/facility assignments) without touching
+  // the approval history. Reactivating never restores old assignments;
+  // those must be re-added deliberately.
+  active           Boolean        @default(true)
   emailVerified    Boolean        @default(false)
   failedLoginCount Int            @default(0)
   lockedUntil      DateTime?
