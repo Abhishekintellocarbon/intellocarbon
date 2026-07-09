@@ -11,6 +11,7 @@ import adminRoutes from "./admin.routes";
 import notificationRoutes from "./notification.routes";
 import brsrRoutes from "./brsr.routes";
 import ghgEngagementRoutes from "./ghgEngagement.routes";
+import crossCheckReviewRoutes from "./crossCheckReview.routes";
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.use("/admin", adminRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/brsr", brsrRoutes);
 router.use("/ghg-runner", ghgEngagementRoutes);
+router.use("/cross-check", crossCheckReviewRoutes);
 
 export default router;

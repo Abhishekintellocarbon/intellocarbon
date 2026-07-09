@@ -7,7 +7,15 @@ import { GenerateReportModal } from "./generate-report-modal";
 import { reportsApi, ApiError } from "@/lib/api";
 import type { GeneratedReportType, ReportGenerationStatus } from "@/lib/types";
 
-export function GenerateReportButton({ facilityId, disabled }: { facilityId: string; disabled?: boolean }) {
+type DisabledReason = "EVIDENCE_PENDING" | "EVIDENCE_NOT_CROSS_CHECKED" | null;
+
+const DISABLED_TOOLTIPS: Record<Exclude<DisabledReason, null>, string> = {
+  EVIDENCE_PENDING: "Upload supporting documents to generate report.",
+  EVIDENCE_NOT_CROSS_CHECKED: "All submitted evidence must be cross-checked and matched before generating a report",
+};
+
+export function GenerateReportButton({ facilityId, disabledReason }: { facilityId: string; disabledReason?: DisabledReason }) {
+  const disabled = Boolean(disabledReason);
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<ReportGenerationStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -61,7 +69,7 @@ export function GenerateReportButton({ facilityId, disabled }: { facilityId: str
         type="button"
         onClick={disabled ? undefined : handleOpen}
         disabled={disabled}
-        title={disabled ? "Upload supporting documents to generate report." : undefined}
+        title={disabledReason ? DISABLED_TOOLTIPS[disabledReason] : undefined}
         className={cn(
           "inline-flex items-center gap-2 rounded-lg px-[28px] py-[12px] font-bold transition-all duration-150",
           disabled

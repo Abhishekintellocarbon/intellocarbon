@@ -14,6 +14,7 @@ import { IntensityTrendChart } from "@/components/facilities/dashboard/intensity
 import { RecentActivityFeed } from "@/components/facilities/dashboard/recent-activity-feed";
 import { GenerateReportButton } from "@/components/facilities/dashboard/generate-report-button";
 import { EvidencePendingBanner } from "@/components/facilities/dashboard/evidence-pending-banner";
+import { CrossCheckStatusIndicator } from "@/components/facilities/dashboard/cross-check-status-indicator";
 import { OpenQueriesSection } from "@/components/facilities/dashboard/open-queries-section";
 import { computeDashboardAccess } from "@/components/facilities/dashboard/dashboard-access";
 import { billingApi, facilityApi } from "@/lib/api";
@@ -80,15 +81,29 @@ function FacilityDashboardContent() {
               <p className="mt-1 text-sm text-muted-foreground">Compliance status, deadlines, and emissions trends for this facility.</p>
             </div>
           </div>
-          <GenerateReportButton facilityId={facility.id} disabled={dashboard.hasEvidencePendingSubmissions} />
+          <GenerateReportButton
+            facilityId={facility.id}
+            disabledReason={
+              dashboard.hasEvidencePendingSubmissions
+                ? "EVIDENCE_PENDING"
+                : dashboard.hasUncrossCheckedEvidence
+                  ? "EVIDENCE_NOT_CROSS_CHECKED"
+                  : null
+            }
+          />
         </div>
         <Link href={`/facilities/${facility.id}`} className="mt-2 inline-block text-sm text-teal-500 hover:text-teal-400">
           Back to facility
         </Link>
 
-        {dashboard.hasEvidencePendingSubmissions && (
-          <div className="mt-6">
-            <EvidencePendingBanner facilityId={facility.id} />
+        {(dashboard.hasEvidencePendingSubmissions || dashboard.crossCheckSummary.total > 0) && (
+          <div className="mt-6 space-y-3">
+            {dashboard.hasEvidencePendingSubmissions && <EvidencePendingBanner facilityId={facility.id} />}
+            <CrossCheckStatusIndicator
+              facilityId={facility.id}
+              total={dashboard.crossCheckSummary.total}
+              matched={dashboard.crossCheckSummary.matched}
+            />
           </div>
         )}
 

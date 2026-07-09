@@ -52,6 +52,23 @@ const hasEvidencePendingSubmissions = async (facilityId: string): Promise<boolea
   return pendingCount > 0;
 };
 
+/**
+ * Distinct from Evidence Pending — a document can exist and still block
+ * generation if no reviewer has explicitly confirmed it matches (no row, or
+ * status NOT_REVIEWED) or a reviewer flagged a mismatch. See CrossCheckReview.
+ */
+const hasUncrossCheckedEvidence = async (facilityId: string): Promise<boolean> => {
+  const uncheckedCount = await prisma.document.count({
+    where: {
+      facilityId,
+      documentType: "SUPPORTING_EVIDENCE",
+      activityData: { status: "SUBMITTED" },
+      OR: [{ crossCheckReview: null }, { crossCheckReview: { status: { not: "MATCHED" } } }],
+    },
+  });
+  return uncheckedCount > 0;
+};
+
 const REPORT_TYPES: ReportType[] = ["CBAM", "CCTS", "BRSR"];
 
 export const getReportGenerationStatus = async (userId: string, facilityId: string) => {
@@ -80,6 +97,7 @@ export const getReportGenerationStatus = async (userId: string, facilityId: stri
   return {
     hasAnySubscription: cards.some((c) => c.hasAccess),
     hasEvidencePendingSubmissions: await hasEvidencePendingSubmissions(facilityId),
+    hasUncrossCheckedEvidence: await hasUncrossCheckedEvidence(facilityId),
     cards,
   };
 };
@@ -100,6 +118,13 @@ export const generateReport = async (userId: string, facilityId: string, reportT
 
   if (await hasEvidencePendingSubmissions(facilityId)) {
     throw AppError.forbidden("Upload supporting documents to generate report.", "EVIDENCE_PENDING");
+  }
+
+  if (await hasUncrossCheckedEvidence(facilityId)) {
+    throw AppError.forbidden(
+      "All submitted evidence must be cross-checked and matched before generating a report",
+      "EVIDENCE_NOT_CROSS_CHECKED",
+    );
   }
 
   const now = new Date();

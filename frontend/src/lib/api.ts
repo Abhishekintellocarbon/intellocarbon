@@ -48,6 +48,9 @@ import type {
   GhgCalculationResult,
   GhgScope1Entry,
   GhgScope2Entry,
+  CrossCheckEntry,
+  CrossCheckReview,
+  CrossCheckStatus,
 } from "./types";
 import type {
   BorderInputs,
@@ -144,6 +147,25 @@ export const refreshSession = (): Promise<boolean> => {
     });
   }
   return refreshPromise;
+};
+
+/** Fetches raw bytes for an authenticated download endpoint without triggering a browser download — used for inline image thumbnail previews (object URL as an <img> src). */
+const fetchAuthedBlob = async (url: string): Promise<Blob> => {
+  const fetchDoc = () =>
+    fetch(url, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      credentials: "include",
+    });
+
+  let res = await fetchDoc();
+  if (res.status === 401) {
+    const refreshed = await refreshSession();
+    if (refreshed) res = await fetchDoc();
+  }
+  if (!res.ok) {
+    throw new ApiError("Couldn't load this document. Please try again.", res.status);
+  }
+  return res.blob();
 };
 
 export const apiFetch = async (path: string, options: RequestOptions = {}) => {
@@ -649,6 +671,8 @@ export const adminApi = {
 
   updateCeaGridFactor: (input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
     apiFetch("/api/admin/cea-grid-factor", { method: "PUT", body: JSON.stringify(input) }),
+
+  fetchDocumentBlob: (documentId: string): Promise<Blob> => fetchAuthedBlob(`${API_URL}/api/admin/documents/${documentId}/download`),
 };
 
 export const internalDataEntryApi = {
@@ -726,6 +750,24 @@ export const verifierApi = {
     link.remove();
     URL.revokeObjectURL(objectUrl);
   },
+
+  fetchDocumentBlob: (facilityId: string, documentId: string): Promise<Blob> =>
+    fetchAuthedBlob(`${API_URL}/api/verifier/facilities/${facilityId}/documents/${documentId}/download`),
+};
+
+export const crossCheckApi = {
+  listForFacility: (facilityId: string): Promise<{ entries: CrossCheckEntry[] }> =>
+    apiFetch(`/api/cross-check/facilities/${facilityId}`),
+
+  review: (
+    activityDataId: string,
+    documentId: string,
+    input: { status: CrossCheckStatus; notes?: string },
+  ): Promise<{ review: CrossCheckReview }> =>
+    apiFetch(`/api/cross-check/activity-data/${activityDataId}/documents/${documentId}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
 };
 
 export const queriesApi = {

@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
 import { Field } from "@/components/ui/field";
+import { CrossCheckSection } from "@/components/facilities/cross-check-section";
 import { SuperAdminRoute } from "@/components/auth/super-admin-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { adminApi, ApiError } from "@/lib/api";
@@ -300,6 +301,13 @@ function AdminFacilityDetailContent() {
                 </table>
               )}
             </Card>
+
+            {/* Cross-check */}
+            <CrossCheckSection
+              facilityId={facility.id}
+              fetchDocumentBlob={(documentId) => adminApi.fetchDocumentBlob(documentId)}
+              onDownloadDocument={(documentId, fileName) => adminApi.downloadDocument(documentId, fileName)}
+            />
 
             {/* Calculated emissions */}
             <h2 className="mt-8 text-lg font-semibold">Calculated Emissions</h2>

@@ -578,6 +578,7 @@ export interface ReportCardStatus {
 export interface ReportGenerationStatus {
   hasAnySubscription: boolean;
   hasEvidencePendingSubmissions: boolean;
+  hasUncrossCheckedEvidence: boolean;
   cards: ReportCardStatus[];
 }
 
@@ -592,6 +593,33 @@ export interface GeneratedReport {
   status: "GENERATED";
   document?: { id: string; verified: boolean; fileName: string } | null;
 }
+
+// --- Cross-check review (manual document vs. activity-data review) ---
+// Mirrors backend/src/services/crossCheckReview.service.ts.
+
+export type CrossCheckStatus = "NOT_REVIEWED" | "MATCHED" | "MISMATCH";
+
+export interface CrossCheckReview {
+  id: string;
+  activityDataId: string;
+  documentId: string;
+  status: CrossCheckStatus;
+  notes: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  reviewer: { id: string; name: string; email: string } | null;
+}
+
+export interface CrossCheckDocument {
+  id: string;
+  fileName: string;
+  createdAt: string;
+  crossCheckReview: CrossCheckReview | null;
+}
+
+export type CrossCheckEntry = ActivityData & { documents: CrossCheckDocument[] };
 
 // --- Facility dashboard (/facilities/[id]/dashboard) ---
 // Mirrors backend/src/services/facilityDashboard.service.ts — that service owns
@@ -680,6 +708,8 @@ export interface FacilityDashboard {
   intensityTargetLine: number | null;
   recentActivity: FacilityActivityFeedItem[];
   hasEvidencePendingSubmissions: boolean;
+  crossCheckSummary: { total: number; matched: number };
+  hasUncrossCheckedEvidence: boolean;
 }
 
 export interface FacilityDocument {

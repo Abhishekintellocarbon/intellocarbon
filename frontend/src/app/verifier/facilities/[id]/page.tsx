@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
+import { CrossCheckSection } from "@/components/facilities/cross-check-section";
 import { VerifierRoute } from "@/components/auth/verifier-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { verifierApi } from "@/lib/api";
@@ -152,6 +153,12 @@ function VerifierFacilityDetailContent() {
                 ))}
               </div>
             )}
+
+            <CrossCheckSection
+              facilityId={params.id}
+              fetchDocumentBlob={(documentId) => verifierApi.fetchDocumentBlob(params.id, documentId)}
+              onDownloadDocument={(documentId, fileName) => verifierApi.downloadDocument(params.id, documentId, fileName)}
+            />
 
             <h2 className="mt-8 text-lg font-semibold">Supporting documents</h2>
             <Card className="mt-4 overflow-x-auto p-0">

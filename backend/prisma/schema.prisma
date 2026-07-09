@@ -58,6 +58,7 @@ model User {
   facilityAssignments        FacilityAssignment[]        @relation("InternalOperatorAssignments")
   facilityAssignmentsMade    FacilityAssignment[]        @relation("FacilityAssignmentsMadeBy")
   ghgEngagementsCreated      GhgEngagement[]
+  crossCheckReviewsDone      CrossCheckReview[]
 
   @@map("users")
 }
@@ -398,9 +399,45 @@ model Document {
   fileData        Bytes
   createdAt       DateTime      @default(now())
 
+  crossCheckReview CrossCheckReview?
+
   @@index([facilityId])
   @@index([activityDataId])
   @@map("documents")
+}
+
+enum CrossCheckStatus {
+  NOT_REVIEWED
+  MATCHED
+  MISMATCH
+}
+
+// Manual (no-OCR) side-by-side review of a submitted activity_data entry
+// against one of its linked supporting documents — a reviewer explicitly
+// confirms the numbers match or flags a mismatch, on top of the document
+// merely existing (which only drives "Evidence Pending"). One row per
+// document (documentId unique) rather than per (activityData, document)
+// composite, since a document is only ever linked to a single activityData
+// in this schema — activityDataId is kept alongside for direct filtering
+// without an extra join. No row yet == NOT_REVIEWED, same "computed on read
+// until acted on" convention as evidencePending; a row is only written once
+// a reviewer actually confirms or flags.
+model CrossCheckReview {
+  id             String           @id @default(cuid())
+  activityDataId String
+  activityData   ActivityData     @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  documentId     String           @unique
+  document       Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  status         CrossCheckStatus @default(NOT_REVIEWED)
+  notes          String?
+  reviewedBy     String?
+  reviewer       User?            @relation(fields: [reviewedBy], references: [id])
+  reviewedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([activityDataId])
+  @@map("cross_check_reviews")
 }
 
 enum FacilityType {
@@ -563,6 +600,7 @@ model ActivityData {
   // list on a SUBMITTED entry is what "Evidence Pending" means; computed on
   // read, not stored, so it can never go stale.
   documents              Document[]
+  crossCheckReviews      CrossCheckReview[]
 
   @@index([facilityId])
   @@map("activity_data")

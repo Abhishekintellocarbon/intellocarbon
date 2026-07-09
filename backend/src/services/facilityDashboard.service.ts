@@ -260,6 +260,22 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .slice(0, 5);
 
+  // ---- Cross-check summary — a submission counts as "cross-checked" once
+  // every one of its supporting-evidence documents has a MATCHED review.
+  const crossCheckableEntries = await prisma.activityData.findMany({
+    where: { facilityId, status: "SUBMITTED", documents: { some: { documentType: "SUPPORTING_EVIDENCE" } } },
+    select: {
+      documents: {
+        where: { documentType: "SUPPORTING_EVIDENCE" },
+        select: { crossCheckReview: { select: { status: true } } },
+      },
+    },
+  });
+  const crossCheckSummary = {
+    total: crossCheckableEntries.length,
+    matched: crossCheckableEntries.filter((e) => e.documents.every((d) => d.crossCheckReview?.status === "MATCHED")).length,
+  };
+
   return {
     facility: { id: facility.id, name: facility.name, sector: facility.company.sector, productionRoute: facility.productionRoute },
     cbam,
@@ -272,5 +288,12 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
     intensityTargetLine,
     recentActivity,
     hasEvidencePendingSubmissions,
+    crossCheckSummary,
+    // Equivalent to "some SUPPORTING_EVIDENCE document isn't MATCHED" — every
+    // submission counted in crossCheckSummary.total that isn't in .matched
+    // has at least one document short of MATCHED, and vice versa. See
+    // reportGeneration.service.ts's hasUncrossCheckedEvidence, which this
+    // mirrors for gating the "Generate Report" button's disabled state.
+    hasUncrossCheckedEvidence: crossCheckSummary.matched < crossCheckSummary.total,
   };
 };
