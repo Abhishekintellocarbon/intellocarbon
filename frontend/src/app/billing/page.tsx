@@ -13,7 +13,7 @@ import { FacilityCalculator } from "@/components/billing/facility-calculator";
 import { useAuth } from "@/context/auth-context";
 import { billingApi, ApiError } from "@/lib/api";
 import { openRazorpayCheckout } from "@/lib/razorpay";
-import type { PlanDefinition, Subscription, SubscriptionTier } from "@/lib/types";
+import type { PlanCombinationRule, PlanDefinition, Subscription, SubscriptionTier } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -171,19 +171,27 @@ function BillingContent() {
   const isOnboarding = searchParams.get("onboarding") === "1";
 
   const [plans, setPlans] = useState<PlanDefinition[] | null>(null);
+  const [combinationRules, setCombinationRules] = useState<PlanCombinationRule[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [usage, setUsage] = useState<{ facilityCount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checkingOutTier, setCheckingOutTier] = useState<SubscriptionTier | null>(null);
   const [cancelingTier, setCancelingTier] = useState<SubscriptionTier | null>(null);
   const [devBypassNotice, setDevBypassNotice] = useState(false);
+  const [mergeNotice, setMergeNotice] = useState<string | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [pendingMergeOffer, setPendingMergeOffer] = useState<{
+    requestedTier: SubscriptionTier;
+    existingTier: SubscriptionTier;
+    combinedTier: SubscriptionTier;
+  } | null>(null);
 
   const refresh = () =>
     billingApi
       .subscription()
       .then((data) => {
         setPlans(data.plans);
+        setCombinationRules(data.combinationRules);
         setSubscriptions(data.subscriptions);
         setUsage(data.usage);
         setQuantities((prev) => {
@@ -201,13 +209,37 @@ function BillingContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const getPlanName = (tier: SubscriptionTier) => plans?.find((p) => p.tier === tier)?.name ?? tier.replace(/_/g, " ");
+
+  // Detects whether subscribing to `tier` right now would complete a known
+  // combination rule (e.g. requesting CBAM while CCTS is already active) —
+  // mirrors billing.service.ts's findMergeCandidate on the backend, which is
+  // the actual source of truth and still enforces this even if this check
+  // is somehow bypassed.
+  const findMergeOffer = (tier: SubscriptionTier): { rule: PlanCombinationRule; existingTier: SubscriptionTier } | null => {
+    const activeTiers = subscriptions.filter((s) => s.status === "ACTIVE").map((s) => s.tier);
+    if (activeTiers.includes(tier)) return null;
+    for (const rule of combinationRules) {
+      if (!rule.tiers.includes(tier)) continue;
+      const others = rule.tiers.filter((t) => t !== tier);
+      if (others.length > 0 && others.every((t) => activeTiers.includes(t))) {
+        return { rule, existingTier: others[0] };
+      }
+    }
+    return null;
+  };
+
   const handleSubscribe = async (tier: SubscriptionTier) => {
     setError(null);
+    setMergeNotice(null);
     setCheckingOutTier(tier);
     try {
       const result = await billingApi.checkout(tier);
       if (result.devBypass) {
         setDevBypassNotice(true);
+        if (result.merged) {
+          setMergeNotice(`Upgraded to ${getPlanName(result.subscription.tier)} — your previous plan was merged into it.`);
+        }
         await refresh();
         if (isOnboarding) router.push("/facilities/new?onboarding=1");
       } else if (result.razorpayKeyId && result.razorpaySubscriptionId) {
@@ -229,6 +261,22 @@ function BillingContent() {
     } finally {
       setCheckingOutTier(null);
     }
+  };
+
+  // Intercepts a plan card's subscribe click — if it would complete a known
+  // combination, show the savings prompt instead of checking out the
+  // single-framework tier directly. There is no "proceed anyway with two
+  // separate plans" option: the combined tier is always cheaper, so the
+  // only choices are upgrade now or dismiss and decide later.
+  const handlePlanCardClick = (tier: SubscriptionTier) => {
+    setError(null);
+    const offer = findMergeOffer(tier);
+    if (offer) {
+      setPendingMergeOffer({ requestedTier: tier, existingTier: offer.existingTier, combinedTier: offer.rule.combinedTier });
+      return;
+    }
+    setPendingMergeOffer(null);
+    handleSubscribe(tier);
   };
 
   const handleCancel = async (tier: SubscriptionTier) => {
@@ -268,6 +316,53 @@ function BillingContent() {
           </Alert>
         </div>
       )}
+      {mergeNotice && (
+        <div className="mt-6">
+          <Alert variant="success">{mergeNotice}</Alert>
+        </div>
+      )}
+
+      {pendingMergeOffer &&
+        (() => {
+          const existingPlan = plans?.find((p) => p.tier === pendingMergeOffer.existingTier);
+          const requestedPlan = plans?.find((p) => p.tier === pendingMergeOffer.requestedTier);
+          const combinedPlan = plans?.find((p) => p.tier === pendingMergeOffer.combinedTier);
+          const savings =
+            existingPlan?.priceInr != null && requestedPlan?.priceInr != null && combinedPlan?.priceInr != null
+              ? existingPlan.priceInr + requestedPlan.priceInr - combinedPlan.priceInr
+              : null;
+          return (
+            <div className="mt-6">
+              <Alert variant="info">
+                <div className="flex flex-col gap-3">
+                  <p>
+                    You already have <strong>{existingPlan?.name ?? pendingMergeOffer.existingTier}</strong> active.
+                    Switching to <strong>{combinedPlan?.name ?? pendingMergeOffer.combinedTier}</strong>
+                    {combinedPlan && ` (${combinedPlan.priceLabel})`}
+                    {savings != null && ` saves you ₹${savings.toLocaleString("en-IN")}/mo`} compared to running both
+                    separately.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      isLoading={checkingOutTier === pendingMergeOffer.combinedTier}
+                      onClick={() => {
+                        const combinedTier = pendingMergeOffer.combinedTier;
+                        setPendingMergeOffer(null);
+                        handleSubscribe(combinedTier);
+                      }}
+                    >
+                      Upgrade to {combinedPlan?.name ?? pendingMergeOffer.combinedTier}
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => setPendingMergeOffer(null)}>
+                      Never mind
+                    </Button>
+                  </div>
+                </div>
+              </Alert>
+            </div>
+          );
+        })()}
 
       {!plans && !error && (
         <div className="mt-16 flex justify-center">
@@ -277,38 +372,47 @@ function BillingContent() {
 
       {subscriptions.length > 0 && (
         <div className="mt-6 space-y-3">
-          {subscriptions.map((subscription) => (
-            <Card
-              key={subscription.id}
-              className="flex flex-wrap items-center justify-between gap-4 rounded-[12px] p-5"
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-xs font-semibold",
-                    STATUS_STYLES[subscription.status],
-                  )}
-                >
-                  {subscription.status.replace(/_/g, " ")}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {subscription.tier.replace(/_/g, " ")}
-                  {usage && ` · ${usage.facilityCount} facilit${usage.facilityCount === 1 ? "y" : "ies"} in use`}
-                  {subscription.cancelAtPeriodEnd && " · cancels at period end"}
-                </span>
-              </div>
-              {subscription.status === "ACTIVE" && !subscription.cancelAtPeriodEnd && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleCancel(subscription.tier)}
-                  isLoading={cancelingTier === subscription.tier}
-                >
-                  Cancel plan
-                </Button>
-              )}
-            </Card>
-          ))}
+          {subscriptions.map((subscription) => {
+            // A merged-away plan is technically CANCELED, but "Canceled" reads
+            // as churn — it was upgraded, not dropped, so show that instead.
+            const mergedIntoTier = subscription.mergedIntoId
+              ? subscriptions.find((s) => s.id === subscription.mergedIntoId)?.tier
+              : null;
+            const isMerged = subscription.status === "CANCELED" && !!mergedIntoTier;
+            return (
+              <Card
+                key={subscription.id}
+                className="flex flex-wrap items-center justify-between gap-4 rounded-[12px] p-5"
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-xs font-semibold",
+                      isMerged ? "bg-teal-500/10 text-teal-500 border-teal-500/30" : STATUS_STYLES[subscription.status],
+                    )}
+                  >
+                    {isMerged ? "UPGRADED" : subscription.status.replace(/_/g, " ")}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {subscription.tier.replace(/_/g, " ")}
+                    {isMerged && mergedIntoTier && ` · Upgraded to ${getPlanName(mergedIntoTier)} Combined`}
+                    {!isMerged && usage && ` · ${usage.facilityCount} facilit${usage.facilityCount === 1 ? "y" : "ies"} in use`}
+                    {!isMerged && subscription.cancelAtPeriodEnd && " · cancels at period end"}
+                  </span>
+                </div>
+                {subscription.status === "ACTIVE" && !subscription.cancelAtPeriodEnd && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleCancel(subscription.tier)}
+                    isLoading={cancelingTier === subscription.tier}
+                  >
+                    Cancel plan
+                  </Button>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -328,7 +432,7 @@ function BillingContent() {
                   isCurrent={isCurrent}
                   isSwitchable={isSwitchable}
                   isLoading={checkingOutTier === plan.tier}
-                  onSubscribe={() => handleSubscribe(plan.tier)}
+                  onSubscribe={() => handlePlanCardClick(plan.tier)}
                 />
               );
             })}

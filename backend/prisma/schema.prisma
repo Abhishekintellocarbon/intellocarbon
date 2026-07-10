@@ -156,6 +156,17 @@ model Subscription {
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 
+  // Set when this subscription was auto-merged into a combined tier (e.g.
+  // CCTS_COMPLIANCE -> CBAM_PLUS_CCTS after the company added the
+  // complementary CBAM plan) — points at the new combined-tier row so
+  // billing history can show "Upgraded to X" instead of a bare "Canceled"
+  // with no explanation. Many old rows can point at the same combined row
+  // (both the CCTS and, in a future 3-way combo, another constituent tier),
+  // so this is a plain many-to-one FK, not unique.
+  mergedIntoId String?
+  mergedInto   Subscription?  @relation("SubscriptionMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom   Subscription[] @relation("SubscriptionMerge")
+
   payments Payment[]
 
   // One subscription row per (company, tier) — a company can hold several
@@ -163,6 +174,7 @@ model Subscription {
   // double-purchase the same tier twice.
   @@unique([companyId, tier])
   @@index([companyId])
+  @@index([mergedIntoId])
   @@map("subscriptions")
 }
 

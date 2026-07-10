@@ -426,15 +426,26 @@ export interface Subscription {
   razorpaySubscriptionId: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
+  // Set when this subscription was auto-merged into a combined tier (e.g.
+  // CCTS_COMPLIANCE -> CBAM_PLUS_CCTS) — points at the new subscription's id.
+  mergedIntoId: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CheckoutResult {
   devBypass: boolean;
+  // True when this checkout replaced an existing complementary plan with a
+  // combined tier instead of creating a second, separately-billed subscription.
+  merged?: boolean;
   razorpayKeyId?: string;
   razorpaySubscriptionId?: string;
   subscription: Subscription;
+}
+
+export interface PlanCombinationRule {
+  tiers: SubscriptionTier[];
+  combinedTier: SubscriptionTier;
 }
 
 export type VerificationStatus = "PENDING" | "IN_REVIEW" | "APPROVED" | "REJECTED";

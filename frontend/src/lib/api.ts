@@ -5,6 +5,7 @@ import type {
   EmissionFactorReference,
   Facility,
   PlanDefinition,
+  PlanCombinationRule,
   ActivityData,
   Subscription,
   SubscriptionTier,
@@ -511,7 +512,8 @@ export const brsrApi = {
 };
 
 export const billingApi = {
-  plans: (): Promise<{ plans: PlanDefinition[] }> => apiFetch("/api/billing/plans"),
+  plans: (): Promise<{ plans: PlanDefinition[]; combinationRules: PlanCombinationRule[] }> =>
+    apiFetch("/api/billing/plans"),
 
   // A company can hold several subscriptions at once (each a separate tier) —
   // see the backend's Subscription model comment.
@@ -519,6 +521,7 @@ export const billingApi = {
     subscriptions: Subscription[];
     usage: { facilityCount: number };
     plans: PlanDefinition[];
+    combinationRules: PlanCombinationRule[];
   }> => apiFetch("/api/billing/subscription"),
 
   checkout: (tier: SubscriptionTier): Promise<CheckoutResult> =>

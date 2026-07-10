@@ -105,3 +105,50 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
 };
 
 export const getPlan = (tier: SubscriptionTier): PlanDefinition => PLANS[tier];
+
+export interface PlanCombinationRule {
+  /** Every tier here, held active simultaneously, merges into `combinedTier`. */
+  tiers: SubscriptionTier[];
+  combinedTier: SubscriptionTier;
+}
+
+// Extensible on purpose: the only combined tier that exists today is
+// CBAM_PLUS_CCTS, but a future ESG framework addition (GRI, ISSB, CDP) that
+// ships its own combined tier just adds another entry here — nothing else
+// in the merge-detection logic (see billing.service.ts) needs to change.
+// Do not add speculative rules for frameworks/tiers that don't exist yet.
+export const COMBINATION_RULES: PlanCombinationRule[] = [
+  { tiers: ["CCTS_COMPLIANCE", "CBAM_COMPLIANCE"], combinedTier: "CBAM_PLUS_CCTS" },
+];
+
+/**
+ * Given a company's currently active tiers and a tier it's about to
+ * subscribe to, returns the combination rule that applies (if any) and
+ * which of the active tiers become obsolete once the combined tier takes
+ * over. Handles both directions:
+ *  - requestedTier is a constituent tier and every other constituent is
+ *    already active (e.g. requesting CBAM while CCTS is active), and
+ *  - requestedTier is already the combined tier itself and at least one
+ *    constituent is active as a standalone subscription (e.g. the frontend
+ *    already offered the upgrade and the user accepted it directly).
+ */
+export const findMergeCandidate = (
+  activeTiers: SubscriptionTier[],
+  requestedTier: SubscriptionTier,
+): { rule: PlanCombinationRule; obsoleteTiers: SubscriptionTier[] } | null => {
+  for (const rule of COMBINATION_RULES) {
+    if (rule.tiers.includes(requestedTier)) {
+      const others = rule.tiers.filter((t) => t !== requestedTier);
+      if (others.length > 0 && others.every((t) => activeTiers.includes(t))) {
+        return { rule, obsoleteTiers: others };
+      }
+    }
+    if (requestedTier === rule.combinedTier) {
+      const activeConstituents = rule.tiers.filter((t) => activeTiers.includes(t));
+      if (activeConstituents.length > 0) {
+        return { rule, obsoleteTiers: activeConstituents };
+      }
+    }
+  }
+  return null;
+};

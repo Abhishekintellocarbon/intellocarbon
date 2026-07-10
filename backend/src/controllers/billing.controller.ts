@@ -2,10 +2,10 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { AppError } from "../utils/AppError";
 import * as billingService from "../services/billing.service";
 import * as companyService from "../services/company.service";
-import { PLANS } from "../data/plans";
+import { PLANS, COMBINATION_RULES } from "../data/plans";
 
 export const getPlans = asyncHandler(async (_req, res) => {
-  res.status(200).json({ plans: Object.values(PLANS) });
+  res.status(200).json({ plans: Object.values(PLANS), combinationRules: COMBINATION_RULES });
 });
 
 export const getSubscription = asyncHandler(async (req, res) => {
