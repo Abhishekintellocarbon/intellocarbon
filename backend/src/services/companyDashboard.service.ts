@@ -1,9 +1,197 @@
+import type { BrsrCoreReport, Company, Facility } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { requireMyCompany } from "./company.service";
 import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
+import { buildBrsrCoreMetrics, type BrsrCoreMetrics } from "./brsrCalculation.service";
 import type { ReportContext } from "./report.service";
 import { getCbamCertificatePrice } from "../data/cbamReferenceData";
 import { round, quarterLabel, quarterSortKey, periodLabel, seeUnitFor, cctsTone } from "./dashboardShared.helpers";
+
+type BrsrReportWithFacility = BrsrCoreReport & { facility: Facility };
+
+/**
+ * Company-wide BRSR Core analytics — same "one place owns the aggregation"
+ * convention as the CBAM/CCTS section above, reusing buildBrsrCoreMetrics
+ * (the exact function the BRSR PDF report and facility dashboard already
+ * call) rather than re-deriving any ratio. Gated on an active BRSR Core
+ * subscription: the caller only includes this in the response when that
+ * gate passes, so a company that never bought the module never pays for
+ * these queries either.
+ */
+const getCompanyBrsrAnalytics = async (
+  facilities: Facility[],
+  company: Pick<Company, "annualTurnoverInr" | "reportingFyStartMonth">,
+) => {
+  const facilityIds = facilities.map((f) => f.id);
+  const reports: BrsrReportWithFacility[] =
+    facilityIds.length === 0
+      ? []
+      : await prisma.brsrCoreReport.findMany({
+          where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
+          include: { facility: true },
+          // reportingPeriod is "FY2025-26" — same-length zero-padded years sort
+          // lexicographically in chronological order, no date parsing needed.
+          orderBy: { reportingPeriod: "asc" },
+        });
+
+  const withMetrics: { report: BrsrReportWithFacility; metrics: BrsrCoreMetrics }[] = await Promise.all(
+    reports.map(async (report) => ({ report, metrics: await buildBrsrCoreMetrics(report, report.facility, company) })),
+  );
+
+  // ---- Water balance trend — withdrawn/discharged/consumed, by FY, company-wide sum ----
+  const waterByPeriod = new Map<string, { withdrawn: number; discharged: number; consumed: number; hasData: boolean }>();
+  for (const { report, metrics } of withMetrics) {
+    if (metrics.water.withdrawnKl == null && metrics.water.dischargedKl == null) continue;
+    const bucket = waterByPeriod.get(report.reportingPeriod) ?? { withdrawn: 0, discharged: 0, consumed: 0, hasData: true };
+    bucket.withdrawn += metrics.water.withdrawnKl ?? 0;
+    bucket.discharged += metrics.water.dischargedKl ?? 0;
+    bucket.consumed += metrics.water.consumptionKl ?? 0;
+    waterByPeriod.set(report.reportingPeriod, bucket);
+  }
+  const waterTrend = Array.from(waterByPeriod.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([periodLabel, v]) => ({
+      periodLabel,
+      withdrawnKl: round(v.withdrawn),
+      dischargedKl: round(v.discharged),
+      consumedKl: round(v.consumed),
+    }));
+
+  // ---- Waste generated trend — by FY, company-wide sum ----
+  const wasteByPeriod = new Map<string, { generated: number; recovered: number }>();
+  for (const { report, metrics } of withMetrics) {
+    if (metrics.waste.generatedTonnes == null) continue;
+    const bucket = wasteByPeriod.get(report.reportingPeriod) ?? { generated: 0, recovered: 0 };
+    bucket.generated += metrics.waste.generatedTonnes ?? 0;
+    bucket.recovered += metrics.waste.recoveredTonnes ?? 0;
+    wasteByPeriod.set(report.reportingPeriod, bucket);
+  }
+  const wasteTrend = Array.from(wasteByPeriod.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([periodLabel, v]) => ({ periodLabel, generatedTonnes: round(v.generated), recoveredTonnes: round(v.recovered) }));
+
+  // ---- Latest FY across all facilities' reports — anchors the two "current period" cards below ----
+  const latestPeriod = reports.at(-1)?.reportingPeriod ?? null;
+
+  // ---- Energy mix composition — renewable vs non-renewable, latest FY, company-wide sum ----
+  let energyComposition:
+    | { hasData: true; periodLabel: string; renewableGj: number; nonRenewableGj: number; renewablePct: number }
+    | { hasData: false } = { hasData: false };
+  if (latestPeriod) {
+    let renewable = 0;
+    let nonRenewable = 0;
+    let any = false;
+    for (const { report, metrics } of withMetrics) {
+      if (report.reportingPeriod !== latestPeriod) continue;
+      if (metrics.energy.renewableGj == null || metrics.energy.nonRenewableGj == null) continue;
+      renewable += metrics.energy.renewableGj;
+      nonRenewable += metrics.energy.nonRenewableGj;
+      any = true;
+    }
+    if (any) {
+      const total = renewable + nonRenewable;
+      energyComposition = {
+        hasData: true,
+        periodLabel: latestPeriod,
+        renewableGj: round(renewable),
+        nonRenewableGj: round(nonRenewable),
+        renewablePct: total > 0 ? round((renewable / total) * 100, 1) : 0,
+      };
+    }
+  }
+
+  // ---- Gender diversity — women vs men headcount, latest FY, company-wide sum ----
+  let genderDiversity:
+    | { hasData: true; periodLabel: string; femaleCount: number; maleCount: number; womenPct: number }
+    | { hasData: false } = { hasData: false };
+  if (latestPeriod) {
+    let female = 0;
+    let male = 0;
+    let any = false;
+    for (const { report, metrics } of withMetrics) {
+      if (report.reportingPeriod !== latestPeriod) continue;
+      if (report.employeeCountFemale == null || metrics.genderDiversity.maleHeadcount == null) continue;
+      female += report.employeeCountFemale;
+      male += metrics.genderDiversity.maleHeadcount;
+      any = true;
+    }
+    if (any) {
+      const total = female + male;
+      genderDiversity = {
+        hasData: true,
+        periodLabel: latestPeriod,
+        femaleCount: female,
+        maleCount: male,
+        womenPct: total > 0 ? round((female / total) * 100, 1) : 0,
+      };
+    }
+  }
+
+  // ---- Safety incident rate — company-wide incidents per 1,000 employees, latest FY vs the FY before it ----
+  const safetyByPeriod = new Map<string, { incidents: number; employees: number }>();
+  for (const { report } of withMetrics) {
+    if (report.safetyIncidentsCount == null || !report.employeeCountTotal) continue;
+    const bucket = safetyByPeriod.get(report.reportingPeriod) ?? { incidents: 0, employees: 0 };
+    bucket.incidents += report.safetyIncidentsCount;
+    bucket.employees += report.employeeCountTotal;
+    safetyByPeriod.set(report.reportingPeriod, bucket);
+  }
+  const safetyPeriodsSorted = Array.from(safetyByPeriod.keys()).sort((a, b) => a.localeCompare(b));
+  const rateFor = (period: string) => {
+    const b = safetyByPeriod.get(period)!;
+    return b.employees > 0 ? round((b.incidents / b.employees) * 1000, 2) : null;
+  };
+  let safetyIncidentRate:
+    | { hasData: true; periodLabel: string; currentRate: number; previousRate: number; deltaPct: number | null }
+    | { hasData: false } = { hasData: false };
+  if (safetyPeriodsSorted.length >= 2) {
+    const currentPeriod = safetyPeriodsSorted.at(-1)!;
+    const previousPeriod = safetyPeriodsSorted.at(-2)!;
+    const currentRate = rateFor(currentPeriod);
+    const previousRate = rateFor(previousPeriod);
+    if (currentRate != null && previousRate != null) {
+      safetyIncidentRate = {
+        hasData: true,
+        periodLabel: currentPeriod,
+        currentRate,
+        previousRate,
+        deltaPct: previousRate > 0 ? round(((currentRate - previousRate) / previousRate) * 100, 1) : null,
+      };
+    }
+  }
+
+  // ---- Facility comparison — water consumption, each facility's latest submitted FY, only meaningful with 2+ facilities ----
+  const latestPerFacility = new Map<string, { report: BrsrReportWithFacility; metrics: BrsrCoreMetrics }>();
+  for (const entry of withMetrics) {
+    // withMetrics is chronological (reportingPeriod asc), so the last write
+    // per facility below is always that facility's most recent submission.
+    latestPerFacility.set(entry.report.facilityId, entry);
+  }
+  const brsrFacilityComparison =
+    facilities.length >= 2
+      ? Array.from(latestPerFacility.values())
+          .filter(({ metrics }) => metrics.water.consumptionKl != null)
+          .map(({ report, metrics }) => ({
+            facilityId: report.facilityId,
+            facilityName: report.facility.name,
+            value: metrics.water.consumptionKl as number,
+            unit: "KL",
+            periodLabel: report.reportingPeriod,
+          }))
+      : [];
+
+  return {
+    hasReports: reports.length > 0,
+    waterTrend,
+    wasteTrend,
+    energyComposition,
+    genderDiversity,
+    safetyIncidentRate,
+    facilityComparison: brsrFacilityComparison,
+  };
+};
+
+export type CompanyBrsrAnalytics = Awaited<ReturnType<typeof getCompanyBrsrAnalytics>>;
 
 /**
  * Company-wide analytics for the Company Admin dashboard — same convention
@@ -191,6 +379,14 @@ export const getCompanyAnalytics = async (userId: string) => {
         }
       : { hasData: false as const };
 
+  // ---- BRSR Core section — only queried at all when the company holds an
+  // active BRSR Core subscription, so a company that never bought the
+  // module never shows an empty ESG section (and never pays for the query).
+  const brsrSubscription = await prisma.subscription.findFirst({
+    where: { companyId: company.id, tier: "BRSR_CORE_REPORTING", status: "ACTIVE" },
+  });
+  const brsr = brsrSubscription ? await getCompanyBrsrAnalytics(facilities, company) : null;
+
   return {
     facilityCount: facilities.length,
     emissionsTrend,
@@ -200,5 +396,9 @@ export const getCompanyAnalytics = async (userId: string) => {
     cctsIntensity,
     facilityComparison,
     yearOverYear,
+    // null when there's no active BRSR Core subscription — the frontend
+    // hides the whole ESG/BRSR section in that case rather than rendering
+    // it with hasReports: false.
+    brsr,
   };
 };

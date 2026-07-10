@@ -10,6 +10,7 @@ import { EmissionsCompositionChart } from "./emissions-composition-chart";
 import { CctsIntensityGauge } from "./ccts-intensity-gauge";
 import { FacilityComparisonChart } from "./facility-comparison-chart";
 import { YearOverYearCard } from "./year-over-year-card";
+import { EsgBrsrSection } from "./brsr/esg-brsr-section";
 
 /**
  * Company-wide analytics — inserted below the existing dashboard summary
@@ -58,6 +59,8 @@ export function AnalyticsSection() {
           </div>
         </div>
       )}
+
+      {analytics?.brsr?.hasReports && <EsgBrsrSection brsr={analytics.brsr} />}
     </div>
   );
 }

@@ -768,6 +768,61 @@ export interface CompanyYearOverYear {
   liabilityDeltaPct?: number | null;
 }
 
+export interface CompanyBrsrWaterTrendPoint {
+  periodLabel: string;
+  withdrawnKl: number;
+  dischargedKl: number;
+  consumedKl: number;
+}
+
+export interface CompanyBrsrWasteTrendPoint {
+  periodLabel: string;
+  generatedTonnes: number;
+  recoveredTonnes: number;
+}
+
+export interface CompanyBrsrEnergyComposition {
+  hasData: boolean;
+  periodLabel?: string;
+  renewableGj?: number;
+  nonRenewableGj?: number;
+  renewablePct?: number;
+}
+
+export interface CompanyBrsrGenderDiversity {
+  hasData: boolean;
+  periodLabel?: string;
+  femaleCount?: number;
+  maleCount?: number;
+  womenPct?: number;
+}
+
+export interface CompanyBrsrSafetyIncidentRate {
+  hasData: boolean;
+  periodLabel?: string;
+  currentRate?: number;
+  previousRate?: number;
+  deltaPct?: number | null;
+}
+
+export interface CompanyBrsrFacilityComparisonPoint {
+  facilityId: string;
+  facilityName: string;
+  value: number;
+  unit: string;
+  periodLabel: string;
+}
+
+export interface CompanyBrsrAnalytics {
+  hasReports: boolean;
+  waterTrend: CompanyBrsrWaterTrendPoint[];
+  wasteTrend: CompanyBrsrWasteTrendPoint[];
+  energyComposition: CompanyBrsrEnergyComposition;
+  genderDiversity: CompanyBrsrGenderDiversity;
+  safetyIncidentRate: CompanyBrsrSafetyIncidentRate;
+  facilityComparison: CompanyBrsrFacilityComparisonPoint[];
+}
+
 export interface CompanyDashboardAnalytics {
   facilityCount: number;
   emissionsTrend: CompanyEmissionsTrendPoint[];
@@ -777,6 +832,8 @@ export interface CompanyDashboardAnalytics {
   cctsIntensity: CompanyCctsIntensity;
   facilityComparison: CompanyFacilityComparisonPoint[];
   yearOverYear: CompanyYearOverYear;
+  // null when the company has no active BRSR Core subscription.
+  brsr: CompanyBrsrAnalytics | null;
 }
 
 export interface FacilityDocument {
