@@ -131,6 +131,10 @@ const SECTIONS: { heading: string; blocks: Block[] }[] = [
         type: "p",
         text: "Subject to applicable law, you may request access to, correction of, or deletion of your personal information, by contacting us at support@intellocarbon.com. Certain data may be retained notwithstanding a deletion request where required for regulatory compliance, as described in Section 5.",
       },
+      {
+        type: "p",
+        text: "Enterprise customers or partners requiring a signed Data Processing Agreement (DPA) may request one by contacting support@intellocarbon.com.",
+      },
     ],
   },
   {
