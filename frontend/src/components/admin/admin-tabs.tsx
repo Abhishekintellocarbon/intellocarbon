@@ -21,7 +21,7 @@ export function AdminTabs() {
   const pathname = usePathname();
 
   return (
-    <div className="flex gap-1 rounded-xl border border-surface-border bg-surface p-1">
+    <div className="no-scrollbar flex gap-1 overflow-x-auto whitespace-nowrap rounded-xl border border-surface-border bg-surface p-1">
       {TABS.map((tab) => {
         // "/admin" would prefix-match every other tab's route too, so it only
         // counts as active on an exact match — the rest still match sub-routes
@@ -32,7 +32,7 @@ export function AdminTabs() {
             key={tab.href}
             href={tab.href}
             className={cn(
-              "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
+              "shrink-0 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
               active ? "bg-surface-raised text-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >

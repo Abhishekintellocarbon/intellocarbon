@@ -33,6 +33,17 @@ body {
     background-clip: text;
     color: transparent;
   }
+
+  /* Scrollable but scrollbar-less — for horizontally-scrolling nav/tab strips
+     that should stay swipeable/drag-scrollable without a visible scrollbar. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 ::selection {
