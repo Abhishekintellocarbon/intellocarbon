@@ -56,7 +56,7 @@ export function LiveClock() {
   if (!display) return null;
 
   return (
-    <div className="font-sans text-[13px] leading-tight text-[#8AA0B4]" title={display.tzName}>
+    <div className="whitespace-nowrap font-sans text-[13px] leading-tight text-[#8AA0B4]" title={display.tzName}>
       <span className="sm:hidden">{display.dateLabel}</span>
       <span className="hidden sm:inline">
         {display.dateLabel}, {display.timeLabel}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
+import { LiveClock } from "@/components/layout/live-clock";
 import { FaqNavLink } from "./faq-nav-link";
 import { MobileNav } from "./mobile-nav";
 import { IntelloCalcToolsPanel } from "./intellocalc-tools-panel";
@@ -38,25 +39,28 @@ export function MarketingHeader() {
             <FaqNavLink />
           </nav>
         </div>
-        <MobileNav />
-        <div className="hidden items-center gap-3 md:flex">
-          <Link href="/login">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-auto rounded-[8px] border-[1.5px] border-[#00D4AA] bg-transparent px-5 py-2 font-semibold text-[#00D4AA] hover:bg-[#00D4AA]/10 hover:text-[#00D4AA]"
-            >
-              Log in
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button
-              size="sm"
-              className="h-auto min-w-[120px] rounded-[8px] bg-none bg-[#00D4AA] px-5 py-2 font-bold text-[#0F1923] shadow-none hover:bg-[#00D4AA] hover:brightness-105"
-            >
-              Get started
-            </Button>
-          </Link>
+        <div className="flex items-center gap-4 pl-6 sm:pl-10">
+          <LiveClock />
+          <MobileNav />
+          <div className="hidden items-center gap-5 md:flex">
+            <Link href="/login">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto rounded-[8px] border-[1.5px] border-[#00D4AA] bg-transparent px-5 py-2 font-semibold text-[#00D4AA] hover:bg-[#00D4AA]/10 hover:text-[#00D4AA]"
+              >
+                Log in
+              </Button>
+            </Link>
+            <Link href="/signup">
+              <Button
+                size="sm"
+                className="h-auto min-w-[120px] rounded-[8px] bg-none bg-[#00D4AA] px-5 py-2 font-bold text-[#0F1923] shadow-none hover:bg-[#00D4AA] hover:brightness-105"
+              >
+                Get started
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
     </>

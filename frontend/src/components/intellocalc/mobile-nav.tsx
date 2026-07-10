@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SERVICE_LINKS } from "./services-nav-dropdown";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const [servicesOpen, setServicesOpen] = useState(false);
 
-  const close = () => setOpen(false);
+  const close = () => {
+    setOpen(false);
+    setServicesOpen(false);
+  };
 
   return (
     <div className="md:hidden">
@@ -49,13 +54,43 @@ export function MobileNav() {
               >
                 Home
               </Link>
-              <Link
-                href="/services"
-                onClick={close}
-                className="rounded-lg px-3 py-3 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
-              >
-                Services
-              </Link>
+              <div>
+                <div className="flex items-center">
+                  <Link
+                    href="/services"
+                    onClick={close}
+                    className="flex-1 rounded-lg px-3 py-3 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+                  >
+                    Services
+                  </Link>
+                  <button
+                    type="button"
+                    aria-label={servicesOpen ? "Collapse services menu" : "Expand services menu"}
+                    aria-expanded={servicesOpen}
+                    onClick={() => setServicesOpen((v) => !v)}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#8AA0B4] transition-colors hover:text-teal-500"
+                  >
+                    <ChevronDown
+                      className={`h-4 w-4 transition-transform duration-150 ${servicesOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                </div>
+                {servicesOpen && (
+                  <div className="ml-3 flex flex-col gap-1 border-l border-surface-border pl-3">
+                    {SERVICE_LINKS.map((item) => (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={close}
+                        className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-[#8AA0B4] transition-colors hover:text-teal-500"
+                      >
+                        <item.icon className="h-4 w-4 shrink-0 text-teal-500" />
+                        {item.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Link
                 href="/esg"
                 onClick={close}
@@ -78,7 +113,7 @@ export function MobileNav() {
                 FAQ
               </Link>
 
-              <div className="mt-4 flex flex-col gap-3">
+              <div className="mt-6 flex flex-col gap-3 border-t border-surface-border pt-6">
                 <Link href="/login" onClick={close}>
                   <Button
                     variant="ghost"

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronDown, Globe2, MapPinned, Leaf, Calculator } from "lucide-react";
 
-const SERVICE_LINKS = [
+export const SERVICE_LINKS = [
   {
     href: "/#pillars",
     icon: Globe2,
