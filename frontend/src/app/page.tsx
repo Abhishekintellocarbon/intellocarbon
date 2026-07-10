@@ -447,7 +447,9 @@ export default function Home() {
                 </Link>
               </li>
               <li>
-                <span className="text-sm text-muted-foreground">Privacy</span>
+                <Link href="/privacy" className="text-sm text-muted-foreground hover:text-teal-500">
+                  Privacy
+                </Link>
               </li>
               <li>
                 <span className="text-sm text-muted-foreground">notifications@intellocarbon.com</span>
