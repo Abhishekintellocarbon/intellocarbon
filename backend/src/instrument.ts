@@ -43,10 +43,30 @@ const scrubRequestData = (data: unknown): unknown => {
   return scrubbed;
 };
 
+// If scrubbing itself throws on some unexpected shape, beforeSend must not
+// let that exception propagate — Sentry drops the *entire* event (silently,
+// no error surfaced to us) when beforeSend throws. Better to lose one field
+// than lose the whole event, so every scrub call below goes through this.
+const safeScrub = (label: string, fn: () => unknown): unknown => {
+  try {
+    return fn();
+  } catch (err) {
+    logger.warn(`[Sentry] beforeSend: failed to scrub ${label}, omitting field`, err);
+    return "[Scrub error — field omitted]";
+  }
+};
+
 const dsn = process.env.SENTRY_DSN_BACKEND || undefined;
+
+// Opt-in verbose SDK tracing (DSN validation, transport attempts, send
+// success/failure) — set SENTRY_DEBUG=true temporarily on Render if events
+// still aren't arriving after "Sentry initialized: true" confirms init ran.
+// Off by default so production logs aren't noisy.
+const sentryDebug = process.env.SENTRY_DEBUG === "true";
 
 Sentry.init({
   dsn,
+  debug: sentryDebug,
   environment: process.env.NODE_ENV === "production" ? "production" : "development",
   // Conservative sampling to keep event/trace volume (and Sentry cost) low
   // at this stage — revisit once real traffic patterns are known.
@@ -58,21 +78,32 @@ Sentry.init({
   // just inherited from an SDK default.
   sendDefaultPii: false,
   beforeSend(event) {
-    if (event.request?.data) {
-      event.request.data = scrubRequestData(event.request.data);
+    const requestData = event.request?.data;
+    if (requestData) {
+      event.request!.data = safeScrub("request.data", () => scrubRequestData(requestData));
     }
-    if (event.request?.headers) {
-      event.request.headers = scrub(event.request.headers) as typeof event.request.headers;
+    const requestHeaders = event.request?.headers;
+    if (requestHeaders) {
+      event.request!.headers = safeScrub("request.headers", () => scrub(requestHeaders)) as typeof requestHeaders;
     }
     if (event.request?.cookies) {
       event.request.cookies = undefined;
     }
-    if (event.extra) {
-      event.extra = scrub(event.extra) as typeof event.extra;
+    const extra = event.extra;
+    if (extra) {
+      event.extra = safeScrub("extra", () => scrub(extra)) as typeof extra;
     }
+    // Never return null/undefined here — that silently drops the event
+    // instead of just redacting a field. Always return the (scrubbed) event.
     return event;
   },
 });
+
+// Requested diagnostic: confirms at startup whether SENTRY_DSN_BACKEND was
+// actually readable from process.env at the moment Sentry.init() ran —
+// without ever printing the DSN value itself. Check Render's logs for this
+// line after every deploy.
+logger.info(`Sentry initialized: ${Boolean(dsn)}`);
 
 if (!dsn) {
   logger.info("[Sentry] SENTRY_DSN_BACKEND not set — error monitoring is inactive (no-op client).");
