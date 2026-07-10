@@ -43,6 +43,20 @@ export function MobileNav() {
 
             <nav className="mt-6 flex flex-1 flex-col gap-1">
               <Link
+                href="/"
+                onClick={close}
+                className="rounded-lg px-3 py-3 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+              >
+                Home
+              </Link>
+              <Link
+                href="/services"
+                onClick={close}
+                className="rounded-lg px-3 py-3 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+              >
+                Services
+              </Link>
+              <Link
                 href="/esg"
                 onClick={close}
                 className="rounded-lg px-3 py-3 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
