@@ -354,7 +354,10 @@ function buildFinancialImpact(pb: PageBuilder, financials: CbamFinancialImpact) 
   );
 
   pb.summaryBox("Liability Summary", [
-    ["Certificate price used", `${fmtEur(financials.certificatePrice)}/tCO2e (${financials.certificatePriceQuarter})`],
+    [
+      "Certificate price used",
+      `${fmtEur(financials.certificatePrice)}/tCO2e (${financials.certificatePriceQuarter}, publ. ${fmtDate(new Date(financials.certificatePriceAsOfDate))})`,
+    ],
     ["Gross CBAM liability (before deduction)", fmtEur(financials.grossLiabilityEur)],
     ["Article 9 deduction (EU 2023/956 Art. 9)", `- ${fmtEur(financials.article9DeductionEur)}`],
     ["Net CBAM liability", fmtEur(financials.netLiabilityEur)],

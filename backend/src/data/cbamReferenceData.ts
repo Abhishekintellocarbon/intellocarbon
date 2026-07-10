@@ -18,7 +18,18 @@ export interface CbamCertificatePriceReference {
   source: string;
 }
 
-const quarterLabelFor = (date: Date): string => `Q${Math.floor(date.getUTCMonth() / 3) + 1} ${date.getUTCFullYear()}`;
+/**
+ * The Commission publishes each quarter's reference price one quarter in
+ * arrears — the "Q1 2026" price was published 7 Apr 2026 (calendar Q2), the
+ * "Q2 2026" price was published 6 Jul 2026 (calendar Q3). So the label is the
+ * calendar quarter of `date` minus one, not the calendar quarter itself.
+ */
+const quarterLabelFor = (date: Date): string => {
+  const calendarQuarter = Math.floor(date.getUTCMonth() / 3) + 1;
+  const quarter = calendarQuarter === 1 ? 4 : calendarQuarter - 1;
+  const year = calendarQuarter === 1 ? date.getUTCFullYear() - 1 : date.getUTCFullYear();
+  return `Q${quarter} ${year}`;
+};
 
 /**
  * Official CBAM certificate reference price.

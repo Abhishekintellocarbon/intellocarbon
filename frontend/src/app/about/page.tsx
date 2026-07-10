@@ -9,7 +9,7 @@ import { ToolFooter } from "@/components/intellocalc/tool-footer";
 export const metadata: Metadata = {
   title: "About Us — Intellocarbon",
   description:
-    "Intellocarbon is compliance infrastructure for Indian industrial exporters, built on ISO 14064-aligned verification methodology.",
+    "Intellocarbon is compliance infrastructure for Indian industry, built on ISO 14064-aligned verification methodology.",
 };
 
 const METHODOLOGY = [
@@ -41,7 +41,7 @@ const WHY_CARDS = [
     icon: MapPinned,
     title: "Built for Indian industry",
     description:
-      "Serving Indian industrial exporters nationwide — across steel, cement, aluminium, fertilizers, hydrogen and electricity. We understand your operations.",
+      "Serving Indian industry nationwide — across steel, cement, aluminium, fertilizers, hydrogen and electricity. We understand your operations.",
   },
 ];
 
@@ -102,7 +102,7 @@ export default function AboutPage() {
                 </ul>
               </Card>
               <p className="text-[#8AA0B4] sm:pt-2">
-                Most compliance tools available to Indian industrial exporters are either too expensive for
+                Most compliance tools available to Indian industry are either too expensive for
                 MSMEs, too focused on large corporations, or built by teams without direct exposure to how GHG
                 inventories are actually verified. Intellocarbon closes that gap — our verification workflows
                 are built on ISO 14064-1 and ISO 14064-3, the international standard for GHG inventory design

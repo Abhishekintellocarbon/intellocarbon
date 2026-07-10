@@ -404,7 +404,7 @@ export default function Home() {
               Intellocarbon
             </span>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              Compliance infrastructure for Indian industrial exporters — CBAM, CCTS and BRSR from one
+              Compliance infrastructure for Indian industry — CBAM, CCTS and BRSR from one
               platform.
             </p>
             <p className="mt-4 text-xs text-muted">
