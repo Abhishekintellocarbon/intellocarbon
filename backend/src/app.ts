@@ -3,6 +3,7 @@ import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
+import * as Sentry from "@sentry/node";
 import { isProd } from "./config/env";
 import { isOriginAllowed } from "./config/cors";
 import routes from "./routes";
@@ -42,6 +43,19 @@ app.use(morgan(isProd ? "combined" : "dev"));
 app.use("/api", routes);
 
 app.use(notFoundHandler);
+
+// Sentry v8+ dropped the old Handlers.requestHandler()/tracingHandler()
+// middleware — request/trace capture is now automatic from Sentry.init()
+// having run (in instrument.ts) before Express was even created. All that's
+// left to wire up explicitly is error capture: setupExpressErrorHandler
+// must sit after every route/notFoundHandler (so it sees the real error)
+// but before our own errorHandler (which sends the response) — Sentry's
+// handler only records the event and calls next(err), it never responds
+// itself, so it can't be the last middleware or the request would hang.
+// It only reports errors with status >= 500 by default, so expected 4xx
+// AppErrors (validation, 404s, auth) aren't sent as Sentry events.
+Sentry.setupExpressErrorHandler(app);
+
 app.use(errorHandler);
 
 export default app;
