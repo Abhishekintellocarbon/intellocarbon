@@ -16,7 +16,7 @@
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
-    "@prisma/client": "^5.20.0",
+    "@prisma/client": "^7.8.0",
     "@sentry/node": "^10.65.0",
     "@sentry/profiling-node": "^10.65.0",
     "bcryptjs": "^2.4.3",
