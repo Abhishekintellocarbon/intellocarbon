@@ -12,5 +12,6 @@ router.use(requireAuth, requireApproved);
 router.get("/", companyController.getMyCompany);
 router.post("/", validate(companySchema), companyController.createCompany);
 router.put("/", validate(companySchema), companyController.updateCompany);
+router.get("/dashboard", companyController.getCompanyDashboard);
 
 export default router;

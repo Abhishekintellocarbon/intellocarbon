@@ -2,6 +2,7 @@ import { API_URL } from "./config";
 import type {
   CheckoutResult,
   Company,
+  CompanyDashboardAnalytics,
   EmissionFactorReference,
   Facility,
   PlanDefinition,
@@ -255,6 +256,8 @@ export const companyApi = {
 
   update: (input: Record<string, unknown>): Promise<{ company: Company }> =>
     apiFetch("/api/company", { method: "PUT", body: JSON.stringify(input) }),
+
+  dashboard: (): Promise<{ analytics: CompanyDashboardAnalytics }> => apiFetch("/api/company/dashboard"),
 };
 
 export const facilityApi = {

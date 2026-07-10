@@ -2,9 +2,9 @@ import { ClipboardList } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
 import { cn } from "@/lib/utils";
-import { DashboardEmptyState } from "./dashboard-empty-state";
+import { DashboardEmptyState } from "@/components/dashboard/shared/dashboard-empty-state";
 import { UpsellCard } from "./upsell-card";
-import { fmtEur, fmtIntensity, fmtTco2e } from "./dashboard-constants";
+import { fmtEur, fmtIntensity, fmtTco2e } from "@/components/dashboard/shared/dashboard-constants";
 import type { DashboardAccess } from "./dashboard-access";
 import type { FacilityDashboard, PlanDefinition, SubscriptionTier } from "@/lib/types";
 

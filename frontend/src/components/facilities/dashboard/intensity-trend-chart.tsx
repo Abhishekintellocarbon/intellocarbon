@@ -4,8 +4,8 @@ import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Too
 import type { DotProps } from "recharts";
 import { Activity } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { DashboardEmptyState } from "./dashboard-empty-state";
-import { CHART_COLORS, fmtIntensity } from "./dashboard-constants";
+import { DashboardEmptyState } from "@/components/dashboard/shared/dashboard-empty-state";
+import { CHART_COLORS, fmtIntensity } from "@/components/dashboard/shared/dashboard-constants";
 import type { FacilityDashboard, FacilityIntensityTrendPoint } from "@/lib/types";
 
 function IntensityDot(props: DotProps & { payload?: FacilityIntensityTrendPoint }) {

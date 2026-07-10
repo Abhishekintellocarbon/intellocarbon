@@ -3,8 +3,8 @@
 import { Bar, BarChart, CartesianGrid, LabelList, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { DashboardEmptyState } from "./dashboard-empty-state";
-import { CHART_COLORS, fmtEur } from "./dashboard-constants";
+import { DashboardEmptyState } from "@/components/dashboard/shared/dashboard-empty-state";
+import { CHART_COLORS, fmtEur } from "@/components/dashboard/shared/dashboard-constants";
 import type { FacilityDashboard } from "@/lib/types";
 
 export function LiabilityTrendChart({ dashboard, facilityId }: { dashboard: FacilityDashboard; facilityId: string }) {

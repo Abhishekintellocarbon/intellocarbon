@@ -1,5 +1,7 @@
 // Design-system chart colors — literal hex since Recharts fill/stroke props
-// need real color values, not Tailwind classes.
+// need real color values, not Tailwind classes. Shared by the per-facility
+// dashboard (components/facilities/dashboard) and the company-wide
+// analytics dashboard (components/dashboard) so both use the exact same palette.
 export const CHART_COLORS = {
   teal: "#00D4AA",
   blue: "#4A9EFF",

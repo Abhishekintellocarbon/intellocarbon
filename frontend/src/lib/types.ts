@@ -723,6 +723,62 @@ export interface FacilityDashboard {
   hasUncrossCheckedEvidence: boolean;
 }
 
+export interface CompanyEmissionsTrendPoint {
+  periodLabel: string;
+  scope1Tco2e: number;
+  scope2Tco2e: number;
+  precursorTco2e: number;
+  totalTco2e: number;
+}
+
+export interface CompanyLiabilityTrendPoint {
+  quarterLabel: string;
+  actualLiabilityEur: number;
+  defaultLiabilityEur: number;
+}
+
+export interface CompanyEmissionsComposition {
+  hasData: boolean;
+  periodLabel?: string;
+  totalTco2e?: number;
+  segments?: { label: string; valueTco2e: number; pct: number }[];
+}
+
+export interface CompanyCctsIntensity {
+  hasData: boolean;
+  periodLabel?: string;
+  actualIntensity?: number;
+  targetIntensity?: number | null;
+  tone?: CctsTone;
+}
+
+export interface CompanyFacilityComparisonPoint {
+  facilityId: string;
+  facilityName: string;
+  actualSee: number;
+  seeUnit: string;
+  periodLabel: string;
+}
+
+export interface CompanyYearOverYear {
+  hasData: boolean;
+  thisYear?: { emissionsTco2e: number; liabilityEur: number };
+  lastYear?: { emissionsTco2e: number; liabilityEur: number };
+  emissionsDeltaPct?: number | null;
+  liabilityDeltaPct?: number | null;
+}
+
+export interface CompanyDashboardAnalytics {
+  facilityCount: number;
+  emissionsTrend: CompanyEmissionsTrendPoint[];
+  liabilityTrend: CompanyLiabilityTrendPoint[];
+  currentCertificatePrice: { pricePerTonneEur: number; quarterLabel: string };
+  emissionsComposition: CompanyEmissionsComposition;
+  cctsIntensity: CompanyCctsIntensity;
+  facilityComparison: CompanyFacilityComparisonPoint[];
+  yearOverYear: CompanyYearOverYear;
+}
+
 export interface FacilityDocument {
   id: string;
   documentType: "REPORT" | "SUPPORTING_EVIDENCE";
