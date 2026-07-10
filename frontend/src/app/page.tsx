@@ -442,7 +442,9 @@ export default function Home() {
             <p className="text-sm font-semibold text-foreground">Legal / Contact</p>
             <ul className="mt-3 space-y-2.5">
               <li>
-                <span className="text-sm text-muted-foreground">Terms</span>
+                <Link href="/terms" className="text-sm text-muted-foreground hover:text-teal-500">
+                  Terms
+                </Link>
               </li>
               <li>
                 <span className="text-sm text-muted-foreground">Privacy</span>
