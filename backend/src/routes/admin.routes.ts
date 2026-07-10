@@ -8,6 +8,7 @@ import * as adminFacilitiesController from "../controllers/adminFacilities.contr
 import * as adminVerifiersController from "../controllers/adminVerifiers.controller";
 import * as adminFacilityAssignmentsController from "../controllers/adminFacilityAssignments.controller";
 import * as adminEmissionFactorsController from "../controllers/adminEmissionFactors.controller";
+import * as dpaGeneratorController from "../controllers/dpaGenerator.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireSuperAdmin } from "../middleware/requireSuperAdmin";
 import { validate } from "../middleware/validate";
@@ -19,6 +20,7 @@ import {
   supersedeEmissionFactorSchema,
   quickUpdateValueSchema,
 } from "../validators/emissionFactor.validators";
+import { generateDpaSchema } from "../validators/dpaGenerator.validators";
 
 const router = Router();
 
@@ -76,5 +78,7 @@ router.put(
   adminEmissionFactorsController.updateCbamCertificatePrice,
 );
 router.put("/cea-grid-factor", validate(quickUpdateValueSchema), adminEmissionFactorsController.updateCeaGridFactor);
+
+router.post("/dpa-generator/generate", validate(generateDpaSchema), dpaGeneratorController.generate);
 
 export default router;

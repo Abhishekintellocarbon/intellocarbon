@@ -14,6 +14,7 @@ const TABS = [
   { href: "/admin/verifiers", label: "Verifiers" },
   { href: "/admin/emission-factors", label: "Emission Factors" },
   { href: "/admin/ghg-runner", label: "GHG Runner" },
+  { href: "/admin/dpa-generator", label: "DPA Generator" },
 ];
 
 export function AdminTabs() {

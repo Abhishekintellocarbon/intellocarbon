@@ -850,3 +850,43 @@ export const ghgRunnerApi = {
     URL.revokeObjectURL(objectUrl);
   },
 };
+
+export interface DpaGeneratorInput {
+  customerCompanyName: string;
+  signingDate: string;
+  signatoryName: string;
+  signatoryDesignation: string;
+}
+
+export const dpaGeneratorApi = {
+  // Stateless generate-and-download tool — nothing is persisted server-side,
+  // so this is a single POST that streams the PDF straight back, unlike the
+  // GHG Runner's separate generate-then-GET-download steps.
+  generate: async (input: DpaGeneratorInput): Promise<{ blob: Blob; fileName: string }> => {
+    const url = `${API_URL}/api/admin/dpa-generator/generate`;
+    const fetchDoc = () =>
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify(input),
+      });
+
+    let res = await fetchDoc();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchDoc();
+    }
+    if (!res.ok) {
+      const data = await parseJson(res);
+      throw new ApiError(data?.error?.message ?? "Couldn't generate the DPA. Please try again.", res.status, data?.error?.code);
+    }
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    const fileName = /filename="?([^"]+)"?/.exec(disposition)?.[1] ?? "dpa.pdf";
+    const blob = await res.blob();
+    return { blob, fileName };
+  },
+};
