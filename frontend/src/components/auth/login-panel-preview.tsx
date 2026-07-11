@@ -1,33 +1,40 @@
-const BARS = [40, 65, 50, 80, 60, 90];
+import { Fragment } from "react";
+import { ArrowRight, Calculator, ClipboardList, FileBarChart } from "lucide-react";
+
+const WORKFLOW_STEPS = [
+  { icon: ClipboardList, label: "Enter data" },
+  { icon: Calculator, label: "Calculate" },
+  { icon: FileBarChart, label: "Report" },
+];
 
 const STATS = [
   { value: "6 sectors", label: "CBAM coverage" },
   { value: "9 sectors", label: "CCTS obligated" },
-  { value: "AR5 + AR2/BUR3", label: "Dual GWP engine" },
-  { value: "7 years", label: "Audit-ready retention" },
+  { value: "Minutes", label: "Reports, not weeks" },
+  { value: "7 years", label: "Audit-ready records" },
 ];
 
-/** Decorative, illustrative-only preview content for the login page's left panel — not live data. */
+/** Decorative, illustrative-only preview content for the login page's left panel — no live data, no methodology specifics. */
 export function LoginPanelPreview() {
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-surface-border bg-surface p-4 shadow-card">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            CBAM Liability &mdash; Q2 2026
-          </p>
-          <span className="shrink-0 rounded-full border border-teal-500/30 bg-teal-500/10 px-2 py-0.5 text-[9px] font-semibold text-teal-500">
-            Preview
-          </span>
-        </div>
-        <p className="mt-2 text-2xl font-bold text-teal-500">&euro; 4,28,320</p>
-        <div className="mt-4 flex h-14 items-end gap-1.5">
-          {BARS.map((h, i) => (
-            <div
-              key={i}
-              className="flex-1 rounded-t-sm"
-              style={{ height: `${h}%`, backgroundColor: i % 2 === 0 ? "#00D4AA" : "#4A9EFF" }}
-            />
+      <div className="rounded-xl border border-surface-border bg-surface p-5 shadow-card">
+        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          From data to disclosure
+        </p>
+        <div className="mt-4 flex items-center">
+          {WORKFLOW_STEPS.map((step, i) => (
+            <Fragment key={step.label}>
+              <div className="flex flex-1 flex-col items-center gap-2 text-center">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-teal-blue">
+                  <step.icon className="h-5 w-5 text-[#06120F]" strokeWidth={2.25} />
+                </span>
+                <p className="text-xs font-medium text-foreground">{step.label}</p>
+              </div>
+              {i < WORKFLOW_STEPS.length - 1 && (
+                <ArrowRight className="mb-5 h-4 w-4 shrink-0 text-muted-foreground/40" />
+              )}
+            </Fragment>
           ))}
         </div>
       </div>
