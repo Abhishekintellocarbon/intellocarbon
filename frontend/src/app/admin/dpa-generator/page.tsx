@@ -7,9 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
-import { AdminTabs } from "@/components/admin/admin-tabs";
 import { dpaGeneratorApi, ApiError, type DpaGeneratorInput } from "@/lib/api";
 
 function DpaGeneratorContent() {
@@ -59,11 +56,7 @@ function DpaGeneratorContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-4xl px-6 py-10">
-        <AdminTabs />
-
+    <main className="mx-auto max-w-4xl px-6 py-10">
         <h1 className="mt-6 text-2xl font-semibold">DPA Generator</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Generate a filled Data Processing Agreement for a customer, pre-signed on Intellocarbon&apos;s side. No
@@ -126,14 +119,9 @@ function DpaGeneratorContent() {
           )}
         </Card>
       </main>
-    </div>
   );
 }
 
 export default function DpaGeneratorPage() {
-  return (
-    <SuperAdminRoute>
-      <DpaGeneratorContent />
-    </SuperAdminRoute>
-  );
+  return <DpaGeneratorContent />;
 }

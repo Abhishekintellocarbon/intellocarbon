@@ -6,9 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Copy, Download, FileText, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
-import { AdminTabs } from "@/components/admin/admin-tabs";
 import { GhgEngagementForm } from "@/components/ghg-runner/ghg-engagement-form";
 import { GhgBreakdownView } from "@/components/ghg-runner/ghg-breakdown-view";
 import { ghgRunnerApi, ApiError } from "@/lib/api";
@@ -91,10 +88,7 @@ function GhgEngagementDetailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-4xl px-6 py-10">
-        <AdminTabs />
+    <main className="mx-auto max-w-4xl px-6 py-10">
         <Link
           href="/admin/ghg-runner"
           className="mt-6 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
@@ -183,14 +177,9 @@ function GhgEngagementDetailContent() {
           </>
         )}
       </main>
-    </div>
   );
 }
 
 export default function GhgEngagementDetailPage() {
-  return (
-    <SuperAdminRoute>
-      <GhgEngagementDetailContent />
-    </SuperAdminRoute>
-  );
+  return <GhgEngagementDetailContent />;
 }

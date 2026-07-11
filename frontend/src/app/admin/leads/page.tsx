@@ -7,9 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
-import { AdminTabs } from "@/components/admin/admin-tabs";
 import { adminApi } from "@/lib/api";
 import type { LeadCapture } from "@/lib/intellocalc-types";
 
@@ -82,11 +79,7 @@ function AdminLeadsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <AdminTabs />
-
+    <main className="mx-auto max-w-6xl px-6 py-10">
         <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">Leads</h1>
@@ -168,14 +161,9 @@ function AdminLeadsContent() {
           )}
         </Card>
       </main>
-    </div>
   );
 }
 
 export default function AdminLeadsPage() {
-  return (
-    <SuperAdminRoute>
-      <AdminLeadsContent />
-    </SuperAdminRoute>
-  );
+  return <AdminLeadsContent />;
 }

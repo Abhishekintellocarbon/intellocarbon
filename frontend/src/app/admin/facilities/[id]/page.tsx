@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button";
 import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
 import { Field } from "@/components/ui/field";
 import { CrossCheckSection } from "@/components/facilities/cross-check-section";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
 import { adminApi, ApiError } from "@/lib/api";
 import { ACTIVITY_DATA_FIELDS, CALC_RESULT_FIELDS, formatFieldValue } from "@/lib/activity-data-fields";
 import type { AdminFacilityDetail, AdminInternalOperatorSummary } from "@/lib/types";
@@ -77,9 +75,7 @@ function AdminFacilityDetailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-6xl px-6 py-10">
+    <main className="mx-auto max-w-6xl px-6 py-10">
         {facility && (
           <Link href={`/admin/companies/${facility.companyId}`} className="text-sm text-teal-500 hover:text-teal-400">
             Back to {facility.company.name}
@@ -335,14 +331,9 @@ function AdminFacilityDetailContent() {
           </>
         )}
       </main>
-    </div>
   );
 }
 
 export default function AdminFacilityDetailPage() {
-  return (
-    <SuperAdminRoute>
-      <AdminFacilityDetailContent />
-    </SuperAdminRoute>
-  );
+  return <AdminFacilityDetailContent />;
 }

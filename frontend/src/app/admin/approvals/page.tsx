@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 import { Check, Loader2, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
-import { AdminTabs } from "@/components/admin/admin-tabs";
 import { adminApi, type PendingUser } from "@/lib/api";
 
 const fmtDate = (iso: string) =>
@@ -38,11 +35,7 @@ function AdminApprovalsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <AdminTabs />
-
+    <main className="mx-auto max-w-6xl px-6 py-10">
         <h1 className="mt-6 text-2xl font-semibold">Pending Approvals</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           New signups wait here until you approve or reject them.
@@ -103,14 +96,9 @@ function AdminApprovalsContent() {
           )}
         </Card>
       </main>
-    </div>
   );
 }
 
 export default function AdminApprovalsPage() {
-  return (
-    <SuperAdminRoute>
-      <AdminApprovalsContent />
-    </SuperAdminRoute>
-  );
+  return <AdminApprovalsContent />;
 }

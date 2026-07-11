@@ -4,9 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
-import { AdminTabs } from "@/components/admin/admin-tabs";
 import { adminApi } from "@/lib/api";
 import type { AdminCompanySummary } from "@/lib/types";
 
@@ -27,11 +24,7 @@ function AdminCompaniesContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <AdminTabs />
-
+    <main className="mx-auto max-w-6xl px-6 py-10">
         <h1 className="mt-6 text-2xl font-semibold">Companies</h1>
         <p className="mt-1 text-sm text-muted-foreground">Every company registered on the platform.</p>
 
@@ -78,14 +71,9 @@ function AdminCompaniesContent() {
           )}
         </Card>
       </main>
-    </div>
   );
 }
 
 export default function AdminCompaniesPage() {
-  return (
-    <SuperAdminRoute>
-      <AdminCompaniesContent />
-    </SuperAdminRoute>
-  );
+  return <AdminCompaniesContent />;
 }

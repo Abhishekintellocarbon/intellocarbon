@@ -6,9 +6,6 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
-import { AdminTabs } from "@/components/admin/admin-tabs";
 import { adminApi } from "@/lib/api";
 import type { AdminRevenue, AdminRevenueSubscriptionRow } from "@/lib/types";
 
@@ -205,11 +202,7 @@ function AdminRevenueContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <AdminTabs />
-
+    <main className="mx-auto max-w-6xl px-6 py-10">
         <h1 className="mt-6 text-2xl font-semibold">Revenue</h1>
         <p className="mt-1 text-sm text-muted-foreground">Live subscription revenue across every company on the platform.</p>
 
@@ -242,14 +235,9 @@ function AdminRevenueContent() {
           </>
         ) : null}
       </main>
-    </div>
   );
 }
 
 export default function AdminRevenuePage() {
-  return (
-    <SuperAdminRoute>
-      <AdminRevenueContent />
-    </SuperAdminRoute>
-  );
+  return <AdminRevenueContent />;
 }

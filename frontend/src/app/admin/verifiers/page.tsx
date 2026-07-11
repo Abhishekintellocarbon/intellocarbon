@@ -11,9 +11,6 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/ui/field-error";
 import { Alert } from "@/components/ui/alert";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
-import { AdminTabs } from "@/components/admin/admin-tabs";
 import { adminApi, ApiError } from "@/lib/api";
 import { createVerifierSchema, type CreateVerifierFormValues } from "@/lib/validations";
 import type { AdminVerifierSummary } from "@/lib/types";
@@ -90,11 +87,7 @@ function AdminVerifiersContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-4xl px-6 py-10">
-        <AdminTabs />
-
+    <main className="mx-auto max-w-4xl px-6 py-10">
         <h1 className="mt-6 text-2xl font-semibold">Verifiers</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Accredited verifiers who review submitted CBAM/CCTS data and issue verification statements. Assign
@@ -212,14 +205,9 @@ function AdminVerifiersContent() {
           </Card>
         )}
       </main>
-    </div>
   );
 }
 
 export default function AdminVerifiersPage() {
-  return (
-    <SuperAdminRoute>
-      <AdminVerifiersContent />
-    </SuperAdminRoute>
-  );
+  return <AdminVerifiersContent />;
 }

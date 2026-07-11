@@ -7,8 +7,6 @@ import { Factory, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
 import { adminApi, ApiError } from "@/lib/api";
 import type { AdminCompanyDetail, AdminVerifierSummary } from "@/lib/types";
 
@@ -73,9 +71,7 @@ function AdminCompanyDetailContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-6xl px-6 py-10">
+    <main className="mx-auto max-w-6xl px-6 py-10">
         <Link href="/admin/companies" className="text-sm text-teal-500 hover:text-teal-400">
           Back to companies
         </Link>
@@ -233,14 +229,9 @@ function AdminCompanyDetailContent() {
           </>
         )}
       </main>
-    </div>
   );
 }
 
 export default function AdminCompanyDetailPage() {
-  return (
-    <SuperAdminRoute>
-      <AdminCompanyDetailContent />
-    </SuperAdminRoute>
-  );
+  return <AdminCompanyDetailContent />;
 }

@@ -9,9 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/ui/field-error";
 import { Alert } from "@/components/ui/alert";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
-import { AdminTabs } from "@/components/admin/admin-tabs";
 import { adminApi, ApiError } from "@/lib/api";
 import type { EmissionFactor } from "@/lib/types";
 
@@ -392,11 +389,8 @@ function EmissionFactorsContent() {
   }, [factors, search]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <AdminTabs />
-
+    <>
+    <main className="mx-auto max-w-6xl px-6 py-10">
         <h1 className="mt-6 text-2xl font-semibold">Emission Factors</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Manage the reference values the calculation engine uses. Every change preserves the previous value as
@@ -532,7 +526,7 @@ function EmissionFactorsContent() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -545,9 +539,5 @@ function replaceCurrentByName(factors: EmissionFactor[], updated: EmissionFactor
 }
 
 export default function EmissionFactorsPage() {
-  return (
-    <SuperAdminRoute>
-      <EmissionFactorsContent />
-    </SuperAdminRoute>
-  );
+  return <EmissionFactorsContent />;
 }

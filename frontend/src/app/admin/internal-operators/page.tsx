@@ -11,9 +11,6 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/ui/field-error";
 import { Alert } from "@/components/ui/alert";
-import { SuperAdminRoute } from "@/components/auth/super-admin-route";
-import { AppHeader } from "@/components/layout/app-header";
-import { AdminTabs } from "@/components/admin/admin-tabs";
 import { adminApi, ApiError } from "@/lib/api";
 import { createInternalOperatorSchema, type CreateInternalOperatorFormValues } from "@/lib/validations";
 import type { AdminInternalOperatorSummary } from "@/lib/types";
@@ -90,11 +87,7 @@ function AdminInternalOperatorsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-4xl px-6 py-10">
-        <AdminTabs />
-
+    <main className="mx-auto max-w-4xl px-6 py-10">
         <h1 className="mt-6 text-2xl font-semibold">Internal Operators</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Intellocarbon staff who enter activity data on behalf of assigned client facilities. Assign them to
@@ -212,14 +205,9 @@ function AdminInternalOperatorsContent() {
           </Card>
         )}
       </main>
-    </div>
   );
 }
 
 export default function AdminInternalOperatorsPage() {
-  return (
-    <SuperAdminRoute>
-      <AdminInternalOperatorsContent />
-    </SuperAdminRoute>
-  );
+  return <AdminInternalOperatorsContent />;
 }
