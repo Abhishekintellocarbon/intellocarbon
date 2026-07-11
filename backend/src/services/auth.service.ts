@@ -192,12 +192,29 @@ export const refreshSession = async (rawToken: string, meta: RequestMeta) => {
     include: { user: true },
   });
 
-  if (!existing || existing.revokedAt || existing.expiresAt < new Date()) {
+  if (!existing) {
     throw AppError.unauthorized("Session expired, please log in again", "SESSION_EXPIRED");
   }
 
-  // Rotate: revoke the used token and issue a fresh pair. If a revoked token is
-  // replayed, it signals theft — revoke every token for that user as a precaution.
+  // A token that's already revoked being presented again means it was
+  // rotated away once already (normal logout/refresh/reset) and is now
+  // being replayed — either a copy was stolen, or this is a stale retry
+  // racing a rotation that already happened. Either way we can't tell which
+  // holder is legitimate, so the safe response is to revoke every active
+  // session for this user, not just reject this one request.
+  if (existing.revokedAt) {
+    await prisma.refreshToken.updateMany({
+      where: { userId: existing.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    throw AppError.unauthorized("Session expired, please log in again", "SESSION_EXPIRED");
+  }
+
+  if (existing.expiresAt < new Date()) {
+    throw AppError.unauthorized("Session expired, please log in again", "SESSION_EXPIRED");
+  }
+
+  // Rotate: revoke the used token and issue a fresh pair.
   await prisma.refreshToken.update({
     where: { id: existing.id },
     data: { revokedAt: new Date() },

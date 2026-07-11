@@ -415,9 +415,18 @@ export const handleWebhookEvent = async (event: {
   }
 
   if (event.event === "payment.failed" && paymentEntity) {
-    const subscription = await prisma.subscription.findFirst({
-      where: { payments: { some: { razorpayOrderId: paymentEntity.order_id } } },
-    });
+    // Razorpay includes payload.subscription.entity on payment.failed events
+    // for subscription-linked charges (same as activated/charged above) —
+    // use that first. The Payment-row fallback only ever matches a *prior
+    // successful* charge sharing this order_id, which a first-attempt
+    // renewal failure never has, so on its own this handler could never
+    // fire and a card decline would silently leave the subscription ACTIVE
+    // (full paid access) indefinitely.
+    const subscription = subscriptionEntity
+      ? await prisma.subscription.findUnique({ where: { razorpaySubscriptionId: subscriptionEntity.id } })
+      : await prisma.subscription.findFirst({
+          where: { payments: { some: { razorpayOrderId: paymentEntity.order_id } } },
+        });
     if (subscription) {
       await prisma.subscription.update({
         where: { id: subscription.id },

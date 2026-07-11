@@ -5,6 +5,17 @@ import { requireOwnedActivityData } from "./activityData.service";
 
 const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
+// Every download endpoint (evidence, admin, verifier) interpolates fileName
+// straight into `Content-Disposition: attachment; filename="${fileName}"` —
+// sanitizing once here, at the single point the raw client-supplied
+// originalname enters the system, means none of those three call sites can
+// forget it. Strips quotes (would break out of the quoted attribute) and
+// control characters (Node's setHeader already rejects raw CR/LF, but this
+// still catches other control bytes rather than relying on that alone), and
+// caps length defensively.
+const sanitizeFileName = (name: string): string =>
+  (name.replace(/["\x00-\x1f\x7f]/g, "_").trim() || "upload").slice(0, 255);
+
 export const uploadEvidenceDocument = async (
   userId: string,
   facilityId: string,
@@ -27,7 +38,7 @@ export const uploadEvidenceDocument = async (
       documentType: "SUPPORTING_EVIDENCE",
       reportingPeriod,
       verified: false,
-      fileName: file.originalname,
+      fileName: sanitizeFileName(file.originalname),
       fileData: file.buffer,
     },
   });

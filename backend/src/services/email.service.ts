@@ -42,6 +42,21 @@ const sendEmail = async ({ to, subject, html, attachments }: SendEmailParams): P
   }
 };
 
+// Every template below builds HTML via string interpolation, not a
+// templating engine with auto-escaping — any user-controlled free text
+// (name, company name, facility name, verifier query text) must be escaped
+// here before going in, or it's stored HTML/script injection into whoever
+// opens the email. sendAdminNewSignupEmail is the sharpest edge: signup.name
+// comes straight from the public, unauthenticated POST /api/auth/signup and
+// lands in the super admin's own inbox unescaped otherwise.
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 const pdfToBuffer = (doc: PDFKit.PDFDocument): Promise<Buffer> =>
   new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -79,7 +94,7 @@ export const sendPasswordResetEmail = async (to: string, resetUrl: string): Prom
 
 export const sendWelcomeEmail = async (to: string, name: string): Promise<void> => {
   const html = emailShell(
-    `Welcome, ${name}`,
+    `Welcome, ${escapeHtml(name)}`,
     `<p>Your Intellocarbon account is ready. Start tracking emissions, compliance, and climate risk in one place.</p>`,
   );
   await sendEmail({ to, subject: "Welcome to Intellocarbon", html });
@@ -106,7 +121,7 @@ export const sendPaymentFailedEmail = async (to: string): Promise<void> => {
 export const sendVerificationSubmittedEmail = async (to: string, facilityName: string): Promise<void> => {
   const html = emailShell(
     "Verification request submitted",
-    `<p>Your activity data for <strong>${facilityName}</strong> has been submitted for independent verification. We'll notify you once a verifier has reviewed it.</p>`,
+    `<p>Your activity data for <strong>${escapeHtml(facilityName)}</strong> has been submitted for independent verification. We'll notify you once a verifier has reviewed it.</p>`,
   );
   await sendEmail({ to, subject: "Verification request submitted", html });
 };
@@ -119,7 +134,7 @@ export const sendVerificationDecidedEmail = async (
 ): Promise<void> => {
   const html = emailShell(
     approved ? "Verification approved" : "Verification rejected",
-    `<p>Your activity data for <strong>${facilityName}</strong> has been ${
+    `<p>Your activity data for <strong>${escapeHtml(facilityName)}</strong> has been ${
       approved ? "<strong style=\"color:#00D4AA\">approved</strong>" : "<strong style=\"color:#FF5C6C\">rejected</strong>"
     } by an independent verifier.</p>
      ${button(resultUrl, "View details")}`,
@@ -138,12 +153,13 @@ export const sendMonthlyReminderEmail = async (
   previousMonthIncomplete: boolean,
   previousMonthLabel: string,
 ): Promise<void> => {
+  const safeFacilityName = escapeHtml(facilityName);
   const html = emailShell(
     `Enter ${currentMonthLabel} activity data`,
     previousMonthIncomplete
-      ? `<p>Your <strong>${previousMonthLabel}</strong> activity data for <strong>${facilityName}</strong> is still incomplete or in draft. Please finish it, then enter your ${currentMonthLabel} data.</p>
+      ? `<p>Your <strong>${previousMonthLabel}</strong> activity data for <strong>${safeFacilityName}</strong> is still incomplete or in draft. Please finish it, then enter your ${currentMonthLabel} data.</p>
          ${button(`${env.CLIENT_URL}/facilities`, "Complete activity data")}`
-      : `<p>Please enter ${currentMonthLabel} activity data for <strong>${facilityName}</strong>.</p>
+      : `<p>Please enter ${currentMonthLabel} activity data for <strong>${safeFacilityName}</strong>.</p>
          ${button(`${env.CLIENT_URL}/facilities`, "Enter activity data")}`,
   );
   await sendEmail({
@@ -202,7 +218,7 @@ export const sendLeadBorderEmail = async (to: string, name: string, results: Bor
   }
 
   const html = emailShell(
-    `Hi ${name}, here's your CBAM exposure estimate`,
+    `Hi ${escapeHtml(name)}, here's your CBAM exposure estimate`,
     `<p>Thanks for using <strong>IntelloCalc Border</strong>. Here's your instant CBAM exposure estimate:</p>
      <table style="width:100%;border-collapse:collapse;margin-top:8px;">${rows.join("")}</table>
      <p style="margin-top:16px;font-size:12px;color:#8AA0B4;">This estimate uses EU default values per EU 2025/2621. Certificate price used: EUR ${CBAM_CERTIFICATE_PRICE_EUR} (${CBAM_CERTIFICATE_PRICE_QUARTER}).</p>
@@ -233,7 +249,7 @@ export const sendLeadIndiaEmail = async (to: string, name: string, results: Indi
   }
 
   const html = emailShell(
-    `Hi ${name}, here's your CCTS position check`,
+    `Hi ${escapeHtml(name)}, here's your CCTS position check`,
     `<p>Thanks for using <strong>IntelloCalc India</strong>. Here's your instant CCTS GHG intensity check:</p>
      <table style="width:100%;border-collapse:collapse;margin-top:8px;">${rows.join("")}</table>
      <p style="margin-top:16px;font-size:12px;color:#8AA0B4;">This is an indicative estimate based on sector reference benchmarks. GWP values used: AR2/BUR3 as per S.O. 2825(E) 2023.</p>
@@ -269,7 +285,7 @@ export const sendLeadComplyEmail = async (
     : undefined;
 
   const html = emailShell(
-    `Hi ${name}, here's your personalised compliance map`,
+    `Hi ${escapeHtml(name)}, here's your personalised compliance map`,
     `${bodyHtml}
      ${button(`${env.CLIENT_URL}/signup`, "Get Started on Intellocarbon")}
      <p style="font-size:12px;color:#8AA0B4;">Reference: ${leadId.slice(-8)}. Questions? Reply to this email or write to abhishek@intellocarbon.com.</p>`,
@@ -290,11 +306,11 @@ export const sendAdminNewSignupEmail = async (
     "New signup awaiting approval",
     `<p>A new user has signed up and is waiting for approval.</p>
      <table style="width:100%;border-collapse:collapse;margin-top:8px;">
-       ${row("Name", signup.name)}
-       ${row("Email", signup.email)}
-       ${row("Company", signup.companyName ?? "—")}
-       ${row("Sector", signup.sector)}
-       ${row("Account type", signup.accountType)}
+       ${row("Name", escapeHtml(signup.name))}
+       ${row("Email", escapeHtml(signup.email))}
+       ${row("Company", signup.companyName ? escapeHtml(signup.companyName) : "—")}
+       ${row("Sector", escapeHtml(signup.sector))}
+       ${row("Account type", escapeHtml(signup.accountType))}
      </table>
      ${button(`${env.CLIENT_URL}/admin/approvals`, "Review in Super Admin panel")}`,
   );
@@ -303,7 +319,7 @@ export const sendAdminNewSignupEmail = async (
 
 export const sendAccountApprovedEmail = async (to: string, name: string): Promise<void> => {
   const html = emailShell(
-    `You're approved, ${name}`,
+    `You're approved, ${escapeHtml(name)}`,
     `<p>Your Intellocarbon account has been reviewed and approved. You can log in now and get started.</p>
      ${button(`${env.CLIENT_URL}/login`, "Log in to Intellocarbon")}`,
   );
@@ -313,7 +329,7 @@ export const sendAccountApprovedEmail = async (to: string, name: string): Promis
 export const sendAccountRejectedEmail = async (to: string, name: string): Promise<void> => {
   const html = emailShell(
     `About your Intellocarbon application`,
-    `<p>Hi ${name}, thanks for your interest in Intellocarbon. After review, we're not able to approve this account at this time.</p>
+    `<p>Hi ${escapeHtml(name)}, thanks for your interest in Intellocarbon. After review, we're not able to approve this account at this time.</p>
      <p>If you believe this is a mistake, reply to this email or write to abhishek@intellocarbon.com and we'll take another look.</p>`,
   );
   await sendEmail({ to, subject: "Your Intellocarbon account application", html });
@@ -322,7 +338,7 @@ export const sendAccountRejectedEmail = async (to: string, name: string): Promis
 export const sendNewVerificationRequestEmail = async (to: string, facilityName: string): Promise<void> => {
   const html = emailShell(
     "New verification request available",
-    `<p>A new activity data submission for <strong>${facilityName}</strong> is awaiting an independent verifier.</p>
+    `<p>A new activity data submission for <strong>${escapeHtml(facilityName)}</strong> is awaiting an independent verifier.</p>
      ${button(`${env.CLIENT_URL}/verifier/dashboard`, "Open verifier dashboard")}`,
   );
   await sendEmail({ to, subject: "New verification request available", html });
@@ -336,8 +352,8 @@ export const sendVerificationQueryRaisedEmail = async (
 ): Promise<void> => {
   const html = emailShell(
     "Verifier query — action needed",
-    `<p>Your independent verifier has raised a query on <strong>${facilityName}</strong>'s submitted activity data:</p>
-     <blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #00D4AA;background:#0F1923;color:#E8F0F7;">${queryText}</blockquote>
+    `<p>Your independent verifier has raised a query on <strong>${escapeHtml(facilityName)}</strong>'s submitted activity data:</p>
+     <blockquote style="margin:16px 0;padding:12px 16px;border-left:3px solid #00D4AA;background:#0F1923;color:#E8F0F7;">${escapeHtml(queryText).replace(/\n/g, "<br>")}</blockquote>
      <p>Respond from the facility dashboard so the verifier can continue their review.</p>
      ${button(`${env.CLIENT_URL}/facilities/${facilityId}/dashboard`, "Respond to query")}`,
   );
