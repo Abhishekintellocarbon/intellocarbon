@@ -85,6 +85,7 @@ model Company {
   owner                   User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name                    String
   registrationNumber      String?
+  gstin                   String?
   sector                  Sector
   subSector               String?
   address                 String?

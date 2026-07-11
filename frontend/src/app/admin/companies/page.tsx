@@ -40,6 +40,7 @@ function AdminCompaniesContent() {
               <thead>
                 <tr className="border-b border-surface-border text-xs text-muted-foreground">
                   <th className="px-5 py-3 font-medium">Company Name</th>
+                  <th className="px-5 py-3 font-medium">CIN</th>
                   <th className="px-5 py-3 font-medium">GSTIN</th>
                   <th className="px-5 py-3 font-medium">Sector</th>
                   <th className="px-5 py-3 font-medium">Owner Email</th>
@@ -58,6 +59,7 @@ function AdminCompaniesContent() {
                       </Link>
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">{c.registrationNumber ?? "—"}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{c.gstin ?? "—"}</td>
                     <td className="px-5 py-3 text-muted-foreground">{c.sector}</td>
                     <td className="px-5 py-3 text-muted-foreground">{c.ownerEmail}</td>
                     <td className="px-5 py-3 text-muted-foreground">{c.plans.length > 0 ? c.plans.map(tierLabel).join(", ") : "—"}</td>

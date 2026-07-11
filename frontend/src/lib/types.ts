@@ -22,6 +22,7 @@ export interface Company {
   ownerId: string;
   name: string;
   registrationNumber: string | null;
+  gstin: string | null;
   sector: Sector;
   subSector: string | null;
   address: string | null;
@@ -888,6 +889,7 @@ export interface AdminCompanySummary {
   id: string;
   name: string;
   registrationNumber: string | null;
+  gstin: string | null;
   sector: Sector;
   ownerEmail: string;
   plans: SubscriptionTier[];

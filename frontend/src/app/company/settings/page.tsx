@@ -22,12 +22,14 @@ import { cn } from "@/lib/utils";
 function DeclarantPreviewCard({
   name,
   registrationNumber,
+  gstin,
   sectorLabel,
   appliesCbam,
   appliesCcts,
 }: {
   name?: string;
   registrationNumber?: string;
+  gstin?: string;
   sectorLabel: string;
   appliesCbam?: boolean;
   appliesCcts?: boolean;
@@ -45,6 +47,10 @@ function DeclarantPreviewCard({
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">CIN / registration number</p>
           <p className="mt-1 text-sm text-foreground/90">{registrationNumber || "—"}</p>
+        </div>
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">GSTIN</p>
+          <p className="mt-1 text-sm text-foreground/90">{gstin || "—"}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Sector</p>
@@ -96,6 +102,7 @@ function CompanySettingsContent() {
 
   const watchedName = watch("name");
   const watchedRegistrationNumber = watch("registrationNumber");
+  const watchedGstin = watch("gstin");
   const watchedSector = watch("sector");
   const watchedAppliesCbam = watch("appliesCbam");
   const watchedAppliesCcts = watch("appliesCcts");
@@ -112,6 +119,7 @@ function CompanySettingsContent() {
         reset({
           name: company.name,
           registrationNumber: company.registrationNumber ?? "",
+          gstin: company.gstin ?? "",
           address: company.address ?? "",
           city: company.city ?? "",
           state: company.state ?? "",
@@ -142,6 +150,7 @@ function CompanySettingsContent() {
       await companyApi.update({
         ...data,
         registrationNumber: data.registrationNumber || undefined,
+        gstin: data.gstin || undefined,
         subSector: data.subSector || undefined,
         address: data.address || undefined,
         city: data.city || undefined,
@@ -206,6 +215,13 @@ function CompanySettingsContent() {
                 CIN / registration number <span className="text-muted">(optional)</span>
               </Label>
               <Input id="registrationNumber" {...register("registrationNumber")} />
+            </div>
+            <div>
+              <Label htmlFor="gstin">
+                GSTIN <span className="text-muted">(optional)</span>
+              </Label>
+              <Input id="gstin" placeholder="22AAAAA0000A1Z5" error={Boolean(errors.gstin)} {...register("gstin")} />
+              <FieldError message={errors.gstin?.message} />
             </div>
             <div>
               <Label htmlFor="address">
@@ -356,6 +372,7 @@ function CompanySettingsContent() {
         <DeclarantPreviewCard
           name={watchedName}
           registrationNumber={watchedRegistrationNumber}
+          gstin={watchedGstin}
           sectorLabel={watchedSectorLabel}
           appliesCbam={watchedAppliesCbam}
           appliesCcts={watchedAppliesCcts}

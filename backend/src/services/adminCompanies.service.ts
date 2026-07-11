@@ -28,6 +28,7 @@ export const listCompanies = async () => {
       id: c.id,
       name: c.name,
       registrationNumber: c.registrationNumber,
+      gstin: c.gstin,
       sector: c.sector,
       ownerEmail: c.owner.email,
       plans: c.subscriptions.map((s) => s.tier),

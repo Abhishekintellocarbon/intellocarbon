@@ -91,7 +91,8 @@ function AdminCompanyDetailContent() {
 
             <Card className="mt-6 grid gap-5 p-6 sm:grid-cols-3 lg:grid-cols-4">
               <Field label="Company ID" value={company.id} />
-              <Field label="GSTIN / Registration No." value={company.registrationNumber} />
+              <Field label="CIN / Registration No." value={company.registrationNumber} />
+              <Field label="GSTIN" value={company.gstin} />
               <Field label="Sector" value={company.sector} />
               <Field label="Sub-sector" value={company.subSector} />
               <Field label="Address" value={company.address} />

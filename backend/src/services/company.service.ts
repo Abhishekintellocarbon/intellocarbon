@@ -34,6 +34,7 @@ export const createCompany = async (userId: string, input: CompanyInput) => {
       ownerId: userId,
       name: input.name,
       registrationNumber: cleanOptional(input.registrationNumber),
+      gstin: cleanOptional(input.gstin),
       sector: input.sector,
       subSector: cleanOptional(input.subSector),
       address: cleanOptional(input.address),
@@ -64,6 +65,7 @@ export const updateCompany = async (userId: string, input: CompanyInput) => {
     data: {
       name: input.name,
       registrationNumber: cleanOptional(input.registrationNumber),
+      gstin: cleanOptional(input.gstin),
       sector: input.sector,
       subSector: cleanOptional(input.subSector),
       address: cleanOptional(input.address),

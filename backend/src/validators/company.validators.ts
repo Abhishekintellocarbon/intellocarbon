@@ -4,6 +4,13 @@ import { z } from "zod";
 export const companySchema = z.object({
   name: z.string().trim().min(2, "Company name must be at least 2 characters").max(150),
   registrationNumber: z.string().trim().max(50).optional().or(z.literal("")),
+  gstin: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/, "Enter a valid 15-character GSTIN")
+    .optional()
+    .or(z.literal("")),
   sector: z.nativeEnum(Sector, { errorMap: () => ({ message: "Select a valid sector" }) }),
   subSector: z.string().trim().max(100).optional().or(z.literal("")),
 

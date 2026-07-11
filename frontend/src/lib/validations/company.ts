@@ -8,9 +8,18 @@ const optionalNumericString = z
   .or(z.literal(""))
   .refine((v) => !v || !Number.isNaN(Number(v)), "Enter a valid number");
 
+const gstinSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/, "Enter a valid 15-character GSTIN")
+  .optional()
+  .or(z.literal(""));
+
 export const companyStep1Schema = z.object({
   name: z.string().trim().min(2, "Enter your company name").max(150),
   registrationNumber: optionalString(50),
+  gstin: gstinSchema,
   address: optionalString(250),
   city: optionalString(100),
   state: optionalString(100),
