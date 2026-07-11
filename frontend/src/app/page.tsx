@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
+import { HomeRedirectGate } from "@/components/marketing/home-redirect-gate";
 
 const STATS = [
   { value: "30,000 TPA", label: "CCTS threshold — Iron & Steel" },
@@ -124,6 +125,7 @@ function BrowserChrome({ label }: { label: string }) {
 
 export default function Home() {
   return (
+    <HomeRedirectGate>
     <div className="relative min-h-screen overflow-hidden bg-background lg:pr-[240px]">
       <div className="pointer-events-none absolute inset-0 bg-grid opacity-40" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-gradient-radial-glow" />
@@ -466,5 +468,6 @@ export default function Home() {
         </p>
       </footer>
     </div>
+    </HomeRedirectGate>
   );
 }
