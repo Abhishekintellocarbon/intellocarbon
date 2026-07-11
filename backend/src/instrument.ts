@@ -60,6 +60,15 @@ const scrubRequestData = (data: unknown): unknown => {
   return scrubbed;
 };
 
+// scrub() only redacts structured data by object key — it never touches the
+// exception message/stack trace *text* itself. A DB connection error is the
+// realistic case here: some drivers echo the connection string (with its
+// embedded password) back in the thrown error's .message on a connection
+// failure, and that text goes to Sentry as event.exception, completely
+// outside the key-based scrubbing above.
+const CONNECTION_STRING_PATTERN = /\b\w+:\/\/[^\s'"]*:[^\s'"@]*@[^\s'"]+/g;
+const redactConnectionStrings = (text: string): string => text.replace(CONNECTION_STRING_PATTERN, "[REDACTED_CONNECTION_STRING]");
+
 // If scrubbing itself throws on some unexpected shape, beforeSend must not
 // let that exception propagate — Sentry drops the *entire* event (silently,
 // no error surfaced to us) when beforeSend throws. Better to lose one field
@@ -109,6 +118,14 @@ Sentry.init({
     const extra = event.extra;
     if (extra) {
       event.extra = safeScrub("extra", () => scrub(extra)) as typeof extra;
+    }
+    if (event.message) {
+      event.message = safeScrub("message", () => redactConnectionStrings(event.message!)) as string;
+    }
+    if (event.exception?.values) {
+      event.exception.values = safeScrub("exception.values", () =>
+        event.exception!.values!.map((v) => (v.value ? { ...v, value: redactConnectionStrings(v.value) } : v)),
+      ) as typeof event.exception.values;
     }
     // Never return null/undefined here — that silently drops the event
     // instead of just redacting a field. Always return the (scrubbed) event.

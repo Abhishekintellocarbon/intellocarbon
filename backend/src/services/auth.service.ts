@@ -90,13 +90,32 @@ export const signup = async (input: SignupInput, meta: RequestMeta) => {
 
   const tokens = await issueTokenPair(user, meta);
 
+  // Sector is only captured during company onboarding, which happens after
+  // approval — nothing to report yet at signup time.
+  const sector = "Not selected yet (set during onboarding)";
+
   if (isSuperAdmin) {
     sendWelcomeEmail(user.email, user.name).catch(() => {});
+    // Email address alone isn't proof of ownership — nothing stops someone
+    // else from signing up with an email that happens to match
+    // SUPER_ADMIN_EMAILS before its real owner does, and this path
+    // auto-approves without the usual human-review step specifically
+    // because it has to (bootstrapping the very first account). The
+    // unique constraint on User.email means this can't happen for an
+    // *already-registered* admin — but for a not-yet-claimed entry in the
+    // list, it silently succeeded with no trace. Every configured admin
+    // gets notified now regardless, so an unexpected auto-approval is
+    // never invisible.
+    superAdminEmails.forEach((adminEmail) => {
+      sendAdminNewSignupEmail(adminEmail, {
+        name: user.name,
+        email: user.email,
+        companyName: user.companyName,
+        sector,
+        accountType: input.accountType,
+      }).catch(() => {});
+    });
   } else {
-    // Sector is only captured during company onboarding, which happens after
-    // approval — nothing to report yet at signup time.
-    const sector = "Not selected yet (set during onboarding)";
-
     superAdminEmails.forEach((adminEmail) => {
       sendAdminNewSignupEmail(adminEmail, {
         name: user.name,

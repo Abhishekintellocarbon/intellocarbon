@@ -8,6 +8,7 @@ import { isProd } from "./config/env";
 import { isOriginAllowed } from "./config/cors";
 import routes from "./routes";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
+import { generalApiRateLimiter } from "./middleware/rateLimiters";
 
 const app = express();
 
@@ -59,7 +60,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan(isProd ? "combined" : "dev"));
 
-app.use("/api", routes);
+// Applied ahead of every route's own requireAuth, so req.user isn't set yet
+// here — this falls back to IP-keying in practice, which is still a real
+// safety net against a single source (one account or one shared IP)
+// hammering any authenticated endpoint. The specific auth/password-reset/
+// lead-capture/upload limiters below layer stricter, user-keyed caps on top
+// of this for their higher-risk endpoints.
+app.use("/api", generalApiRateLimiter, routes);
 
 app.use(notFoundHandler);
 
