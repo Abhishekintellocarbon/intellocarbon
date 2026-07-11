@@ -82,7 +82,9 @@ export function IndiaTool() {
     <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Card className="p-6">
         <h2 className="text-lg font-semibold">Your facility details</h2>
-        <p className="mt-1 text-sm text-muted-foreground">GWP values used: AR2/BUR3 per S.O. 2825(E) 2023.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Calculated using regulator-aligned methodology under India&apos;s CCTS framework.
+        </p>
 
         <form onSubmit={handleSubmit(onCalculate)} noValidate className="mt-5 space-y-4">
           <div>
@@ -221,7 +223,8 @@ export function IndiaTool() {
 
           <div className="mt-4 rounded-xl border border-surface-border bg-surface-raised p-4 text-xs text-muted-foreground">
             This is an indicative estimate based on sector reference benchmarks. Actual CCTS targets are
-            facility-specific and set by BEE. GWP values used: AR2/BUR3 as per S.O. 2825(E) 2023. CH4=21, N2O=310.
+            facility-specific and set by BEE. Calculations use CCTS-aligned emission factors and
+            regulator-approved gas conversion methodology.
           </div>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
