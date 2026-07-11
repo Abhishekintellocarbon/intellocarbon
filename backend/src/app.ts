@@ -13,7 +13,22 @@ const app = express();
 
 app.set("trust proxy", 1);
 
-app.use(helmet());
+app.use(
+  helmet({
+    // helmet's defaults are SAMEORIGIN / 180-day HSTS — this is a pure JSON
+    // API with no page content to frame or embed, so tighten both. CSP's
+    // default-src 'none' is inert for JSON/binary responses (there's no HTML
+    // document context to apply it to) but costs nothing to set correctly.
+    frameguard: { action: "deny" },
+    hsts: { maxAge: 31536000, includeSubDomains: true },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+  }),
+);
 app.use(
   cors({
     origin: (origin, callback) => {

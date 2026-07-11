@@ -75,6 +75,7 @@ export const requireCapacityForNewFacility = async (companyId: string): Promise<
 };
 
 const devBypassCheckout = async (companyId: string, tier: SubscriptionTier) => {
+  logger.warn(`[Billing] dev-bypass checkout — company=${companyId} tier=${tier} activated with no payment collected`);
   const subscription = await prisma.subscription.upsert({
     where: { companyId_tier: { companyId, tier } },
     create: {
@@ -169,6 +170,7 @@ const performMerge = async (companyId: string, obsoleteSubscriptions: Subscripti
   }
 
   if (!isRazorpayConfigured || !razorpay) {
+    logger.warn(`[Billing] dev-bypass merge — company=${companyId} tier=${combinedTier} activated with no payment collected`);
     const combined = await applyMergeTransaction(companyId, obsoleteSubscriptions, combinedTier, {
       status: "ACTIVE",
       currentPeriodEnd: new Date(Date.now() + 30 * DAY_MS),

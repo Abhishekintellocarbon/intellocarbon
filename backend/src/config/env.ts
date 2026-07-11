@@ -11,7 +11,6 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("30d"),
   PASSWORD_RESET_TOKEN_EXPIRES_MIN: z.coerce.number().default(60),
-  COOKIE_DOMAIN: z.string().default("localhost"),
   RESEND_API_KEY: z.string().optional().default(""),
   RESEND_FROM: z.string().default("Intellocarbon <notifications@intellocarbon.com>"),
   RESEND_REPLY_TO: z.string().default("abhishek@intellocarbon.com"),
@@ -52,3 +51,25 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === "production";
+
+// CORS itself doesn't depend on this (production origins are hardcoded in
+// config/cors.ts), but CLIENT_URL is baked into every transactional email
+// link (password reset, welcome, billing, deadline alerts) — left at its
+// localhost default in production, every one of those links is broken.
+// Not fatal (nothing insecure happens), so this warns rather than exits.
+if (isProd && env.CLIENT_URL === "http://localhost:3000") {
+  console.error(
+    "CLIENT_URL is still the localhost default in production — every emailed link (password reset, welcome, billing) will point to localhost. Set CLIENT_URL to the real frontend origin.",
+  );
+}
+
+// Supabase's endpoints reject plaintext connections at the network level
+// regardless of what's in the connection string, so this is defense-in-depth
+// documentation, not a real vulnerability if missing — a soft warning, not a
+// fail-fast, since a legitimate provider/proxy could enforce TLS without
+// this exact query param.
+if (isProd && !env.DATABASE_URL.includes("sslmode")) {
+  console.error(
+    "DATABASE_URL has no sslmode parameter — add sslmode=require so the client also refuses to fall back to a plaintext connection.",
+  );
+}
