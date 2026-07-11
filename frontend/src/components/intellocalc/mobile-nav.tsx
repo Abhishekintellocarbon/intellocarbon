@@ -6,7 +6,7 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SERVICE_LINKS } from "./services-nav-dropdown";
 
-export function MobileNav() {
+export function MobileNav({ isAuthenticated }: { isAuthenticated: boolean }) {
   const [open, setOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
 
@@ -114,19 +114,29 @@ export function MobileNav() {
               </Link>
 
               <div className="mt-6 flex flex-col gap-3 border-t border-surface-border pt-6">
-                <Link href="/login" onClick={close}>
-                  <Button
-                    variant="ghost"
-                    className="h-auto w-full rounded-[8px] border-[1.5px] border-[#00D4AA] bg-transparent px-5 py-2.5 font-semibold text-[#00D4AA] hover:bg-[#00D4AA]/10 hover:text-[#00D4AA]"
-                  >
-                    Log in
-                  </Button>
-                </Link>
-                <Link href="/signup" onClick={close}>
-                  <Button className="h-auto w-full rounded-[8px] bg-[#00D4AA] px-5 py-2.5 font-bold text-[#0F1923] shadow-none hover:bg-[#00D4AA] hover:brightness-105">
-                    Get started
-                  </Button>
-                </Link>
+                {isAuthenticated ? (
+                  <Link href="/dashboard" onClick={close}>
+                    <Button className="h-auto w-full rounded-[8px] bg-[#00D4AA] px-5 py-2.5 font-bold text-[#0F1923] shadow-none hover:bg-[#00D4AA] hover:brightness-105">
+                      Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/login" onClick={close}>
+                      <Button
+                        variant="ghost"
+                        className="h-auto w-full rounded-[8px] border-[1.5px] border-[#00D4AA] bg-transparent px-5 py-2.5 font-semibold text-[#00D4AA] hover:bg-[#00D4AA]/10 hover:text-[#00D4AA]"
+                      >
+                        Log in
+                      </Button>
+                    </Link>
+                    <Link href="/signup" onClick={close}>
+                      <Button className="h-auto w-full rounded-[8px] bg-[#00D4AA] px-5 py-2.5 font-bold text-[#0F1923] shadow-none hover:bg-[#00D4AA] hover:brightness-105">
+                        Get started
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </nav>
           </div>
