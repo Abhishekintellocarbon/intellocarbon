@@ -4,6 +4,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { LoginForm } from "@/components/auth/login-form";
 import { GuestRoute } from "@/components/auth/guest-route";
 import { InactivityBanner } from "@/components/auth/inactivity-banner";
+import { LoginPanelPreview } from "@/components/auth/login-panel-preview";
 
 export const metadata: Metadata = { title: "Log in — Intellocarbon" };
 
@@ -39,6 +40,8 @@ export default function LoginPage({
         headline="One platform. Every carbon compliance obligation."
         features={LOGIN_FEATURES}
         statLine="30,000 TPA and above? You're already CCTS-obligated."
+        logoSize="lg"
+        panelExtra={<LoginPanelPreview />}
       >
         <LoginForm />
       </AuthShell>

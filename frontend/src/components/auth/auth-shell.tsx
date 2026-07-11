@@ -40,6 +40,8 @@ export function AuthShell({
   headline = DEFAULT_HEADLINE,
   features = DEFAULT_FEATURES,
   statLine,
+  logoSize = "md",
+  panelExtra,
 }: {
   children: React.ReactNode;
   title: string;
@@ -47,15 +49,17 @@ export function AuthShell({
   headline?: React.ReactNode;
   features?: AuthShellFeature[];
   statLine?: React.ReactNode;
+  logoSize?: "md" | "lg";
+  panelExtra?: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-screen bg-background lg:grid-cols-2">
-      <div className="relative hidden overflow-hidden border-r border-surface-border bg-surface lg:flex lg:flex-col lg:justify-between lg:p-12">
+    <div className="grid min-h-screen bg-background lg:h-screen lg:grid-cols-2">
+      <div className="relative hidden overflow-x-hidden overflow-y-auto border-r border-surface-border bg-surface lg:flex lg:flex-col lg:justify-between lg:p-12">
         <div className="pointer-events-none absolute inset-0 bg-grid opacity-40" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-radial-glow" />
 
         <Link href="/" className="relative z-10">
-          <Logo />
+          <Logo size={logoSize} />
         </Link>
 
         <div className="relative z-10 max-w-md space-y-8">
@@ -78,9 +82,10 @@ export function AuthShell({
               {statLine}
             </div>
           )}
+          {panelExtra}
         </div>
 
-        <p className="relative z-10 text-xs text-muted">
+        <p className="relative z-10 mt-6 shrink-0 text-xs text-muted">
           © {new Date().getFullYear()} Intellocarbon Solutions. All rights reserved.
         </p>
       </div>
