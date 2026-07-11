@@ -9,7 +9,24 @@ import * as Sentry from "@sentry/node";
 import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import { logger } from "./utils/logger";
 
-const SENSITIVE_KEYS = ["password", "token", "secret", "authorization", "cookie"];
+// Credential/secret keys plus the personal-data fields the app actually
+// collects (see prisma/schema.prisma): direct identifiers (email, phone),
+// precise location (latitude/longitude), and business identifiers (gstin).
+// Sentry only needs enough of an error event to debug it — it doesn't need
+// any of this, so it's redacted regardless of event size.
+const SENSITIVE_KEYS = [
+  "password",
+  "token",
+  "secret",
+  "authorization",
+  "cookie",
+  "email",
+  "phone",
+  "latitude",
+  "longitude",
+  "address",
+  "gstin",
+];
 
 // Anything past this size is almost certainly a full activity/emissions data
 // payload rather than something useful for debugging an error — replace it

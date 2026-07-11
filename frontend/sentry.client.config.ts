@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { scrubSentryEvent } from "@/lib/sentryScrub";
 
 // Note: the frontend DSN is exposed via NEXT_PUBLIC_ so it's available in
 // this client bundle — Sentry DSNs are not secret (they only allow
@@ -17,4 +18,5 @@ Sentry.init({
   // at this stage — revisit once real traffic patterns are known.
   tracesSampleRate: 0.1,
   sendDefaultPii: false,
+  beforeSend: scrubSentryEvent,
 });

@@ -82,3 +82,9 @@ export const me = asyncHandler(async (req, res) => {
   const user = await authService.getCurrentUser(req.user!.sub);
   res.status(200).json({ user });
 });
+
+export const deleteAccount = asyncHandler(async (req, res) => {
+  const result = await authService.deleteMyAccount(req.user!.sub, req.body.password);
+  clearRefreshCookie(res);
+  res.status(200).json(result);
+});

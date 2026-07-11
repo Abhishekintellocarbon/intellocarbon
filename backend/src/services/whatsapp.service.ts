@@ -1,4 +1,4 @@
-import { env } from "../config/env";
+import { env, isProd } from "../config/env";
 import { logger } from "../utils/logger";
 
 // Where pending-signup alerts go. Not an env var — Twilio credentials are
@@ -13,7 +13,14 @@ const asWhatsAppAddress = (raw: string) => (raw.startsWith("whatsapp:") ? raw : 
 
 const sendWhatsAppMessage = async (to: string, body: string): Promise<void> => {
   if (!twilioConfigured) {
-    logger.info(`[whatsapp:dev] Would send WhatsApp message to ${to}`, { body });
+    // Only dump the recipient/body locally — if Twilio creds are ever
+    // missing in production this must degrade to a redacted log line, not
+    // leak a phone number and message content into production logs.
+    if (isProd) {
+      logger.error("Twilio credentials missing in production — WhatsApp message not sent (content redacted)");
+    } else {
+      logger.info(`[whatsapp:dev] Would send WhatsApp message to ${to}`, { body });
+    }
     return;
   }
 

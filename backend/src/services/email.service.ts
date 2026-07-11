@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { env } from "../config/env";
+import { env, isProd } from "../config/env";
 import { logger } from "../utils/logger";
 import type { BorderResults, ComplyResults, IndiaResults } from "./intellocalcCalculations";
 import { buildComplyPdf } from "./complyPdf.service";
@@ -16,7 +16,15 @@ interface SendEmailParams {
 
 const sendEmail = async ({ to, subject, html, attachments }: SendEmailParams): Promise<void> => {
   if (!resend) {
-    logger.info(`[email:dev] Would send email to ${to}`, { subject, html, attachments: attachments?.map((a) => a.filename) });
+    // html may embed a password-reset/verification token in its link — only
+    // dump full content locally. If RESEND_API_KEY is ever missing in
+    // production this must degrade to a redacted log line, not leak tokens
+    // and recipient emails into production logs.
+    if (isProd) {
+      logger.error("RESEND_API_KEY missing in production — email not sent (content redacted)", { subject });
+    } else {
+      logger.info(`[email:dev] Would send email to ${to}`, { subject, html, attachments: attachments?.map((a) => a.filename) });
+    }
     return;
   }
 

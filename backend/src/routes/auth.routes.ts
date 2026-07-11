@@ -4,6 +4,7 @@ import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/requireAuth";
 import { authRateLimiter, passwordResetRateLimiter } from "../middleware/rateLimiters";
 import {
+  deleteAccountSchema,
   forgotPasswordSchema,
   loginSchema,
   resetPasswordSchema,
@@ -29,5 +30,12 @@ router.post(
   authController.resetPassword,
 );
 router.get("/me", requireAuth, authController.me);
+router.delete(
+  "/account",
+  requireAuth,
+  authRateLimiter,
+  validate(deleteAccountSchema),
+  authController.deleteAccount,
+);
 
 export default router;

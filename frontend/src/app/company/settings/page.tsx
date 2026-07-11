@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Building2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/ui/field-error";
@@ -16,7 +19,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { companySettingsSchema, type CompanySettingsValues } from "@/lib/validations/company";
 import { SECTOR_OPTIONS, FY_START_MONTH_OPTIONS } from "@/lib/constants";
-import { companyApi, ApiError } from "@/lib/api";
+import { authApi, companyApi, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 function DeclarantPreviewCard({
@@ -82,6 +85,104 @@ function DeclarantPreviewCard({
           </div>
         </div>
       </div>
+    </Card>
+  );
+}
+
+// Privacy Policy §5/§7: account holders may request deletion of their
+// personal information. Password re-entry + typed confirmation guard
+// against a stolen/left-open session triggering an irreversible action.
+function DangerZoneCard() {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmText, setConfirmText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<{ companyDataRetainedForCompliance: boolean } | null>(null);
+
+  const handleDelete = async () => {
+    setError(null);
+    if (confirmText !== "DELETE") {
+      setError('Type "DELETE" in the box below to confirm.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await authApi.deleteAccount(password);
+      setResult(res);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      setSubmitting(false);
+    }
+  };
+
+  if (result) {
+    return (
+      <Card className="border-danger/40 p-6 sm:p-8">
+        <h2 className="mb-4 font-medium text-danger">Account deleted</h2>
+        <Alert variant="success">
+          {result.companyDataRetainedForCompliance
+            ? "Your personal information has been removed. Your company's CBAM compliance records (facilities, activity data, reports, verification history) are retained for the legally required 7-year period — see our Privacy Policy §5."
+            : "Your account and company data have been deleted."}
+        </Alert>
+        <Button className="mt-4" onClick={() => router.push("/login")}>
+          Return to login
+        </Button>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-danger/40 p-6 sm:p-8">
+      <h2 className="mb-1 font-medium text-danger">Danger zone</h2>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Permanently delete your account. Your personal information is removed immediately. If your company has EU
+        CBAM enabled, company compliance records are retained for the legally required 7-year period instead of
+        being deleted — see our <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>{" "}
+        §5. This can't be undone from within the app; contact support@intellocarbon.com to restore an account.
+      </p>
+      {!confirming ? (
+        <Button variant="danger" onClick={() => setConfirming(true)}>
+          Delete my account
+        </Button>
+      ) : (
+        <div className="space-y-4">
+          {error && <Alert variant="error">{error}</Alert>}
+          <div>
+            <Label htmlFor="deleteConfirmPassword">Confirm your password</Label>
+            <PasswordInput
+              id="deleteConfirmPassword"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="deleteConfirmText">
+              Type <span className="font-mono font-semibold">DELETE</span> to confirm
+            </Label>
+            <Input id="deleteConfirmText" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} />
+          </div>
+          <div className="flex gap-3">
+            <Button variant="danger" onClick={handleDelete} isLoading={submitting}>
+              {submitting ? "Deleting..." : "Permanently delete account"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setConfirming(false);
+                setError(null);
+                setPassword("");
+                setConfirmText("");
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
@@ -378,6 +479,10 @@ function CompanySettingsContent() {
           appliesCcts={watchedAppliesCcts}
         />
       </div>
+      </div>
+
+      <div className="mt-8">
+        <DangerZoneCard />
       </div>
     </div>
   );

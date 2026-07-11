@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { prisma } from "../config/prisma";
 import { env } from "../config/env";
 import { AppError } from "../utils/AppError";
@@ -269,4 +270,60 @@ export const getCurrentUser = async (userId: string) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw AppError.notFound("User not found");
   return publicUser(user);
+};
+
+// Privacy Policy §5 / DPA: personal information is deleted or anonymised on
+// request, except where regulatory retention applies. CBAM records must be
+// kept a minimum of 7 years (Privacy Policy §5.2, EU 2024/3210 Article 23) —
+// so a company with appliesCbam still true keeps its Company/Facility/
+// ActivityData/Report/VerificationRequest rows (the audit trail) intact;
+// only the requesting user's own identity is anonymised. A company with no
+// CBAM hold has nothing blocking full erasure, so it's cascade-deleted
+// outright (Company -> Facility -> ActivityData -> ... all onDelete: Cascade).
+// The User row itself is never hard-deleted, only anonymised in place —
+// other users' records (verification statements, audit logs) can reference
+// it via onDelete: Restrict/SetNull relations that a hard delete would
+// either violate or silently erase context from.
+export const deleteMyAccount = async (userId: string, password: string) => {
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { company: true } });
+  if (!user) throw AppError.notFound("User not found");
+
+  const validPassword = await verifyPassword(password, user.passwordHash);
+  if (!validPassword) {
+    throw AppError.unauthorized("Incorrect password", "INVALID_PASSWORD");
+  }
+
+  const companyDataRetainedForCompliance = Boolean(user.company?.appliesCbam);
+
+  if (user.company && !companyDataRetainedForCompliance) {
+    await prisma.company.delete({ where: { id: user.company.id } });
+  }
+
+  const anonymizedEmail = `deleted-${user.id}@deleted.intellocarbon.invalid`;
+  const unusablePasswordHash = await hashPassword(randomBytes(32).toString("hex"));
+
+  await prisma.$transaction([
+    prisma.refreshToken.deleteMany({ where: { userId } }),
+    prisma.passwordResetToken.deleteMany({ where: { userId } }),
+    // LeadCapture isn't FK-linked to User (it's pre-signup IntelloCalc tool
+    // usage), but rows matching this email are the same person's personal
+    // data and aren't covered by any CBAM retention requirement.
+    prisma.leadCapture.updateMany({
+      where: { email: user.email },
+      data: { name: null, email: anonymizedEmail, company: null, phone: null },
+    }),
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: "Deleted user",
+        email: anonymizedEmail,
+        passwordHash: unusablePasswordHash,
+        companyName: null,
+        active: false,
+        emailVerified: false,
+      },
+    }),
+  ]);
+
+  return { companyDataRetainedForCompliance };
 };

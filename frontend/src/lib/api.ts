@@ -234,6 +234,9 @@ export const authApi = {
     }),
 
   me: (): Promise<{ user: ApiUser }> => apiFetch("/api/auth/me"),
+
+  deleteAccount: (password: string): Promise<{ companyDataRetainedForCompliance: boolean }> =>
+    apiFetch("/api/auth/account", { method: "DELETE", body: JSON.stringify({ password }) }),
 };
 
 export const referenceApi = {

@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { scrubSentryEvent } from "@/lib/sentryScrub";
 
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN_FRONTEND || undefined;
 
@@ -11,4 +12,5 @@ Sentry.init({
   environment: process.env.NODE_ENV === "production" ? "production" : "development",
   tracesSampleRate: 0.1,
   sendDefaultPii: false,
+  beforeSend: scrubSentryEvent,
 });
