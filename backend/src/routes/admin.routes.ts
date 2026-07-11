@@ -9,6 +9,7 @@ import * as adminVerifiersController from "../controllers/adminVerifiers.control
 import * as adminFacilityAssignmentsController from "../controllers/adminFacilityAssignments.controller";
 import * as adminEmissionFactorsController from "../controllers/adminEmissionFactors.controller";
 import * as dpaGeneratorController from "../controllers/dpaGenerator.controller";
+import * as ndaGeneratorController from "../controllers/ndaGenerator.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireSuperAdmin } from "../middleware/requireSuperAdmin";
 import { validate } from "../middleware/validate";
@@ -21,6 +22,7 @@ import {
   quickUpdateValueSchema,
 } from "../validators/emissionFactor.validators";
 import { generateDpaSchema } from "../validators/dpaGenerator.validators";
+import { generateNdaSchema } from "../validators/ndaGenerator.validators";
 
 const router = Router();
 
@@ -80,5 +82,6 @@ router.put(
 router.put("/cea-grid-factor", validate(quickUpdateValueSchema), adminEmissionFactorsController.updateCeaGridFactor);
 
 router.post("/dpa-generator/generate", validate(generateDpaSchema), dpaGeneratorController.generate);
+router.post("/nda-generator/generate", validate(generateNdaSchema), ndaGeneratorController.generate);
 
 export default router;

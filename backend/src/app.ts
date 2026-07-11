@@ -25,6 +25,10 @@ app.use(
       }
     },
     credentials: true,
+    // Without this, fetch()'s Response.headers can't see Content-Disposition
+    // cross-origin (browsers only expose a small safelist by default) — the
+    // DPA/NDA generator downloads parse it client-side to name the saved file.
+    exposedHeaders: ["Content-Disposition"],
   }),
 );
 app.use(

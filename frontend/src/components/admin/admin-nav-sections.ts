@@ -2,6 +2,7 @@ import {
   Building2,
   Calculator,
   ClipboardCheck,
+  FileLock2,
   FileSignature,
   Gauge,
   IndianRupee,
@@ -32,6 +33,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
   { href: "/admin/emission-factors", label: "Emission Factors", icon: Gauge },
   { href: "/admin/ghg-runner", label: "GHG Runner", icon: Calculator },
   { href: "/admin/dpa-generator", label: "DPA Generator", icon: FileSignature },
+  { href: "/admin/nda-generator", label: "NDA Generator", icon: FileLock2 },
 ];
 
 /** "/admin" would prefix-match every other section's route too, so it only

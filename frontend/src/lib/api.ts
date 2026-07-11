@@ -896,3 +896,42 @@ export const dpaGeneratorApi = {
     return { blob, fileName };
   },
 };
+
+export interface NdaGeneratorInput {
+  recipientName: string;
+  recipientType: "INDIVIDUAL" | "COMPANY";
+  recipientAddress: string;
+  effectiveDate: string;
+}
+
+export const ndaGeneratorApi = {
+  // Stateless generate-and-download tool — nothing is persisted server-side,
+  // same single-POST-streams-the-PDF shape as dpaGeneratorApi.generate above.
+  generate: async (input: NdaGeneratorInput): Promise<{ blob: Blob; fileName: string }> => {
+    const url = `${API_URL}/api/admin/nda-generator/generate`;
+    const fetchDoc = () =>
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify(input),
+      });
+
+    let res = await fetchDoc();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchDoc();
+    }
+    if (!res.ok) {
+      const data = await parseJson(res);
+      throw new ApiError(data?.error?.message ?? "Couldn't generate the NDA. Please try again.", res.status, data?.error?.code);
+    }
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    const fileName = /filename="?([^"]+)"?/.exec(disposition)?.[1] ?? "nda.pdf";
+    const blob = await res.blob();
+    return { blob, fileName };
+  },
+};
