@@ -140,7 +140,7 @@ function DangerZoneCard() {
         Permanently delete your account. Your personal information is removed immediately. If your company has EU
         CBAM enabled, company compliance records are retained for the legally required 7-year period instead of
         being deleted — see our <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>{" "}
-        §5. This can't be undone from within the app; contact support@intellocarbon.com to restore an account.
+        §5. This can&apos;t be undone from within the app; contact support@intellocarbon.com to restore an account.
       </p>
       {!confirming ? (
         <Button variant="danger" onClick={() => setConfirming(true)}>
