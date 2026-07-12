@@ -58,7 +58,11 @@ export const requireCapacityForNewFacility = async (companyId: string): Promise<
     );
   }
 
-  const limits = subscriptions.map((s) => getPlan(s.tier).facilityLimit);
+  // A custom-deal subscription's negotiated facility count overrides the
+  // plan's standard (currently always-null/uncapped) limit for that tier.
+  const limits = subscriptions.map((s) =>
+    s.isCustomDeal && s.customFacilityCount != null ? s.customFacilityCount : getPlan(s.tier).facilityLimit,
+  );
   if (limits.some((limit) => limit === null)) return;
 
   // Every active tier is billed per-facility with a finite cap — combined
@@ -74,29 +78,65 @@ export const requireCapacityForNewFacility = async (companyId: string): Promise<
   }
 };
 
-const devBypassCheckout = async (companyId: string, tier: SubscriptionTier) => {
-  logger.warn(`[Billing] dev-bypass checkout — company=${companyId} tier=${tier} activated with no payment collected`);
+// Single source of truth for "make this (company, tier) subscription
+// ACTIVE" — used by the Razorpay webhook, the dev-bypass checkout path, and
+// the Super Admin manual-payment flow, so none of them fork their own copy
+// of this logic. Upserts rather than requiring an existing row since any of
+// the three callers may be the very first activation for that tier.
+export const activateSubscriptionForTier = async (
+  companyId: string,
+  tier: SubscriptionTier,
+  currentPeriodEnd?: Date,
+): Promise<Subscription> => {
   const subscription = await prisma.subscription.upsert({
     where: { companyId_tier: { companyId, tier } },
     create: {
       companyId,
       tier,
       status: "ACTIVE",
-      currentPeriodEnd: new Date(Date.now() + 30 * DAY_MS),
+      currentPeriodEnd,
     },
     update: {
       status: "ACTIVE",
       cancelAtPeriodEnd: false,
-      currentPeriodEnd: new Date(Date.now() + 30 * DAY_MS),
+      currentPeriodEnd,
     },
   });
 
-  const company = await prisma.company.findUniqueOrThrow({
+  const company = await prisma.company.findUnique({
     where: { id: companyId },
     include: { owner: true },
   });
-  sendSubscriptionActivatedEmail(company.owner.email, getPlan(tier).name).catch(() => {});
+  if (company) {
+    sendSubscriptionActivatedEmail(company.owner.email, getPlan(tier).name).catch(() => {});
+  }
 
+  return subscription;
+};
+
+// Single source of truth for "mark this subscription PAST_DUE" — used by
+// the Razorpay webhook's payment.failed handler and the Super Admin
+// manual-payment reversal flow.
+export const markSubscriptionPastDue = async (subscriptionId: string): Promise<Subscription> => {
+  const subscription = await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: { status: "PAST_DUE" },
+  });
+
+  const company = await prisma.company.findUnique({
+    where: { id: subscription.companyId },
+    include: { owner: true },
+  });
+  if (company) {
+    sendPaymentFailedEmail(company.owner.email).catch(() => {});
+  }
+
+  return subscription;
+};
+
+const devBypassCheckout = async (companyId: string, tier: SubscriptionTier) => {
+  logger.warn(`[Billing] dev-bypass checkout — company=${companyId} tier=${tier} activated with no payment collected`);
+  const subscription = await activateSubscriptionForTier(companyId, tier, new Date(Date.now() + 30 * DAY_MS));
   return { devBypass: true as const, subscription };
 };
 
@@ -374,15 +414,11 @@ export const handleWebhookEvent = async (event: {
     if (!subscription) return;
 
     if (event.event === "subscription.activated" || event.event === "subscription.charged") {
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          status: "ACTIVE",
-          currentPeriodEnd: subscriptionEntity.current_end
-            ? new Date(subscriptionEntity.current_end * 1000)
-            : undefined,
-        },
-      });
+      await activateSubscriptionForTier(
+        subscription.companyId,
+        subscription.tier,
+        subscriptionEntity.current_end ? new Date(subscriptionEntity.current_end * 1000) : undefined,
+      );
 
       if (paymentEntity) {
         await prisma.payment.create({
@@ -395,14 +431,6 @@ export const handleWebhookEvent = async (event: {
             paidAt: new Date(),
           },
         });
-      }
-
-      const company = await prisma.company.findUnique({
-        where: { id: subscription.companyId },
-        include: { owner: true },
-      });
-      if (company) {
-        sendSubscriptionActivatedEmail(company.owner.email, getPlan(subscription.tier).name).catch(() => {});
       }
     }
 
@@ -428,17 +456,7 @@ export const handleWebhookEvent = async (event: {
           where: { payments: { some: { razorpayOrderId: paymentEntity.order_id } } },
         });
     if (subscription) {
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: { status: "PAST_DUE" },
-      });
-      const company = await prisma.company.findUnique({
-        where: { id: subscription.companyId },
-        include: { owner: true },
-      });
-      if (company) {
-        sendPaymentFailedEmail(company.owner.email).catch(() => {});
-      }
+      await markSubscriptionPastDue(subscription.id);
     }
   }
 };

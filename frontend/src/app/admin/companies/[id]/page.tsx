@@ -7,8 +7,11 @@ import { Factory, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert } from "@/components/ui/alert";
 import { adminApi, ApiError } from "@/lib/api";
-import type { AdminCompanyDetail, AdminVerifierSummary } from "@/lib/types";
+import type { AdminCompanyDetail, AdminVerifierSummary, ManualPayment, Subscription } from "@/lib/types";
 
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -22,10 +25,164 @@ const tierLabel = (tier: string) =>
     .map((w) => w[0].toUpperCase() + w.slice(1))
     .join(" ");
 
+// -----------------------------------------------------------------------
+// Custom deal panel — one per subscribed tier, set/update negotiated terms
+// or revert to standard pricing.
+// -----------------------------------------------------------------------
+
+function CustomDealPanel({
+  companyId,
+  subscription,
+  onUpdated,
+}: {
+  companyId: string;
+  subscription: Subscription;
+  onUpdated: (updated: Subscription) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [amount, setAmount] = useState(subscription.customAmount ? String(subscription.customAmount) : "");
+  const [facilityCount, setFacilityCount] = useState(
+    subscription.customFacilityCount ? String(subscription.customFacilityCount) : "",
+  );
+  const [validFrom, setValidFrom] = useState(subscription.customValidFrom?.slice(0, 10) ?? "");
+  const [validUntil, setValidUntil] = useState(subscription.customValidUntil?.slice(0, 10) ?? "");
+  const [notes, setNotes] = useState(subscription.customDealNotes ?? "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    setError(null);
+    setIsSaving(true);
+    try {
+      const { subscription: updated } = await adminApi.setCustomSubscription(companyId, {
+        tier: subscription.tier,
+        isCustomDeal: true,
+        customAmount: amount ? Number(amount) : undefined,
+        customFacilityCount: facilityCount ? Number(facilityCount) : undefined,
+        customValidFrom: validFrom || undefined,
+        customValidUntil: validUntil || undefined,
+        customDealNotes: notes.trim() || undefined,
+      });
+      onUpdated(updated);
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't save this custom deal.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRevert = async () => {
+    if (!window.confirm(`Revert ${subscription.tier} back to standard pricing for this company?`)) return;
+    setError(null);
+    setIsSaving(true);
+    try {
+      const { subscription: updated } = await adminApi.setCustomSubscription(companyId, {
+        tier: subscription.tier,
+        isCustomDeal: false,
+      });
+      onUpdated(updated);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't revert this deal.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-surface-border p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-foreground">{tierLabel(subscription.tier)}</span>
+          {subscription.isCustomDeal ? (
+            <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-500">
+              Custom deal
+            </span>
+          ) : (
+            <span className="rounded-full border border-surface-border bg-surface-raised px-2 py-0.5 text-xs font-medium text-muted-foreground">
+              Standard pricing
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {subscription.isCustomDeal && (
+            <Button size="sm" variant="secondary" isLoading={isSaving} onClick={handleRevert}>
+              Revert to standard
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" onClick={() => setEditing((v) => !v)}>
+            {subscription.isCustomDeal ? "Edit deal" : "Set custom deal"}
+          </Button>
+        </div>
+      </div>
+
+      {subscription.isCustomDeal && !editing && (
+        <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-4">
+          <span>Amount: {subscription.customAmount ? `₹${subscription.customAmount.toLocaleString("en-IN")}` : "—"}</span>
+          <span>Facility count: {subscription.customFacilityCount ?? "—"}</span>
+          <span>Valid from: {fmtDate(subscription.customValidFrom)}</span>
+          <span>Valid until: {fmtDate(subscription.customValidUntil)}</span>
+          {subscription.customDealNotes && <span className="sm:col-span-4">Notes: {subscription.customDealNotes}</span>}
+        </div>
+      )}
+
+      {editing && (
+        <div className="mt-4 grid gap-3 border-t border-surface-border pt-4 sm:grid-cols-4">
+          {error && (
+            <div className="sm:col-span-4">
+              <Alert variant="error">{error}</Alert>
+            </div>
+          )}
+          <div>
+            <Label htmlFor={`deal-amount-${subscription.id}`}>Custom amount (INR)</Label>
+            <Input id={`deal-amount-${subscription.id}`} type="number" step="any" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor={`deal-facilities-${subscription.id}`}>Facility count</Label>
+            <Input
+              id={`deal-facilities-${subscription.id}`}
+              type="number"
+              value={facilityCount}
+              onChange={(e) => setFacilityCount(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor={`deal-from-${subscription.id}`}>Valid from</Label>
+            <Input id={`deal-from-${subscription.id}`} type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor={`deal-until-${subscription.id}`}>Valid until</Label>
+            <Input id={`deal-until-${subscription.id}`} type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+          </div>
+          <div className="sm:col-span-4">
+            <Label htmlFor={`deal-notes-${subscription.id}`}>Deal notes</Label>
+            <textarea
+              id={`deal-notes-${subscription.id}`}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className="w-full rounded-xl border border-surface-border bg-surface px-4 py-2.5 text-sm text-foreground outline-none transition-colors duration-150 focus:border-teal-500/60 focus:ring-2 focus:ring-teal-500/20"
+            />
+          </div>
+          <div className="sm:col-span-4 flex justify-end gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" isLoading={isSaving} onClick={handleSave}>
+              Save deal
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminCompanyDetailContent() {
   const params = useParams<{ id: string }>();
   const [company, setCompany] = useState<AdminCompanyDetail | null>(null);
   const [verifiers, setVerifiers] = useState<AdminVerifierSummary[] | null>(null);
+  const [manualPayments, setManualPayments] = useState<ManualPayment[] | null>(null);
   const [selectedVerifierId, setSelectedVerifierId] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -38,6 +195,7 @@ function AdminCompanyDetailContent() {
       .then(({ company }) => setCompany(company))
       .catch(() => setError("Couldn't load this company."));
     adminApi.listVerifiers().then(({ verifiers }) => setVerifiers(verifiers));
+    adminApi.listManualPayments({ companyId: params.id }).then(({ payments }) => setManualPayments(payments));
   }, [params.id]);
 
   const assignedVerifierIds = new Set(company?.verifierAssignments.map((a) => a.verifier.id) ?? []);
@@ -194,6 +352,67 @@ function AdminCompanyDetailContent() {
                         <td className="px-5 py-3 text-muted-foreground">{s.status}</td>
                         <td className="px-5 py-3 text-muted-foreground">{s.currentPeriodEnd ? fmtDate(s.currentPeriodEnd) : "—"}</td>
                         <td className="px-5 py-3 text-muted-foreground">{s.cancelAtPeriodEnd ? "Yes" : "No"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Card>
+
+            <h2 className="mt-8 text-lg font-semibold">Payments & Custom Deal</h2>
+            <div className="mt-4 space-y-3">
+              {company.subscriptions.length === 0 ? (
+                <Card className="p-6 text-sm text-muted-foreground">
+                  No subscription yet — record a manual payment from the{" "}
+                  <Link href="/admin/manual-payments" className="text-teal-500 hover:text-teal-400">
+                    Payments &amp; Deals
+                  </Link>{" "}
+                  page to activate one.
+                </Card>
+              ) : (
+                company.subscriptions.map((s) => (
+                  <CustomDealPanel
+                    key={s.id}
+                    companyId={company.id}
+                    subscription={s}
+                    onUpdated={(updated) =>
+                      setCompany((prev) =>
+                        prev ? { ...prev, subscriptions: prev.subscriptions.map((x) => (x.id === updated.id ? updated : x)) } : prev,
+                      )
+                    }
+                  />
+                ))
+              )}
+            </div>
+
+            <Card className="mt-4 overflow-x-auto p-0">
+              {manualPayments === null ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-teal-500" />
+                </div>
+              ) : manualPayments.length === 0 ? (
+                <p className="p-6 text-center text-sm text-muted-foreground">No manual payments recorded for this company.</p>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-surface-border text-xs text-muted-foreground">
+                      <th className="px-5 py-3 font-medium">Tier</th>
+                      <th className="px-5 py-3 font-medium text-right">Amount</th>
+                      <th className="px-5 py-3 font-medium">Mode</th>
+                      <th className="px-5 py-3 font-medium">Payment date</th>
+                      <th className="px-5 py-3 font-medium">Valid until</th>
+                      <th className="px-5 py-3 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {manualPayments.map((p) => (
+                      <tr key={p.id} className="border-b border-surface-border last:border-b-0">
+                        <td className="px-5 py-3 text-foreground">{tierLabel(p.tier)}</td>
+                        <td className="px-5 py-3 text-right text-muted-foreground">₹{p.amount.toLocaleString("en-IN")}</td>
+                        <td className="px-5 py-3 text-muted-foreground">{p.paymentMode}</td>
+                        <td className="px-5 py-3 text-muted-foreground">{fmtDate(p.paymentDate)}</td>
+                        <td className="px-5 py-3 text-muted-foreground">{fmtDate(p.validUntil)}</td>
+                        <td className="px-5 py-3 text-muted-foreground">{p.status}</td>
                       </tr>
                     ))}
                   </tbody>

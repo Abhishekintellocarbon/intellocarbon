@@ -10,6 +10,7 @@ import * as adminFacilityAssignmentsController from "../controllers/adminFacilit
 import * as adminEmissionFactorsController from "../controllers/adminEmissionFactors.controller";
 import * as dpaGeneratorController from "../controllers/dpaGenerator.controller";
 import * as ndaGeneratorController from "../controllers/ndaGenerator.controller";
+import * as adminManualPaymentsController from "../controllers/adminManualPayments.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireSuperAdmin } from "../middleware/requireSuperAdmin";
 import { validate } from "../middleware/validate";
@@ -23,6 +24,11 @@ import {
 } from "../validators/emissionFactor.validators";
 import { generateDpaSchema } from "../validators/dpaGenerator.validators";
 import { generateNdaSchema } from "../validators/ndaGenerator.validators";
+import {
+  recordManualPaymentSchema,
+  reverseManualPaymentSchema,
+  setCustomSubscriptionSchema,
+} from "../validators/manualPayment.validators";
 
 const router = Router();
 
@@ -83,5 +89,20 @@ router.put("/cea-grid-factor", validate(quickUpdateValueSchema), adminEmissionFa
 
 router.post("/dpa-generator/generate", validate(generateDpaSchema), dpaGeneratorController.generate);
 router.post("/nda-generator/generate", validate(generateNdaSchema), ndaGeneratorController.generate);
+
+router.get("/manual-payments", adminManualPaymentsController.list);
+router.post("/manual-payments", validate(recordManualPaymentSchema), adminManualPaymentsController.record);
+router.post(
+  "/manual-payments/:id/reverse",
+  validate(reverseManualPaymentSchema),
+  adminManualPaymentsController.reverse,
+);
+
+router.get("/companies/:companyId/subscription", adminManualPaymentsController.getSubscriptionState);
+router.post(
+  "/companies/:companyId/custom-subscription",
+  validate(setCustomSubscriptionSchema),
+  adminManualPaymentsController.setCustomSubscription,
+);
 
 export default router;

@@ -65,6 +65,9 @@ model User {
   facilityAssignmentsMade    FacilityAssignment[]        @relation("FacilityAssignmentsMadeBy")
   ghgEngagementsCreated      GhgEngagement[]
   crossCheckReviewsDone      CrossCheckReview[]
+  manualPaymentsRecorded     ManualPayment[]             @relation("ManualPaymentsRecorded")
+  manualPaymentsReversed     ManualPayment[]             @relation("ManualPaymentsReversed")
+  customDealsSet             Subscription[]              @relation("CustomDealsSet")
 
   @@map("users")
 }
@@ -126,6 +129,7 @@ model Company {
   documents            Document[]
   verificationQueries  VerificationQuery[]
   verifierAssignments  VerifierCompanyAssignment[]
+  manualPayments       ManualPayment[]
 
   @@map("companies")
 }
@@ -170,6 +174,22 @@ model Subscription {
 
   payments Payment[]
 
+  // Super Admin-negotiated custom deal terms — entirely independent of
+  // Razorpay. When isCustomDeal is true, customFacilityCount (if set)
+  // overrides the plan's standard facilityLimit in requireCapacityForNewFacility,
+  // and customValidFrom/customValidUntil/customAmount are informational
+  // terms shown on the admin company page (they don't drive status/
+  // currentPeriodEnd — that's still set by whichever manual payment or
+  // Razorpay charge activated the subscription).
+  isCustomDeal        Boolean   @default(false)
+  customFacilityCount Int?
+  customValidFrom     DateTime?
+  customValidUntil    DateTime?
+  customAmount        Float?
+  customSetByUserId   String?
+  customSetBy         User?     @relation("CustomDealsSet", fields: [customSetByUserId], references: [id], onDelete: SetNull)
+  customDealNotes     String?
+
   // One subscription row per (company, tier) — a company can hold several
   // tiers simultaneously (each its own Razorpay subscription), but can't
   // double-purchase the same tier twice.
@@ -192,6 +212,57 @@ model Payment {
 
   @@index([subscriptionId])
   @@map("payments")
+}
+
+enum ManualPaymentMode {
+  CHEQUE
+  NEFT
+  RTGS
+  UPI
+  CASH
+  OTHER
+}
+
+enum ManualPaymentStatus {
+  RECORDED
+  REVERSED
+}
+
+// Payment collected outside Razorpay (cheque/NEFT/UPI/cash), recorded by a
+// Super Admin. Independent of Razorpay end to end — activation/reversal
+// reuse billing.service.ts's activateSubscriptionForTier/markSubscriptionPastDue,
+// the same functions the Razorpay webhook calls, so a company's subscription
+// state doesn't care which path activated it.
+model ManualPayment {
+  id               String              @id @default(cuid())
+  companyId        String
+  company          Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Which (companyId, tier) Subscription row this payment activates —
+  // Subscription is unique per (companyId, tier), not per company, since a
+  // company can hold multiple tiers at once. Resolved via companyId+tier
+  // (not a direct FK) at record/reversal time, same as devBypassCheckout.
+  tier             SubscriptionTier
+  amount           Float
+  paymentMode      ManualPaymentMode
+  referenceNumber  String?
+  paymentDate      DateTime
+  // Set explicitly by the Super Admin on the form — not auto-calculated —
+  // since manual deals can be monthly, quarterly, or annual.
+  validUntil       DateTime
+  recordedByUserId String
+  recordedBy       User                @relation("ManualPaymentsRecorded", fields: [recordedByUserId], references: [id])
+  status           ManualPaymentStatus @default(RECORDED)
+  reversedAt       DateTime?
+  reversedByUserId String?
+  reversedBy       User?               @relation("ManualPaymentsReversed", fields: [reversedByUserId], references: [id], onDelete: SetNull)
+  reversalReason   String?
+  notes            String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@map("manual_payments")
 }
 
 enum VerificationStatus {
@@ -271,16 +342,16 @@ model VerificationQuery {
 // portal's dashboard/queue only ever shows requests for assigned companies,
 // not the full platform. Managed from the Super Admin company detail page.
 model VerifierCompanyAssignment {
-  id         String   @id @default(cuid())
-  verifierId String
-  verifier   User     @relation("VerifierCompanyAssignments", fields: [verifierId], references: [id], onDelete: Cascade)
-  companyId  String
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  assignedAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  verifierId     String
+  verifier       User     @relation("VerifierCompanyAssignments", fields: [verifierId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedAt     DateTime @default(now())
   // Nullable — backfilled rows from before this column existed have no
   // recorded assigner. Same audit-trail shape as FacilityAssignment.assignedBy.
   assignedBy     String?
-  assignedByUser User?   @relation("VerifierAssignmentsMadeBy", fields: [assignedBy], references: [id])
+  assignedByUser User?    @relation("VerifierAssignmentsMadeBy", fields: [assignedBy], references: [id])
 
   @@unique([verifierId, companyId])
   @@index([companyId])
@@ -327,6 +398,10 @@ model Notification {
 
 enum AuditLogAction {
   REPORT_GENERATED
+  MANUAL_PAYMENT_RECORDED
+  MANUAL_PAYMENT_REVERSED
+  CUSTOM_SUBSCRIPTION_SET
+  CUSTOM_SUBSCRIPTION_REVERTED
 }
 
 // Minimal append-only event log for the per-facility "Recent Activity" feed
@@ -335,10 +410,12 @@ enum AuditLogAction {
 // record to source from — data submissions, verifier claims/decisions, and
 // deadline alerts are read directly off ActivityData, VerificationRequest,
 // and Notification instead of being duplicated here.
+// facilityId is nullable to also cover company-level events (manual
+// payments, custom subscription deals) that have no associated facility.
 model AuditLog {
   id         String         @id @default(cuid())
-  facilityId String
-  facility   Facility       @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facilityId String?
+  facility   Facility?      @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   companyId  String
   company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   // Who triggered the action — nullable since not every future action type

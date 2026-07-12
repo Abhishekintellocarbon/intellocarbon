@@ -430,8 +430,61 @@ export interface Subscription {
   // Set when this subscription was auto-merged into a combined tier (e.g.
   // CCTS_COMPLIANCE -> CBAM_PLUS_CCTS) — points at the new subscription's id.
   mergedIntoId: string | null;
+  isCustomDeal: boolean;
+  customFacilityCount: number | null;
+  customValidFrom: string | null;
+  customValidUntil: string | null;
+  customAmount: number | null;
+  customSetByUserId: string | null;
+  customDealNotes: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ManualPaymentMode = "CHEQUE" | "NEFT" | "RTGS" | "UPI" | "CASH" | "OTHER";
+export type ManualPaymentStatus = "RECORDED" | "REVERSED";
+
+export interface ManualPayment {
+  id: string;
+  companyId: string;
+  company: { id: string; name: string };
+  tier: SubscriptionTier;
+  amount: number;
+  paymentMode: ManualPaymentMode;
+  referenceNumber: string | null;
+  paymentDate: string;
+  validUntil: string;
+  recordedByUserId: string;
+  recordedBy: { id: string; name: string; email: string };
+  status: ManualPaymentStatus;
+  reversedAt: string | null;
+  reversedByUserId: string | null;
+  reversedBy: { id: string; name: string; email: string } | null;
+  reversalReason: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecordManualPaymentInput {
+  companyId: string;
+  tier: SubscriptionTier;
+  amount: number;
+  paymentMode: ManualPaymentMode;
+  referenceNumber?: string;
+  paymentDate: string;
+  validUntil: string;
+  notes?: string;
+}
+
+export interface SetCustomSubscriptionInput {
+  tier: SubscriptionTier;
+  isCustomDeal: boolean;
+  customAmount?: number;
+  customFacilityCount?: number;
+  customValidFrom?: string;
+  customValidUntil?: string;
+  customDealNotes?: string;
 }
 
 export interface CheckoutResult {

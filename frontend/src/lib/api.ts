@@ -53,6 +53,10 @@ import type {
   CrossCheckEntry,
   CrossCheckReview,
   CrossCheckStatus,
+  ManualPayment,
+  ManualPaymentStatus,
+  RecordManualPaymentInput,
+  SetCustomSubscriptionInput,
 } from "./types";
 import type {
   BorderInputs,
@@ -694,6 +698,32 @@ export const adminApi = {
     apiFetch("/api/admin/cea-grid-factor", { method: "PUT", body: JSON.stringify(input) }),
 
   fetchDocumentBlob: (documentId: string): Promise<Blob> => fetchAuthedBlob(`${API_URL}/api/admin/documents/${documentId}/download`),
+
+  listManualPayments: (filters: {
+    companyId?: string;
+    status?: ManualPaymentStatus;
+    from?: string;
+    to?: string;
+  }): Promise<{ payments: ManualPayment[] }> => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    const qs = params.toString();
+    return apiFetch(`/api/admin/manual-payments${qs ? `?${qs}` : ""}`);
+  },
+
+  recordManualPayment: (input: RecordManualPaymentInput): Promise<{ payment: ManualPayment }> =>
+    apiFetch("/api/admin/manual-payments", { method: "POST", body: JSON.stringify(input) }),
+
+  reverseManualPayment: (id: string, reason: string): Promise<{ payment: ManualPayment }> =>
+    apiFetch(`/api/admin/manual-payments/${id}/reverse`, { method: "POST", body: JSON.stringify({ reason }) }),
+
+  getCompanySubscription: (companyId: string): Promise<{ subscriptions: Subscription[] }> =>
+    apiFetch(`/api/admin/companies/${companyId}/subscription`),
+
+  setCustomSubscription: (companyId: string, input: SetCustomSubscriptionInput): Promise<{ subscription: Subscription }> =>
+    apiFetch(`/api/admin/companies/${companyId}/custom-subscription`, { method: "POST", body: JSON.stringify(input) }),
 };
 
 export const internalDataEntryApi = {

@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   UserCog,
   UserPlus,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,6 +27,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/companies", label: "Companies", icon: Building2 },
   { href: "/admin/revenue", label: "Revenue", icon: IndianRupee },
+  { href: "/admin/manual-payments", label: "Payments & Deals", icon: Wallet },
   { href: "/admin/leads", label: "Leads", icon: UserPlus },
   { href: "/admin/approvals", label: "Pending Approvals", icon: ClipboardCheck },
   { href: "/admin/internal-operators", label: "Internal Operators", icon: UserCog },
