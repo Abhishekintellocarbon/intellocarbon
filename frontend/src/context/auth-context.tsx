@@ -1,7 +1,15 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { ApiError, authApi, refreshSession, setAccessToken, type ApiUser } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import {
+  ApiError,
+  authApi,
+  refreshSession,
+  setAccessToken,
+  setSessionExpiredHandler,
+  type ApiUser,
+} from "@/lib/api";
 
 interface AuthContextValue {
   user: ApiUser | null;
@@ -24,6 +32,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<ApiUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   const fetchMe = useCallback(async () => {
     try {
@@ -33,6 +42,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
     }
   }, []);
+
+  // The server is the source of truth for "is this session still valid" —
+  // this fires whenever any authenticated request comes back 401 and a
+  // refresh couldn't recover it (idle timeout, or an expired/revoked refresh
+  // token), not just when a client-side inactivity timer happens to fire.
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      setAccessToken(null);
+      setUser(null);
+      router.replace("/login?reason=inactivity");
+    });
+    return () => setSessionExpiredHandler(null);
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;

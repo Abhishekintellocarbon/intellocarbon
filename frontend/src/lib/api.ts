@@ -107,6 +107,25 @@ let accessToken: string | null = null;
 export const getAccessToken = () => accessToken;
 export const setAccessToken = (token: string | null) => {
   accessToken = token;
+  if (token) sessionExpiredNotified = false;
+};
+
+// Fires once when an authenticated request comes back 401 and a refresh
+// couldn't recover it (expired/revoked refresh token, or the server-side
+// inactivity timeout rejecting the session). AuthProvider registers this to
+// clear local state and redirect to /login — the server's 401 is the source
+// of truth for "the session is over," not any client-side timer.
+let sessionExpiredHandler: (() => void) | null = null;
+let sessionExpiredNotified = false;
+
+export const setSessionExpiredHandler = (handler: (() => void) | null) => {
+  sessionExpiredHandler = handler;
+};
+
+const notifySessionExpired = () => {
+  if (sessionExpiredNotified) return;
+  sessionExpiredNotified = true;
+  sessionExpiredHandler?.();
 };
 
 interface RequestOptions extends RequestInit {
@@ -198,6 +217,10 @@ export const apiFetch = async (path: string, options: RequestOptions = {}) => {
         credentials: "include",
       });
     }
+  }
+
+  if (res.status === 401 && !skipAuth) {
+    notifySessionExpired();
   }
 
   const data = await parseJson(res);

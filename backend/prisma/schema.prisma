@@ -48,6 +48,11 @@ model User {
   emailVerified    Boolean        @default(false)
   failedLoginCount Int            @default(0)
   lockedUntil      DateTime?
+  // Stamped on every authenticated request (requireAuth) and on token
+  // issuance (login/signup/refresh) — the server-side source of truth for
+  // the 15-minute idle timeout. Never trust a client-side JS timer alone for
+  // this: browsers throttle/suspend timers in backgrounded or locked tabs.
+  lastActivityAt   DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 

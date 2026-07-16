@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword } from "../utils/password";
 import {
   generateOpaqueToken,
   hashOpaqueToken,
+  isSessionIdleExpired,
   msFromDuration,
   signAccessToken,
 } from "../utils/tokens";
@@ -61,6 +62,13 @@ const issueTokenPair = async (
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent,
     },
+  });
+
+  // Starts (or restarts) the server-side idle-timeout clock — requireAuth
+  // and the next refresh both measure against this timestamp.
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { lastActivityAt: new Date() },
   });
 
   return { accessToken, refreshToken, refreshTokenExpiresAt: expiresAt };
@@ -231,6 +239,17 @@ export const refreshSession = async (rawToken: string, meta: RequestMeta) => {
 
   if (existing.expiresAt < new Date()) {
     throw AppError.unauthorized("Session expired, please log in again", "SESSION_EXPIRED");
+  }
+
+  // Without this, a background silent-refresh would keep the session alive
+  // forever regardless of real user activity — the refresh token itself is
+  // valid for 30 days and carries no notion of idle time on its own.
+  if (isSessionIdleExpired(existing.user.lastActivityAt, env.SESSION_IDLE_TIMEOUT_MINUTES)) {
+    await prisma.refreshToken.updateMany({
+      where: { userId: existing.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    throw AppError.unauthorized("Session expired due to inactivity", "SESSION_IDLE_TIMEOUT");
   }
 
   // Rotate: revoke the used token and issue a fresh pair.

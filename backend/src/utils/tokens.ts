@@ -30,6 +30,12 @@ export const generateOpaqueToken = (): { token: string; tokenHash: string } => {
 export const hashOpaqueToken = (token: string): string =>
   crypto.createHash("sha256").update(token).digest("hex");
 
+/** True once `timeoutMinutes` have elapsed since `lastActivityAt`. A null timestamp (pre-migration rows) is treated as not-yet-expired. */
+export const isSessionIdleExpired = (lastActivityAt: Date | null, timeoutMinutes: number): boolean => {
+  if (!lastActivityAt) return false;
+  return Date.now() - lastActivityAt.getTime() > timeoutMinutes * 60_000;
+};
+
 export const msFromDuration = (duration: string): number => {
   const match = /^(\d+)([smhd])$/.exec(duration);
   if (!match) return 0;

@@ -10,6 +10,9 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
   JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("30d"),
+  // Server-enforced inactivity logout — checked against User.lastActivityAt
+  // on every authenticated request, independent of the JWT's own expiry.
+  SESSION_IDLE_TIMEOUT_MINUTES: z.coerce.number().default(15),
   PASSWORD_RESET_TOKEN_EXPIRES_MIN: z.coerce.number().default(15),
   RESEND_API_KEY: z.string().optional().default(""),
   RESEND_FROM: z.string().default("Intellocarbon <notifications@intellocarbon.com>"),
