@@ -10,6 +10,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
+    "test": "vitest run",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
@@ -53,7 +54,8 @@
     "eslint": "^10.6.0",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2",
-    "typescript-eslint": "^8.62.1"
+    "typescript-eslint": "^8.62.1",
+    "vitest": "^2.1.9"
   },
   "engines": {
     "node": ">=18.0.0"

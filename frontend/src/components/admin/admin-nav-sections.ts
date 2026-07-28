@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Building2,
   Calculator,
   ClipboardCheck,
@@ -27,6 +28,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/companies", label: "Companies", icon: Building2 },
   { href: "/admin/revenue", label: "Revenue", icon: IndianRupee },
+  { href: "/admin/facility-reconciliation", label: "Facility Reconciliation", icon: AlertTriangle },
   { href: "/admin/manual-payments", label: "Payments & Deals", icon: Wallet },
   { href: "/admin/leads", label: "Leads", icon: UserPlus },
   { href: "/admin/approvals", label: "Pending Approvals", icon: ClipboardCheck },

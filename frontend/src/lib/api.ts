@@ -24,6 +24,7 @@ import type {
   GeneratedReportType,
   AdminOverview,
   AdminRevenue,
+  FacilityShortfallRow,
   AdminCompanySummary,
   AdminCompanyDetail,
   AdminFacilityDetail,
@@ -605,11 +606,15 @@ export const billingApi = {
     combinationRules: PlanCombinationRule[];
   }> => apiFetch("/api/billing/subscription"),
 
-  checkout: (tier: SubscriptionTier): Promise<CheckoutResult> =>
-    apiFetch("/api/billing/checkout", { method: "POST", body: JSON.stringify({ tier }) }),
+  checkout: (tier: SubscriptionTier, facilitiesIncluded?: number): Promise<CheckoutResult> =>
+    apiFetch("/api/billing/checkout", { method: "POST", body: JSON.stringify({ tier, facilitiesIncluded }) }),
 
   cancel: (tier: SubscriptionTier): Promise<{ subscription: Subscription }> =>
     apiFetch("/api/billing/cancel", { method: "POST", body: JSON.stringify({ tier }) }),
+
+  // Adds one facility's worth of capacity to an already-active subscription.
+  addFacility: (tier: SubscriptionTier): Promise<{ subscription: Subscription }> =>
+    apiFetch("/api/billing/facilities/add", { method: "POST", body: JSON.stringify({ tier }) }),
 };
 
 export const intellocalcApi = {
@@ -677,6 +682,9 @@ export const adminApi = {
   overview: (): Promise<AdminOverview> => apiFetch("/api/admin/overview"),
 
   revenue: (): Promise<AdminRevenue> => apiFetch("/api/admin/revenue"),
+
+  facilityReconciliation: (): Promise<{ rows: FacilityShortfallRow[]; generatedAt: string }> =>
+    apiFetch("/api/admin/facility-reconciliation"),
 
   listCompanies: (): Promise<{ companies: AdminCompanySummary[] }> => apiFetch("/api/admin/companies"),
 

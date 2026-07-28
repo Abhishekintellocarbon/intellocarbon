@@ -33,6 +33,12 @@ export const getUsage = async (companyId: string) => {
   return { facilityCount };
 };
 
+// Facility capacity a single active subscription row currently covers — a
+// custom-deal's negotiated count overrides the self-serve facilitiesIncluded
+// counter for that row.
+const facilityCapacityOf = (s: Pick<Subscription, "isCustomDeal" | "customFacilityCount" | "facilitiesIncluded">) =>
+  s.isCustomDeal && s.customFacilityCount != null ? s.customFacilityCount : s.facilitiesIncluded;
+
 // A company can hold several tiers at once (each bought/cancelled independently) —
 // e.g. CBAM_COMPLIANCE plus BRSR_CORE_REPORTING bought as a standalone add-on,
 // rather than only via a pre-bundled combo tier like CBAM_PLUS_CCTS. See the
@@ -43,7 +49,16 @@ export const getSubscriptions = async (companyId: string) => {
     orderBy: { createdAt: "asc" },
   });
   const usage = await getUsage(companyId);
-  return { subscriptions, usage, plans: Object.values(PLANS), combinationRules: COMBINATION_RULES };
+  // Shown on the billing page next to an already-active plan so a company
+  // adding a facility sees what it costs before confirming — same prorated
+  // basis as the plan-merge credit calc below (logProratedCredit), reused
+  // rather than rebuilt.
+  const enriched = subscriptions.map((s) => ({
+    ...s,
+    incrementalFacilityPriceInr:
+      s.status === "ACTIVE" && !s.isCustomDeal ? getIncrementalFacilityPriceInr(s) : null,
+  }));
+  return { subscriptions: enriched, usage, plans: Object.values(PLANS), combinationRules: COMBINATION_RULES };
 };
 
 export const requireCapacityForNewFacility = async (companyId: string): Promise<void> => {
@@ -58,21 +73,14 @@ export const requireCapacityForNewFacility = async (companyId: string): Promise<
     );
   }
 
-  // A custom-deal subscription's negotiated facility count overrides the
-  // plan's standard (currently always-null/uncapped) limit for that tier.
-  const limits = subscriptions.map((s) =>
-    s.isCustomDeal && s.customFacilityCount != null ? s.customFacilityCount : getPlan(s.tier).facilityLimit,
-  );
-  if (limits.some((limit) => limit === null)) return;
-
-  // Every active tier is billed per-facility with a finite cap — combined
-  // capacity is additive across tiers rather than the single most permissive one.
-  const totalLimit = (limits as number[]).reduce((sum, limit) => sum + limit, 0);
+  // Every active tier is billed per-facility — combined capacity is additive
+  // across tiers, not the single most permissive one.
+  const totalCovered = subscriptions.reduce((sum, s) => sum + facilityCapacityOf(s), 0);
 
   const { facilityCount } = await getUsage(companyId);
-  if (facilityCount >= totalLimit) {
+  if (facilityCount >= totalCovered) {
     throw AppError.forbidden(
-      `Your current plan(s) are limited to ${totalLimit} facilit${totalLimit === 1 ? "y" : "ies"} combined. Upgrade to add more.`,
+      `Your current plan covers ${totalCovered} facilit${totalCovered === 1 ? "y" : "ies"}. Add another facility subscription to continue, or upgrade your plan.`,
       "PLAN_LIMIT_REACHED",
     );
   }
@@ -83,10 +91,16 @@ export const requireCapacityForNewFacility = async (companyId: string): Promise<
 // the Super Admin manual-payment flow, so none of them fork their own copy
 // of this logic. Upserts rather than requiring an existing row since any of
 // the three callers may be the very first activation for that tier.
+// `facilitiesIncluded` only applies to a brand-new subscription (the
+// `create` branch) — a renewal or reactivation (`update`) must never reset
+// it, since that would silently erase capacity bought later via
+// addFacilityCapacity. Callers that don't care (the webhook, manual
+// payments) simply don't pass it and get the schema's default of 1.
 export const activateSubscriptionForTier = async (
   companyId: string,
   tier: SubscriptionTier,
   currentPeriodEnd?: Date,
+  facilitiesIncluded = 1,
 ): Promise<Subscription> => {
   const subscription = await prisma.subscription.upsert({
     where: { companyId_tier: { companyId, tier } },
@@ -95,6 +109,7 @@ export const activateSubscriptionForTier = async (
       tier,
       status: "ACTIVE",
       currentPeriodEnd,
+      facilitiesIncluded,
     },
     update: {
       status: "ACTIVE",
@@ -134,10 +149,22 @@ export const markSubscriptionPastDue = async (subscriptionId: string): Promise<S
   return subscription;
 };
 
-const devBypassCheckout = async (companyId: string, tier: SubscriptionTier) => {
+const devBypassCheckout = async (companyId: string, tier: SubscriptionTier, facilitiesIncluded: number) => {
   logger.warn(`[Billing] dev-bypass checkout — company=${companyId} tier=${tier} activated with no payment collected`);
-  const subscription = await activateSubscriptionForTier(companyId, tier, new Date(Date.now() + 30 * DAY_MS));
+  const subscription = await activateSubscriptionForTier(companyId, tier, new Date(Date.now() + 30 * DAY_MS), facilitiesIncluded);
   return { devBypass: true as const, subscription };
+};
+
+// Shared proration basis for both the merge-credit paper trail below and the
+// "what would one more facility cost right now" quote shown on the billing
+// page — a flat 30-day cycle approximation, not calendar-accurate billing
+// (Razorpay's own proration is the source of truth for what's actually
+// charged; this is only ever a preview/log, never charged directly).
+const prorateForRemainingCycle = (currentPeriodEnd: Date | null | undefined, fullPriceInr: number): number => {
+  if (!currentPeriodEnd) return fullPriceInr;
+  const remainingMs = Math.max(0, currentPeriodEnd.getTime() - Date.now());
+  if (remainingMs <= 0) return fullPriceInr;
+  return Math.round((remainingMs / (30 * DAY_MS)) * fullPriceInr);
 };
 
 // Roughly logs the unused-time value of a plan being replaced mid-cycle, for
@@ -146,13 +173,19 @@ const devBypassCheckout = async (companyId: string, tier: SubscriptionTier) => {
 // Not stored anywhere structured; this is a paper trail, not a ledger entry.
 const logProratedCredit = (companyId: string, oldSub: Subscription, combinedTier: SubscriptionTier) => {
   const oldPriceInr = getPlan(oldSub.tier).priceInr ?? 0;
+  const creditInr = prorateForRemainingCycle(oldSub.currentPeriodEnd, oldPriceInr);
   const remainingMs = oldSub.currentPeriodEnd ? Math.max(0, oldSub.currentPeriodEnd.getTime() - Date.now()) : 0;
-  const creditInr = Math.round((remainingMs / (30 * DAY_MS)) * oldPriceInr);
   logger.info(
     `[Billing] Merge proration: company=${companyId} ${oldSub.tier} -> ${combinedTier} — ` +
       `≈₹${creditInr} unused credit (${Math.round(remainingMs / DAY_MS)} days left on the old cycle). ` +
       `Not automatically refunded by Razorpay — flag for manual reconciliation if the customer raises it.`,
   );
+};
+
+/** Prorated cost of adding one more facility to this active subscription right now, for display on the billing page before the company confirms. */
+export const getIncrementalFacilityPriceInr = (subscription: Pick<Subscription, "tier" | "currentPeriodEnd">): number => {
+  const fullPriceInr = getPlan(subscription.tier).priceInr ?? 0;
+  return prorateForRemainingCycle(subscription.currentPeriodEnd, fullPriceInr);
 };
 
 // Cancels/relabels the obsolete single-framework rows and creates (or
@@ -172,6 +205,7 @@ const applyMergeTransaction = async (
     razorpayCustomerId?: string;
     razorpaySubscriptionId?: string;
     currentPeriodEnd?: Date;
+    facilitiesIncluded: number;
   },
 ): Promise<Subscription> =>
   prisma.$transaction(async (tx) => {
@@ -204,16 +238,27 @@ const applyMergeTransaction = async (
  * that's rejected, cancels the old Razorpay subscription immediately and
  * creates a fresh one for the combined plan.
  */
-const performMerge = async (companyId: string, obsoleteSubscriptions: Subscription[], combinedTier: SubscriptionTier) => {
+const performMerge = async (
+  companyId: string,
+  obsoleteSubscriptions: Subscription[],
+  combinedTier: SubscriptionTier,
+  requestedFacilitiesIncluded = 1,
+) => {
   for (const old of obsoleteSubscriptions) {
     logProratedCredit(companyId, old, combinedTier);
   }
+
+  // The combined plan must cover at least as many facilities as whichever
+  // constituent plan already covered the most — merging must never shrink
+  // capacity a company already paid for.
+  const facilitiesIncluded = Math.max(requestedFacilitiesIncluded, ...obsoleteSubscriptions.map(facilityCapacityOf));
 
   if (!isRazorpayConfigured || !razorpay) {
     logger.warn(`[Billing] dev-bypass merge — company=${companyId} tier=${combinedTier} activated with no payment collected`);
     const combined = await applyMergeTransaction(companyId, obsoleteSubscriptions, combinedTier, {
       status: "ACTIVE",
       currentPeriodEnd: new Date(Date.now() + 30 * DAY_MS),
+      facilitiesIncluded,
     });
     const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId }, include: { owner: true } });
     sendSubscriptionActivatedEmail(company.owner.email, getPlan(combinedTier).name).catch(() => {});
@@ -231,6 +276,7 @@ const performMerge = async (companyId: string, obsoleteSubscriptions: Subscripti
     }
     const updated = await razorpay.subscriptions.update(primary.razorpaySubscriptionId, {
       plan_id: planId,
+      quantity: facilitiesIncluded,
       schedule_change_at: "now",
     });
     razorpaySubscriptionId = updated.id;
@@ -248,6 +294,7 @@ const performMerge = async (companyId: string, obsoleteSubscriptions: Subscripti
       plan_id: planId,
       customer_notify: 1,
       total_count: 120,
+      quantity: facilitiesIncluded,
       notes: { companyId, tier: combinedTier },
     });
     razorpaySubscriptionId = created.id;
@@ -257,6 +304,7 @@ const performMerge = async (companyId: string, obsoleteSubscriptions: Subscripti
     status: "INCOMPLETE",
     razorpayCustomerId,
     razorpaySubscriptionId,
+    facilitiesIncluded,
   });
 
   return {
@@ -268,7 +316,7 @@ const performMerge = async (companyId: string, obsoleteSubscriptions: Subscripti
   };
 };
 
-export const createCheckout = async (companyId: string, tier: SubscriptionTier) => {
+export const createCheckout = async (companyId: string, tier: SubscriptionTier, facilitiesIncluded = 1) => {
   // Detect a combination opportunity before doing anything else — this runs
   // regardless of whether the caller requested a single-framework tier that
   // now completes a combo (e.g. CBAM while CCTS is active) or the combined
@@ -284,11 +332,11 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier) 
   );
   if (mergeCandidate) {
     const obsolete = activeSubscriptions.filter((s) => mergeCandidate.obsoleteTiers.includes(s.tier));
-    return performMerge(companyId, obsolete, mergeCandidate.rule.combinedTier);
+    return performMerge(companyId, obsolete, mergeCandidate.rule.combinedTier, facilitiesIncluded);
   }
 
   if (!isRazorpayConfigured || !razorpay) {
-    return devBypassCheckout(companyId, tier);
+    return devBypassCheckout(companyId, tier, facilitiesIncluded);
   }
 
   const planId = planIdForTier(tier);
@@ -318,6 +366,7 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier) 
     plan_id: planId,
     customer_notify: 1,
     total_count: 120,
+    quantity: facilitiesIncluded,
     notes: { companyId, tier },
   });
 
@@ -329,6 +378,7 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier) 
       status: "INCOMPLETE",
       razorpayCustomerId,
       razorpaySubscriptionId: razorpaySubscription.id,
+      facilitiesIncluded,
     },
     update: {
       status: "INCOMPLETE",
@@ -343,6 +393,63 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier) 
     razorpaySubscriptionId: razorpaySubscription.id,
     subscription,
   };
+};
+
+/**
+ * Adds one facility's worth of capacity to an already-active subscription
+ * (facilitiesIncluded += 1), mirrored onto Razorpay by bumping that
+ * subscription's `quantity` (plans are priced per facility, so quantity is
+ * the natural unit — same field the initial checkout sets, see
+ * createCheckout). Dev-bypass mode just increments the counter and logs,
+ * matching devBypassCheckout's pattern elsewhere in this file.
+ */
+export const addFacilityCapacity = async (companyId: string, tier: SubscriptionTier): Promise<Subscription> => {
+  const subscription = await prisma.subscription.findUnique({
+    where: { companyId_tier: { companyId, tier } },
+  });
+  if (!subscription || subscription.status !== "ACTIVE") {
+    throw AppError.badRequest(
+      `You don't have an active ${getPlan(tier).name} subscription to add a facility to — subscribe to this plan first`,
+      "NO_ACTIVE_SUBSCRIPTION",
+    );
+  }
+  if (subscription.isCustomDeal) {
+    throw AppError.badRequest(
+      "This plan has a custom negotiated facility count — contact support to change it",
+      "CUSTOM_DEAL_FACILITY_COUNT",
+    );
+  }
+
+  const newCount = subscription.facilitiesIncluded + 1;
+  const incrementalPriceInr = getIncrementalFacilityPriceInr(subscription);
+
+  if (isRazorpayConfigured && razorpay && subscription.razorpaySubscriptionId) {
+    try {
+      await razorpay.subscriptions.update(subscription.razorpaySubscriptionId, {
+        quantity: newCount,
+        schedule_change_at: "now",
+      });
+    } catch (err) {
+      logger.error(
+        `[Billing] Failed to update Razorpay subscription quantity for company=${companyId} tier=${tier}`,
+        err,
+      );
+      throw AppError.badRequest(
+        "Couldn't update your billing plan capacity — please try again or contact support",
+        "RAZORPAY_QUANTITY_UPDATE_FAILED",
+      );
+    }
+  } else {
+    logger.warn(
+      `[Billing] dev-bypass facility add-on — company=${companyId} tier=${tier} facilitiesIncluded ${subscription.facilitiesIncluded} -> ${newCount}, ` +
+        `≈₹${incrementalPriceInr} incremental charge not actually collected`,
+    );
+  }
+
+  return prisma.subscription.update({
+    where: { id: subscription.id },
+    data: { facilitiesIncluded: newCount },
+  });
 };
 
 export const cancelSubscription = async (companyId: string, tier: SubscriptionTier) => {

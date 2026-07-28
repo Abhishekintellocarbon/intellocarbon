@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, type UseFormRegisterReturn, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Factory, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Factory, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -30,6 +31,10 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
   const isDraftMode = !facility || facility.isDraft;
 
   const [serverError, setServerError] = useState<string | null>(null);
+  // Distinguishes "your plan doesn't cover another facility" from any other
+  // failure so the alert can offer a direct link to billing instead of just
+  // an error message — see requireCapacityForNewFacility on the backend.
+  const [isPlanLimitError, setIsPlanLimitError] = useState(false);
   const [sector, setSector] = useState<Sector | null>(null);
   const [routeOptions, setRouteOptions] = useState<ReferenceOption[]>([]);
   const savedFacilityId = useRef<string | undefined>(facility?.id);
@@ -121,6 +126,7 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
 
   const onSubmit = async (data: FacilityFormValues) => {
     setServerError(null);
+    setIsPlanLimitError(false);
     try {
       const payload = buildPayload(data);
 
@@ -131,7 +137,12 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
           : await facilityApi.create(payload);
       router.push(`/facilities/${result.facility.id}`);
     } catch (err) {
-      setServerError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
+      if (err instanceof ApiError) {
+        setServerError(err.message);
+        setIsPlanLimitError(err.code === "PLAN_LIMIT_REACHED" || err.code === "SUBSCRIPTION_REQUIRED");
+      } else {
+        setServerError("Something went wrong. Please try again.");
+      }
     }
   };
 
@@ -164,7 +175,17 @@ export function FacilityForm({ facility }: { facility?: Facility }) {
 
       <Card className="p-6 sm:p-8">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-          {serverError && <Alert variant="error">{serverError}</Alert>}
+          {serverError && (
+            <Alert variant="error">
+              <p>{serverError}</p>
+              {isPlanLimitError && (
+                <Link href="/billing" className="mt-2 inline-flex items-center gap-1 font-medium text-teal-500 hover:underline">
+                  Go to billing
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              )}
+            </Alert>
+          )}
 
           <div>
             <Label htmlFor="name">Facility name</Label>

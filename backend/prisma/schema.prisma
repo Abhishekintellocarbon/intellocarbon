@@ -187,6 +187,15 @@ model Subscription {
   // terms shown on the admin company page (they don't drive status/
   // currentPeriodEnd — that's still set by whichever manual payment or
   // Razorpay charge activated the subscription).
+  // Facilities this subscription currently covers under its per-facility
+  // pricing (see PLANS[tier].priceInr — "₹X/facility/mo"). Defaults to 1,
+  // matching the base plan; buying additional facility capacity for the
+  // same tier (see billing.service.ts's addFacilityCapacity) increments
+  // this in place rather than creating a second row, since a company can
+  // only hold one Subscription per (companyId, tier). Superseded by
+  // customFacilityCount when isCustomDeal is true, same as before.
+  facilitiesIncluded Int @default(1)
+
   isCustomDeal        Boolean   @default(false)
   customFacilityCount Int?
   customValidFrom     DateTime?
