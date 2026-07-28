@@ -35,7 +35,7 @@ const WHY_CARDS = [
     icon: Wallet,
     title: "MSME-first pricing",
     description:
-      "Starting at ₹14,999 per month per facility. Built for Indian industrial MSMEs — not multinational corporations.",
+      "Priced for Indian industrial MSMEs, not multinational corporations. Self-serve, transparent, and a fraction of what international platforms and consulting firms charge.",
   },
   {
     icon: MapPinned,
