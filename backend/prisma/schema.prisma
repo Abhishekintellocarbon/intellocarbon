@@ -1128,3 +1128,56 @@ model GhgEngagement {
   @@index([status])
   @@map("ghg_engagements")
 }
+
+enum CctsEntityStatus {
+  DRAFT
+  FINAL
+}
+
+// Reference registry for the public "CCTS Obligated Entities Tracker" —
+// which named companies/plants BEE has notified as obligated under India's
+// Carbon Credit Trading Scheme, sector by sector, via gazette notification.
+// Manually curated only (see Regulatory Watch admin panel): these are legal
+// documents, so entries are added/edited by a human verifying against the
+// actual gazette text, never auto-scraped from secondary sources.
+model CctsObligatedEntity {
+  id           String @id @default(cuid())
+  companyName  String
+  // Free-text, not the CBAM `Sector` enum above — CCTS's own notified
+  // sector list (Aluminium, Cement, Chlor-Alkali, Fertilizer, Iron & Steel,
+  // Petrochemicals, Petroleum Refining, Pulp & Paper, Textile) is a distinct
+  // regulatory list from CBAM's product-based sectors and doesn't map 1:1.
+  sector       String
+  // e.g. "Integrated", "EAF", "DRI" for Iron & Steel — free-text since each
+  // sector's sub-classification differs and BEE's own lists aren't uniform.
+  subSector    String?
+  state        String
+  district     String?
+
+  // Which gazette notification this entry comes from, e.g. "G.S.R. 234(E)".
+  notificationReference String
+  notificationDate      DateTime
+  // DRAFT = named in a draft notification still open for public comment
+  // (e.g. Iron & Steel's 26 June 2026 revised draft, 60-day comment window)
+  // — not yet a final obligation. FINAL = gazetted and binding.
+  status                CctsEntityStatus @default(DRAFT)
+
+  // Only populated where BEE has actually published these in the
+  // notification — most draft-stage entries won't have them yet.
+  baselineIntensity Float?
+  targetIntensity   Float?
+
+  sourceUrl        String?
+  // When a Super Admin last checked this row against the source gazette —
+  // distinct from updatedAt, which also ticks on typo fixes that aren't a
+  // fresh verification pass.
+  lastVerifiedDate DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sector])
+  @@index([state])
+  @@index([status])
+  @@map("ccts_obligated_entities")
+}

@@ -27,7 +27,11 @@ export const CBAM_QUARTERS: CbamQuarter[] = [
   { quarter: 4, unlock: { month: 10, day: 1 }, deadline: { month: 10, day: 31 } },
 ];
 
-export const CBAM_CERTIFICATE_SURRENDER: MonthDay = { month: 5, day: 31 };
+// EU Omnibus simplification (Regulation amendment, Oct 2025) moved the annual
+// CBAM declaration and certificate surrender deadline from 31 May to 30 Sept
+// of the year following the reporting year. First annual declaration under
+// this rule (covering 2026 imports) is due 30 September 2027.
+export const CBAM_ANNUAL_DECLARATION_DEADLINE: MonthDay = { month: 9, day: 30 };
 
 const dateFor = (year: number, md: MonthDay): Date => new Date(Date.UTC(year, md.month - 1, md.day, 23, 59, 59));
 

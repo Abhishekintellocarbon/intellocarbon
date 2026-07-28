@@ -1211,6 +1211,54 @@ export interface QuickUpdateValueInput {
   source: string;
 }
 
+// --- CCTS Obligated Entities Tracker (/admin/regulatory-watch, /ccts-obligated-entities) ---
+// Manually-verified registry of BEE gazette-notified CCTS obligated
+// companies/plants — see backend/prisma/schema.prisma CctsObligatedEntity.
+
+export type CctsEntityStatus = "DRAFT" | "FINAL";
+
+export interface CctsObligatedEntity {
+  id: string;
+  companyName: string;
+  sector: string;
+  subSector: string | null;
+  state: string;
+  district: string | null;
+  notificationReference: string;
+  notificationDate: string;
+  status: CctsEntityStatus;
+  baselineIntensity: number | null;
+  targetIntensity: number | null;
+  sourceUrl: string | null;
+  lastVerifiedDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCctsObligatedEntityInput {
+  companyName: string;
+  sector: string;
+  subSector?: string;
+  state: string;
+  district?: string;
+  notificationReference: string;
+  notificationDate: string;
+  status: CctsEntityStatus;
+  baselineIntensity?: number;
+  targetIntensity?: number;
+  sourceUrl?: string;
+  lastVerifiedDate: string;
+}
+
+export type UpdateCctsObligatedEntityInput = Partial<CreateCctsObligatedEntityInput>;
+
+export interface CctsBulkImportRowResult {
+  row: number;
+  companyName?: string;
+  success: boolean;
+  error?: string;
+}
+
 // --- GHG Runner (/admin/ghg-runner) ---
 // Mirrors backend/src/data/ghgJurisdictions.ts and
 // backend/src/services/ghgCalculation.service.ts. Foreign consulting

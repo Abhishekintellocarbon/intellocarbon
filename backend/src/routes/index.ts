@@ -13,6 +13,7 @@ import brsrRoutes from "./brsr.routes";
 import issbRoutes from "./issb.routes";
 import ghgEngagementRoutes from "./ghgEngagement.routes";
 import crossCheckReviewRoutes from "./crossCheckReview.routes";
+import cctsObligatedEntityRoutes from "./cctsObligatedEntity.routes";
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use("/brsr", brsrRoutes);
 router.use("/issb", issbRoutes);
 router.use("/ghg-runner", ghgEngagementRoutes);
 router.use("/cross-check", crossCheckReviewRoutes);
+router.use("/ccts-obligated-entities", cctsObligatedEntityRoutes);
 
 export default router;

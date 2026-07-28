@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronDown, Globe2, MapPinned, Leaf, Calculator } from "lucide-react";
+import { ChevronDown, Globe2, MapPinned, Leaf, Calculator, Search } from "lucide-react";
 
 export const SERVICE_LINKS = [
   {
@@ -13,6 +13,12 @@ export const SERVICE_LINKS = [
     icon: MapPinned,
     name: "CCTS Compliance",
     blurb: "India's carbon credit trading scheme",
+  },
+  {
+    href: "/ccts-obligated-entities",
+    icon: Search,
+    name: "CCTS Obligated Entities Tracker",
+    blurb: "Check if your company is on BEE's notified list",
   },
   {
     href: "/esg",
