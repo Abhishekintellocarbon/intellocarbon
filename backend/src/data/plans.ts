@@ -5,7 +5,13 @@ export interface PlanDefinition {
   name: string;
   /** Who this plan is for — the one-line description shown under the plan name. */
   forWhom: string;
-  /** Facilities allowed under this plan — null means no plan-enforced cap (billed per facility, see the facility calculator). */
+  // Historical field — actual facility capacity is now tracked per
+  // Subscription row (Subscription.facilitiesIncluded, see schema.prisma),
+  // not per plan, since two companies on the same tier can cover different
+  // facility counts. Kept null on every plan below and unused by
+  // requireCapacityForNewFacility; reserved for a future flat-limit plan
+  // (e.g. an enterprise tier with a hard cap regardless of facilities paid
+  // for) rather than removed outright.
   facilityLimit: number | null;
   /** Price per facility per month, in INR. Null means no self-serve price (contact sales). */
   priceInr: number | null;

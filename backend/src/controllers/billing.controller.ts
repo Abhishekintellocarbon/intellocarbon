@@ -16,8 +16,14 @@ export const getSubscription = asyncHandler(async (req, res) => {
 
 export const createCheckout = asyncHandler(async (req, res) => {
   const company = await companyService.requireMyCompany(req.user!.sub);
-  const result = await billingService.createCheckout(company.id, req.body.tier);
+  const result = await billingService.createCheckout(company.id, req.body.tier, req.body.facilitiesIncluded);
   res.status(200).json(result);
+});
+
+export const addFacility = asyncHandler(async (req, res) => {
+  const company = await companyService.requireMyCompany(req.user!.sub);
+  const subscription = await billingService.addFacilityCapacity(company.id, req.body.tier);
+  res.status(200).json({ subscription });
 });
 
 export const cancelSubscription = asyncHandler(async (req, res) => {

@@ -177,6 +177,8 @@ function BillingContent() {
   const [error, setError] = useState<string | null>(null);
   const [checkingOutTier, setCheckingOutTier] = useState<SubscriptionTier | null>(null);
   const [cancelingTier, setCancelingTier] = useState<SubscriptionTier | null>(null);
+  const [addingFacilityTier, setAddingFacilityTier] = useState<SubscriptionTier | null>(null);
+  const [addFacilityNotice, setAddFacilityNotice] = useState<string | null>(null);
   const [devBypassNotice, setDevBypassNotice] = useState(false);
   const [mergeNotice, setMergeNotice] = useState<string | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -234,7 +236,7 @@ function BillingContent() {
     setMergeNotice(null);
     setCheckingOutTier(tier);
     try {
-      const result = await billingApi.checkout(tier);
+      const result = await billingApi.checkout(tier, quantities[tier] ?? 1);
       if (result.devBypass) {
         setDevBypassNotice(true);
         if (result.merged) {
@@ -292,6 +294,25 @@ function BillingContent() {
     }
   };
 
+  const handleAddFacility = async (tier: SubscriptionTier, incrementalPriceInr: number | null) => {
+    const priceText = incrementalPriceInr != null ? `₹${incrementalPriceInr.toLocaleString("en-IN")}` : "the prorated price";
+    if (!confirm(`Add one more facility to your ${getPlanName(tier)} plan for ${priceText} this cycle?`)) return;
+    setError(null);
+    setAddFacilityNotice(null);
+    setAddingFacilityTier(tier);
+    try {
+      const { subscription } = await billingApi.addFacility(tier);
+      setAddFacilityNotice(
+        `${getPlanName(tier)} now covers ${subscription.facilitiesIncluded} facilit${subscription.facilitiesIncluded === 1 ? "y" : "ies"}.`,
+      );
+      await refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't add a facility to this plan.");
+    } finally {
+      setAddingFacilityTier(null);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
       <h1 className="text-2xl font-semibold">
@@ -319,6 +340,11 @@ function BillingContent() {
       {mergeNotice && (
         <div className="mt-6">
           <Alert variant="success">{mergeNotice}</Alert>
+        </div>
+      )}
+      {addFacilityNotice && (
+        <div className="mt-6">
+          <Alert variant="success">{addFacilityNotice}</Alert>
         </div>
       )}
 
@@ -379,6 +405,8 @@ function BillingContent() {
               ? subscriptions.find((s) => s.id === subscription.mergedIntoId)?.tier
               : null;
             const isMerged = subscription.status === "CANCELED" && !!mergedIntoTier;
+            const canAddFacility =
+              subscription.status === "ACTIVE" && !subscription.cancelAtPeriodEnd && !subscription.isCustomDeal;
             return (
               <Card
                 key={subscription.id}
@@ -396,20 +424,41 @@ function BillingContent() {
                   <span className="text-sm text-muted-foreground">
                     {subscription.tier.replace(/_/g, " ")}
                     {isMerged && mergedIntoTier && ` · Upgraded to ${getPlanName(mergedIntoTier)} Combined`}
-                    {!isMerged && usage && ` · ${usage.facilityCount} facilit${usage.facilityCount === 1 ? "y" : "ies"} in use`}
+                    {!isMerged &&
+                      ` · covers ${subscription.facilitiesIncluded} facilit${subscription.facilitiesIncluded === 1 ? "y" : "ies"}`}
+                    {!isMerged && usage && ` (${usage.facilityCount} in use)`}
                     {!isMerged && subscription.cancelAtPeriodEnd && " · cancels at period end"}
                   </span>
                 </div>
-                {subscription.status === "ACTIVE" && !subscription.cancelAtPeriodEnd && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleCancel(subscription.tier)}
-                    isLoading={cancelingTier === subscription.tier}
-                  >
-                    Cancel plan
-                  </Button>
-                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  {canAddFacility && (
+                    <div className="flex items-center gap-2">
+                      {subscription.incrementalFacilityPriceInr != null && (
+                        <span className="text-xs text-muted-foreground">
+                          +₹{subscription.incrementalFacilityPriceInr.toLocaleString("en-IN")} for one more facility
+                        </span>
+                      )}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleAddFacility(subscription.tier, subscription.incrementalFacilityPriceInr)}
+                        isLoading={addingFacilityTier === subscription.tier}
+                      >
+                        + Add facility
+                      </Button>
+                    </div>
+                  )}
+                  {subscription.status === "ACTIVE" && !subscription.cancelAtPeriodEnd && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleCancel(subscription.tier)}
+                      isLoading={cancelingTier === subscription.tier}
+                    >
+                      Cancel plan
+                    </Button>
+                  )}
+                </div>
               </Card>
             );
           })}

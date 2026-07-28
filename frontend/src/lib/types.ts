@@ -489,8 +489,27 @@ export interface Subscription {
   customAmount: number | null;
   customSetByUserId: string | null;
   customDealNotes: string | null;
+  // Facilities this subscription currently covers — see backend
+  // Subscription.facilitiesIncluded. Superseded by customFacilityCount when
+  // isCustomDeal is true.
+  facilitiesIncluded: number;
+  // Prorated cost of adding one more facility right now — only populated for
+  // ACTIVE, non-custom-deal subscriptions (see billing.service.ts's
+  // getSubscriptions).
+  incrementalFacilityPriceInr: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FacilityShortfallRow {
+  companyId: string;
+  companyName: string;
+  ownerEmail: string;
+  facilityCount: number;
+  facilitiesCovered: number;
+  shortfall: number;
+  tiers: SubscriptionTier[];
+  estimatedMonthlyGapInr: number;
 }
 
 export type ManualPaymentMode = "CHEQUE" | "NEFT" | "RTGS" | "UPI" | "CASH" | "OTHER";
