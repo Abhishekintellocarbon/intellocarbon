@@ -333,6 +333,58 @@ export interface BrsrCoreMetrics {
   };
 }
 
+// ISSB IFRS S1/S2's Scope 1/2 GHG figures aren't stored here — they're derived
+// from the facility's existing ActivityData/EmissionCalculationResult rows
+// (AR5 basis), see IssbS1S2Metrics.
+export interface IssbS1S2Report {
+  id: string;
+  companyId: string;
+  facilityId: string;
+  reportingPeriod: string;
+  governanceBodyOversight: string | null;
+  managementRole: string | null;
+  climateRisksOpportunities: string | null;
+  businessModelImpact: string | null;
+  financialEffects: string | null;
+  scenarioAnalysisResilience: string | null;
+  riskIdentificationProcess: string | null;
+  riskManagementProcess: string | null;
+  riskIntegrationOverall: string | null;
+  scope3Tco2e: number | null;
+  targetDescription: string | null;
+  targetYear: number | null;
+  baselineYear: number | null;
+  baselineEmissionsTco2e: number | null;
+  transitionPlan: string | null;
+  internalCarbonPriceInr: number | null;
+  climateCapexInr: number | null;
+  status: "DRAFT" | "SUBMITTED";
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IssbS1S2Metrics {
+  fyWindow: { start: string; end: string; label: string };
+  ghg: {
+    scope1Co2e: number;
+    scope2Co2e: number;
+    scope3Co2e: number | null;
+    totalCo2e: number | null;
+    activityDataCount: number;
+  };
+  targets: {
+    targetYear: number | null;
+    baselineYear: number | null;
+    baselineEmissionsTco2e: number | null;
+    changeFromBaselinePct: number | null;
+  };
+  transition: {
+    internalCarbonPriceInr: number | null;
+    climateCapexInr: number | null;
+  };
+}
+
 export interface ReferenceOption {
   value: string;
   label: string;

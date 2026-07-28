@@ -16,6 +16,8 @@ import type {
   ReportWindowStatus,
   BrsrCoreReport,
   BrsrCoreMetrics,
+  IssbS1S2Report,
+  IssbS1S2Metrics,
   FacilityDashboard,
   ReportGenerationStatus,
   GeneratedReport,
@@ -537,6 +539,52 @@ export const brsrApi = {
     const link = document.createElement("a");
     link.href = objectUrl;
     link.download = `brsr-core-report-${reportId.slice(-8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+};
+
+export const issbApi = {
+  list: (facilityId: string): Promise<{ reports: IssbS1S2Report[] }> =>
+    apiFetch(`/api/issb/facilities/${facilityId}/data`),
+
+  // One endpoint for both autosave (submit: false, permissive) and the
+  // explicit Submit action (submit: true, strict) — see issb.controller.ts.
+  save: (facilityId: string, input: Record<string, unknown>, submit: boolean): Promise<{ report: IssbS1S2Report }> =>
+    apiFetch(`/api/issb/facilities/${facilityId}/data`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, submit }),
+    }),
+
+  getReport: (
+    facilityId: string,
+    reportingPeriod: string,
+  ): Promise<{ report: IssbS1S2Report; facility: Facility; metrics: IssbS1S2Metrics }> =>
+    apiFetch(`/api/issb/facilities/${facilityId}/report/${encodeURIComponent(reportingPeriod)}`),
+
+  downloadPdf: async (reportId: string): Promise<void> => {
+    const reportUrl = `${API_URL}/api/issb/report/${reportId}/pdf`;
+    const fetchReport = () =>
+      fetch(reportUrl, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchReport();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchReport();
+    }
+    if (!res.ok) {
+      throw new ApiError("Couldn't generate the report. Please try again.", res.status);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `issb-s1-s2-report-${reportId.slice(-8)}.pdf`;
     document.body.appendChild(link);
     link.click();
     link.remove();
