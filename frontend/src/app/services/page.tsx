@@ -27,6 +27,8 @@ const SERVICES = [
       "Track GHG intensity against BEE targets, manage your Carbon Credit Certificate surplus or deficit position, and generate BEE-format reports for India's Carbon Credit Trading Scheme.",
     href: "/#pillars",
     cta: "Explore CCTS",
+    secondaryHref: "/ccts-obligated-entities",
+    secondaryCta: "Check obligated entities list",
   },
   {
     icon: Leaf,
@@ -84,6 +86,15 @@ export default function ServicesPage() {
                   {service.cta}
                   <ArrowRight className="h-4 w-4" />
                 </Link>
+                {service.secondaryHref && (
+                  <Link
+                    href={service.secondaryHref}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#8AA0B4] hover:text-teal-400"
+                  >
+                    {service.secondaryCta}
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                )}
               </Card>
             ))}
           </div>

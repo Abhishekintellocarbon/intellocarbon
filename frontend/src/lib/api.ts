@@ -60,6 +60,11 @@ import type {
   ManualPaymentStatus,
   RecordManualPaymentInput,
   SetCustomSubscriptionInput,
+  CctsObligatedEntity,
+  CreateCctsObligatedEntityInput,
+  UpdateCctsObligatedEntityInput,
+  CctsBulkImportRowResult,
+  CctsEntityStatus,
 } from "./types";
 import type {
   BorderInputs,
@@ -776,6 +781,38 @@ export const adminApi = {
   updateCeaGridFactor: (input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
     apiFetch("/api/admin/cea-grid-factor", { method: "PUT", body: JSON.stringify(input) }),
 
+  listCctsObligatedEntities: (filters?: {
+    state?: string;
+    sector?: string;
+    status?: CctsEntityStatus;
+    search?: string;
+  }): Promise<{ entities: CctsObligatedEntity[] }> => {
+    const params = new URLSearchParams();
+    if (filters?.state) params.set("state", filters.state);
+    if (filters?.sector) params.set("sector", filters.sector);
+    if (filters?.status) params.set("status", filters.status);
+    if (filters?.search) params.set("search", filters.search);
+    const qs = params.toString();
+    return apiFetch(`/api/admin/ccts-obligated-entities${qs ? `?${qs}` : ""}`);
+  },
+
+  createCctsObligatedEntity: (input: CreateCctsObligatedEntityInput): Promise<{ entity: CctsObligatedEntity }> =>
+    apiFetch("/api/admin/ccts-obligated-entities", { method: "POST", body: JSON.stringify(input) }),
+
+  updateCctsObligatedEntity: (
+    id: string,
+    input: UpdateCctsObligatedEntityInput,
+  ): Promise<{ entity: CctsObligatedEntity }> =>
+    apiFetch(`/api/admin/ccts-obligated-entities/${id}`, { method: "PUT", body: JSON.stringify(input) }),
+
+  deleteCctsObligatedEntity: (id: string) =>
+    apiFetch(`/api/admin/ccts-obligated-entities/${id}`, { method: "DELETE" }),
+
+  bulkImportCctsObligatedEntities: (
+    rows: CreateCctsObligatedEntityInput[],
+  ): Promise<{ results: CctsBulkImportRowResult[]; succeeded: number; failed: number }> =>
+    apiFetch("/api/admin/ccts-obligated-entities/bulk-import", { method: "POST", body: JSON.stringify({ rows }) }),
+
   fetchDocumentBlob: (documentId: string): Promise<Blob> => fetchAuthedBlob(`${API_URL}/api/admin/documents/${documentId}/download`),
 
   listManualPayments: (filters: {
@@ -1045,5 +1082,25 @@ export const ndaGeneratorApi = {
     const fileName = /filename="?([^"]+)"?/.exec(disposition)?.[1] ?? "nda.pdf";
     const blob = await res.blob();
     return { blob, fileName };
+  },
+};
+
+// Public, unauthenticated lookup for /ccts-obligated-entities — the lead-gen
+// tracker page. skipAuth avoids an unnecessary Bearer header / 401 retry for
+// visitors who aren't logged in at all.
+export const cctsObligatedEntitiesApi = {
+  list: (filters?: {
+    state?: string;
+    sector?: string;
+    status?: CctsEntityStatus;
+    search?: string;
+  }): Promise<{ entities: CctsObligatedEntity[]; lastVerifiedDate: string | null }> => {
+    const params = new URLSearchParams();
+    if (filters?.state) params.set("state", filters.state);
+    if (filters?.sector) params.set("sector", filters.sector);
+    if (filters?.status) params.set("status", filters.status);
+    if (filters?.search) params.set("search", filters.search);
+    const qs = params.toString();
+    return apiFetch(`/api/ccts-obligated-entities${qs ? `?${qs}` : ""}`, { skipAuth: true });
   },
 };

@@ -109,6 +109,7 @@ const FOOTER_LINKS = {
     { label: "CCTS", href: "#pillars" },
     { label: "BRSR", href: "/esg" },
     { label: "IntelloCalc", href: "/intellocalc" },
+    { label: "CCTS Obligated Entities", href: "/ccts-obligated-entities" },
   ],
 };
 

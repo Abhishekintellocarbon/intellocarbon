@@ -9,6 +9,7 @@ import * as adminFacilitiesController from "../controllers/adminFacilities.contr
 import * as adminVerifiersController from "../controllers/adminVerifiers.controller";
 import * as adminFacilityAssignmentsController from "../controllers/adminFacilityAssignments.controller";
 import * as adminEmissionFactorsController from "../controllers/adminEmissionFactors.controller";
+import * as adminCctsObligatedEntitiesController from "../controllers/adminCctsObligatedEntities.controller";
 import * as dpaGeneratorController from "../controllers/dpaGenerator.controller";
 import * as ndaGeneratorController from "../controllers/ndaGenerator.controller";
 import * as adminManualPaymentsController from "../controllers/adminManualPayments.controller";
@@ -23,6 +24,10 @@ import {
   supersedeEmissionFactorSchema,
   quickUpdateValueSchema,
 } from "../validators/emissionFactor.validators";
+import {
+  createCctsObligatedEntitySchema,
+  updateCctsObligatedEntitySchema,
+} from "../validators/cctsObligatedEntity.validators";
 import { generateDpaSchema } from "../validators/dpaGenerator.validators";
 import { generateNdaSchema } from "../validators/ndaGenerator.validators";
 import {
@@ -88,6 +93,20 @@ router.put(
   adminEmissionFactorsController.updateCbamCertificatePrice,
 );
 router.put("/cea-grid-factor", validate(quickUpdateValueSchema), adminEmissionFactorsController.updateCeaGridFactor);
+
+router.get("/ccts-obligated-entities", adminCctsObligatedEntitiesController.listEntities);
+router.post(
+  "/ccts-obligated-entities",
+  validate(createCctsObligatedEntitySchema),
+  adminCctsObligatedEntitiesController.createEntity,
+);
+router.put(
+  "/ccts-obligated-entities/:id",
+  validate(updateCctsObligatedEntitySchema),
+  adminCctsObligatedEntitiesController.updateEntity,
+);
+router.delete("/ccts-obligated-entities/:id", adminCctsObligatedEntitiesController.deleteEntity);
+router.post("/ccts-obligated-entities/bulk-import", adminCctsObligatedEntitiesController.bulkImport);
 
 router.post("/dpa-generator/generate", validate(generateDpaSchema), dpaGeneratorController.generate);
 router.post("/nda-generator/generate", validate(generateNdaSchema), ndaGeneratorController.generate);
