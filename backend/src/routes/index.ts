@@ -10,6 +10,7 @@ import leadCaptureRoutes from "./leadCapture.routes";
 import adminRoutes from "./admin.routes";
 import notificationRoutes from "./notification.routes";
 import brsrRoutes from "./brsr.routes";
+import issbRoutes from "./issb.routes";
 import ghgEngagementRoutes from "./ghgEngagement.routes";
 import crossCheckReviewRoutes from "./crossCheckReview.routes";
 
@@ -30,6 +31,7 @@ router.use("/leads", leadCaptureRoutes);
 router.use("/admin", adminRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/brsr", brsrRoutes);
+router.use("/issb", issbRoutes);
 router.use("/ghg-runner", ghgEngagementRoutes);
 router.use("/cross-check", crossCheckReviewRoutes);
 

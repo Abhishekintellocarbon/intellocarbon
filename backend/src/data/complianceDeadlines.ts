@@ -245,3 +245,27 @@ export const getBrsrReportPeriodStatus = (now: Date): ReportPeriodStatus => {
     windowEnd,
   };
 };
+
+// --- ISSB IFRS S1/S2 ---
+// Also an annual disclosure keyed on the same "FY2025-26" reportingPeriod
+// convention as BRSR Core, so the window math (parse -> unlock 1 Apr the
+// following FY -> stays open 12 months) is identical. Named separately
+// rather than literally reusing the Brsr-prefixed functions so callers read
+// naturally and the two disclosures can diverge later if IFRS filing
+// calendars end up differing from India's BRSR cycle.
+
+/** Parses a "FY2025-26" style ISSB reporting period into its start year (2025). */
+export const parseIssbFyStartYear = parseBrsrFyStartYear;
+
+/** Same one-time-per-FY unlock model as BRSR Core (see isBrsrReportWindowOpen). */
+export const isIssbReportWindowOpen = (reportingPeriod: string, now: Date): boolean =>
+  isBrsrReportWindowOpen(reportingPeriod, now);
+
+/** This reporting period's fixed unlock date (for the locked-state message). */
+export const issbUnlockDate = (reportingPeriod: string): Date => brsrUnlockDate(reportingPeriod);
+
+/** Same 12-month-window model as BRSR Core above, built on ISSB's own reportingPeriod window math. */
+export const getIssbReportPeriodStatus = (now: Date): ReportPeriodStatus => {
+  const status = getBrsrReportPeriodStatus(now);
+  return { ...status };
+};

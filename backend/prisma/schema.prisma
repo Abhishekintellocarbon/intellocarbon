@@ -129,6 +129,7 @@ model Company {
   verificationRequests VerificationRequest[]
   notifications        Notification[]
   brsrCoreReports      BrsrCoreReport[]
+  issbS1S2Reports      IssbS1S2Report[]
   auditLogs            AuditLog[]
   reports              Report[]
   documents            Document[]
@@ -597,6 +598,7 @@ model Facility {
   activityData        ActivityData[]
   notifications       Notification[]
   brsrCoreReports     BrsrCoreReport[]
+  issbS1S2Reports     IssbS1S2Report[]
   auditLogs           AuditLog[]
   reports             Report[]
   documents           Document[]
@@ -881,6 +883,67 @@ model BrsrVerificationRequest {
 
   @@index([verifierId])
   @@map("brsr_verification_requests")
+}
+
+// ISSB IFRS S1 (General Requirements for Disclosure of Sustainability-related
+// Financial Information) + IFRS S2 (Climate-related Disclosures), scaffolded
+// at foundational level around the four pillars common to both standards:
+// Governance, Strategy, Risk Management, Metrics & Targets. Scope 1/2 figures
+// are NOT stored here — they are derived at report-build time from the same
+// ActivityData / EmissionCalculationResult rows BRSR uses (see
+// `issbCalculation.service.ts`), on the AR5/GHG-Protocol basis since IFRS S2
+// follows international (not India BUR3) GWP convention. Scope 3 has no
+// calculation engine support yet, so it is a manual disclosure input here.
+model IssbS1S2Report {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  // Financial year this disclosure covers, e.g. "FY2025-26" — same convention
+  // and Company.reportingFyStartMonth resolution as BrsrCoreReport.
+  reportingPeriod String
+
+  // --- Pillar 1: Governance ---
+  governanceBodyOversight String?
+  managementRole          String?
+
+  // --- Pillar 2: Strategy ---
+  climateRisksOpportunities  String?
+  businessModelImpact        String?
+  financialEffects           String?
+  scenarioAnalysisResilience String?
+
+  // --- Pillar 3: Risk Management ---
+  riskIdentificationProcess String?
+  riskManagementProcess     String?
+  riskIntegrationOverall    String?
+
+  // --- Pillar 4: Metrics & Targets ---
+  // Scope 1 & 2 (tCO2e) are reused from the emissions calculation engine at
+  // report-build time and NOT stored as columns here — see issbCalculation.service.ts.
+  scope3Tco2e            Float?
+  targetDescription      String?
+  targetYear             Int?
+  baselineYear           Int?
+  baselineEmissionsTco2e Float?
+  transitionPlan         String?
+  internalCarbonPriceInr Float?
+  climateCapexInr        Float?
+
+  // DRAFT -> SUBMITTED, same lifecycle as BrsrCoreReport/ActivityData.
+  status DataEntryStatus @default(DRAFT)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One ISSB S1/S2 disclosure per facility per financial year.
+  @@unique([facilityId, reportingPeriod])
+  @@index([companyId])
+  @@map("issb_s1_s2_reports")
 }
 
 model RefreshToken {

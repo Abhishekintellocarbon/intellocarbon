@@ -97,6 +97,12 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
       "GHG footprint reused automatically from your CBAM/CCTS activity data — no double entry",
       "BRSR Core PDF report matching SEBI HO/CFD/CFD-SEC-2/P/CIR/2023/122 format",
       "Reasonable-assurance verification workflow",
+      // ISSB IFRS S1/S2 has no independent pricing yet — bundled here as a
+      // beta-scaffold feature under this tier rather than a new SubscriptionTier
+      // value, pending a separate pricing decision. Route access is not
+      // actually gated on this tier (see /esg/issb — same as BRSR Core itself,
+      // which has no route-level tier check either, see brsr.routes.ts).
+      "ISSB IFRS S1 & S2 disclosure module (beta, included at no extra cost pending a standalone pricing decision)",
       "Standalone or bundled with any CBAM/CCTS plan",
       "7-year document retention",
     ],

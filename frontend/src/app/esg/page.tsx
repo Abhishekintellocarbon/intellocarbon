@@ -9,9 +9,9 @@ import { NotifyMeCapture } from "@/components/esg/notify-me-capture";
 import type { EsgWaitlistFramework } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title: "ESG Reporting — BRSR Core, GRI, ISSB, CSRD, CDP | Intellocarbon",
+  title: "ESG Reporting — BRSR Core, ISSB, GRI, CSRD, CDP | Intellocarbon",
   description:
-    "ESG and sustainability reporting frameworks on Intellocarbon: BRSR Core is live today. GRI, ISSB IFRS S1/S2, CSRD, and CDP are in active development.",
+    "ESG and sustainability reporting frameworks on Intellocarbon: BRSR Core and ISSB IFRS S1/S2 are live today. GRI, CSRD, and CDP are in active development.",
 };
 
 interface FrameworkCard {
@@ -41,12 +41,12 @@ const FRAMEWORKS: FrameworkCard[] = [
     waitlistTool: "ESG_GRI",
   },
   {
+    href: "/esg/issb",
     icon: BadgeCheck,
     name: "ISSB IFRS S1/S2",
-    status: "soon",
+    status: "live",
     description:
-      "The emerging global investor-facing standard, absorbed TCFD's climate disclosure structure.",
-    waitlistTool: "ESG_ISSB",
+      "The emerging global investor-facing standard, absorbed TCFD's climate disclosure structure — Governance, Strategy, Risk Management, and Metrics & Targets.",
   },
   {
     icon: Landmark,
@@ -82,8 +82,8 @@ export default function EsgHub() {
           <span className="text-gradient">ESG</span> reporting on Intellocarbon
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-balance text-muted-foreground sm:text-lg">
-          BRSR Core is live today. GRI, ISSB, CSRD, and CDP are in active development — join the waitlist to
-          be notified.
+          BRSR Core and ISSB IFRS S1/S2 are live today. GRI, CSRD, and CDP are in active development — join
+          the waitlist to be notified.
         </p>
 
         <div className="mt-14 grid gap-5 text-left sm:grid-cols-2 lg:grid-cols-3">
