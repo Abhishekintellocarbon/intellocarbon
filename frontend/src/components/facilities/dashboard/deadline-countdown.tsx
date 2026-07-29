@@ -58,11 +58,16 @@ function LockedDeadlineCard({ label }: { label: string }) {
 
 export function DeadlineCountdown({ dashboard, access }: { dashboard: FacilityDashboard; access: DashboardAccess }) {
   return (
-    <div className="grid gap-5 sm:grid-cols-3">
+    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
       {access.hasCbam ? (
         <DeadlineCard label="Next CBAM quarterly report" deadline={dashboard.deadlines.cbam.deadline} daysRemaining={dashboard.deadlines.cbam.daysRemaining} />
       ) : (
         <LockedDeadlineCard label="Next CBAM quarterly report" />
+      )}
+      {access.hasCbam ? (
+        <DeadlineCard label="CBAM annual declaration" deadline={dashboard.deadlines.cbamAnnual.deadline} daysRemaining={dashboard.deadlines.cbamAnnual.daysRemaining} />
+      ) : (
+        <LockedDeadlineCard label="CBAM annual declaration" />
       )}
       {access.hasCcts ? (
         <DeadlineCard label="CCTS annual compliance" deadline={dashboard.deadlines.ccts.deadline} daysRemaining={dashboard.deadlines.ccts.daysRemaining} />

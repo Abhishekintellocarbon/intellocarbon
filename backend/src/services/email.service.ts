@@ -171,7 +171,7 @@ export const sendMonthlyReminderEmail = async (
 
 export const sendDeadlineWarningEmail = async (
   to: string,
-  framework: "CCTS" | "CBAM",
+  framework: "CCTS" | "CBAM" | "CBAM Annual Declaration",
   daysLeft: 30 | 7,
   incompleteCount: number,
   totalCount: number,

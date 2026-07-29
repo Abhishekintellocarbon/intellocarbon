@@ -32,6 +32,7 @@ export const CBAM_QUARTERS: CbamQuarter[] = [
 // of the year following the reporting year. First annual declaration under
 // this rule (covering 2026 imports) is due 30 September 2027.
 export const CBAM_ANNUAL_DECLARATION_DEADLINE: MonthDay = { month: 9, day: 30 };
+export const CBAM_FIRST_ANNUAL_DECLARATION_YEAR = 2027;
 
 const dateFor = (year: number, md: MonthDay): Date => new Date(Date.UTC(year, md.month - 1, md.day, 23, 59, 59));
 
@@ -90,6 +91,20 @@ export const nextCctsDeadline = (now: Date): Date => {
   const year = now.getUTCFullYear();
   const thisYearDeadline = dateFor(year, CCTS_DEADLINE);
   return now <= thisYearDeadline ? thisYearDeadline : dateFor(year + 1, CCTS_DEADLINE);
+};
+
+/**
+ * Next upcoming CBAM annual declaration deadline (30 Sept) on/after `now`.
+ * Clamped to CBAM_FIRST_ANNUAL_DECLARATION_YEAR — the rule only takes effect
+ * for 2026 imports onward, so there is no real 30 Sept 2026 deadline.
+ */
+export const nextCbamAnnualDeclarationDeadline = (now: Date): Date => {
+  const year = now.getUTCFullYear();
+  const thisYearDeadline = dateFor(year, CBAM_ANNUAL_DECLARATION_DEADLINE);
+  const candidate = now <= thisYearDeadline ? thisYearDeadline : dateFor(year + 1, CBAM_ANNUAL_DECLARATION_DEADLINE);
+  return candidate.getUTCFullYear() < CBAM_FIRST_ANNUAL_DECLARATION_YEAR
+    ? dateFor(CBAM_FIRST_ANNUAL_DECLARATION_YEAR, CBAM_ANNUAL_DECLARATION_DEADLINE)
+    : candidate;
 };
 
 /**

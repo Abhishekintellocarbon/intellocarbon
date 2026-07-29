@@ -6,6 +6,7 @@ import { DISCLOSED_ATTRIBUTE_COUNT } from "./brsrReport/build";
 import { round, quarterLabel, periodLabel, seeUnitFor, cctsTone, type CctsTone } from "./dashboardShared.helpers";
 import {
   nextCbamDeadline,
+  nextCbamAnnualDeclarationDeadline,
   nextCctsDeadline,
   currentBrsrFyLabel,
   currentBrsrFyDeadline,
@@ -111,6 +112,7 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
   const deadlineInfo = (date: Date) => ({ deadline: date.toISOString(), daysRemaining: daysUntil(now, date) });
   const deadlines = {
     cbam: deadlineInfo(nextCbamDeadline(now)),
+    cbamAnnual: deadlineInfo(nextCbamAnnualDeclarationDeadline(now)),
     ccts: deadlineInfo(nextCctsDeadline(now)),
     brsr: deadlineInfo(currentBrsrFyDeadline(now)),
   };

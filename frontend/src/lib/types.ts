@@ -835,6 +835,7 @@ export interface FacilityDashboard {
   brsr: FacilityDashboardBrsr;
   deadlines: {
     cbam: FacilityDashboardDeadline;
+    cbamAnnual: FacilityDashboardDeadline;
     ccts: FacilityDashboardDeadline;
     brsr: FacilityDashboardDeadline;
   };
