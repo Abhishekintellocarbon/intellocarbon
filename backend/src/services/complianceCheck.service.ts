@@ -5,7 +5,14 @@ import {
   sendMonthlyReminderEmail,
   sendDeadlineWarningEmail,
 } from "./email.service";
-import { CCTS_DEADLINE, CBAM_QUARTERS, daysUntil, quarterLabel } from "../data/complianceDeadlines";
+import {
+  CCTS_DEADLINE,
+  CBAM_QUARTERS,
+  CBAM_ANNUAL_DECLARATION_DEADLINE,
+  CBAM_FIRST_ANNUAL_DECLARATION_YEAR,
+  daysUntil,
+  quarterLabel,
+} from "../data/complianceDeadlines";
 import type { Company, Facility, Subscription, User } from "@prisma/client";
 
 const MONTH_LABELS = [
@@ -174,6 +181,54 @@ const checkCbamDeadlineAlerts = async (company: CompanyWithRelations, now: Date)
   }
 };
 
+// --- 6/7. CBAM annual declaration 30-day warning + 7-day urgent alert -----
+//
+// EU Omnibus simplification (Oct 2025): the annual CBAM declaration and
+// certificate surrender covers a full reporting calendar year and is due 30
+// Sept of the *following* year — e.g. the declaration for 2026 imports is
+// due 30 Sept 2027 (see CBAM_ANNUAL_DECLARATION_DEADLINE). Distinct from the
+// quarterly filing alerts above.
+
+const checkCbamAnnualDeclarationAlert = async (company: CompanyWithRelations, now: Date): Promise<void> => {
+  if (company.facilities.length === 0) return;
+
+  const year = now.getUTCFullYear();
+  if (year < CBAM_FIRST_ANNUAL_DECLARATION_YEAR) return;
+
+  const deadline = dateFor(year, CBAM_ANNUAL_DECLARATION_DEADLINE.month, CBAM_ANNUAL_DECLARATION_DEADLINE.day);
+  const days = daysUntil(now, deadline);
+  if (days !== 30 && days !== 7) return;
+
+  // The declaration due this Sept covers the previous calendar year's imports.
+  const reportingYear = year - 1;
+  const { incomplete, total } = await countIncompleteFacilities(
+    company.facilities,
+    dateFor(reportingYear, 1, 1),
+    dateFor(reportingYear, 12, 31),
+  );
+  if (incomplete === 0) return;
+
+  const deadlineLabel = deadline.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const type = days === 30 ? "DEADLINE_WARNING_30D" : "DEADLINE_URGENT_7D";
+  const title =
+    days === 30
+      ? `Your CBAM annual declaration is due in 30 days`
+      : `Urgent: your CBAM annual declaration is due in 7 days`;
+  const body = `${incomplete} of ${total} required data entries for ${reportingYear} are still incomplete. CBAM annual declaration due ${deadlineLabel}.`;
+
+  await createNotificationOnce(
+    {
+      userId: company.ownerId,
+      companyId: company.id,
+      type,
+      title,
+      body,
+      dedupeKey: `cbam-annual-${days}d:${year}`,
+    },
+    () => sendDeadlineWarningEmail(company.owner.email, "CBAM Annual Declaration", days, incomplete, total, deadlineLabel),
+  );
+};
+
 /**
  * The daily compliance check — notifies every company with an active
  * subscription about monthly data-entry reminders and upcoming CCTS/CBAM
@@ -214,6 +269,7 @@ export const runDailyComplianceCheck = async (now: Date = new Date()): Promise<v
       }
       if (activeTiers.includes("CBAM_COMPLIANCE") || activeTiers.includes("CBAM_PLUS_CCTS")) {
         await checkCbamDeadlineAlerts(company, now);
+        await checkCbamAnnualDeclarationAlert(company, now);
       }
     } catch (err) {
       // One company's failure shouldn't block the rest of the run.
