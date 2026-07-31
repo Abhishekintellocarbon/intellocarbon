@@ -17,6 +17,11 @@ import {
   type Cat11ProductType,
   type Cat11FuelType,
 } from "../data/scope3EmissionFactors";
+import {
+  CATEGORY_NUMBER_BY_PRISMA_CATEGORY,
+  isCalculableScope3Category,
+  type CalculableScope3Category,
+} from "../data/scope3Categories";
 
 const round = (value: number, decimals = 4) => {
   const factor = 10 ** decimals;
@@ -70,9 +75,11 @@ export interface Cat11ActivityInput {
   fuelType?: Cat11FuelType;
 }
 
-const calcSpendBased = (category: Scope3Category, input: SpendBasedInput): Scope3CalculationResult => {
-  const factorKey = category as keyof typeof SPEND_BASED_FACTORS_KG_CO2E_PER_USD;
-  const factor = SPEND_BASED_FACTORS_KG_CO2E_PER_USD[factorKey];
+const calcSpendBased = (category: CalculableScope3Category, input: SpendBasedInput): Scope3CalculationResult => {
+  // Indexed directly rather than through a cast: SPEND_BASED_FACTORS is keyed
+  // by exactly the calculable categories, so a category without a factor is a
+  // compile error instead of a silent NaN.
+  const factor = SPEND_BASED_FACTORS_KG_CO2E_PER_USD[category];
   const spendUsd = input.spendInr / USD_TO_INR_RATE;
   return {
     calculatedEmissionsTco2e: kgToTonnes(spendUsd * factor),
@@ -148,6 +155,16 @@ export const calculateScope3Emissions = (
   calculationMethod: Scope3CalculationMethod,
   inputData: Record<string, unknown>,
 ): Scope3CalculationResult => {
+  // The enum covers all 15 GHG Protocol categories so relevance can be
+  // reported for each, but only 5 have arithmetic behind them. Reject the
+  // other 10 here rather than letting them fall through to a missing factor.
+  if (!isCalculableScope3Category(category)) {
+    throw AppError.badRequest(
+      `Scope 3 Category ${CATEGORY_NUMBER_BY_PRISMA_CATEGORY[category]} is not yet supported for data entry`,
+      "SCOPE3_CATEGORY_NOT_SUPPORTED",
+    );
+  }
+
   if (calculationMethod === "SPEND_BASED") {
     return calcSpendBased(category, inputData as unknown as SpendBasedInput);
   }

@@ -10,6 +10,21 @@ export const SECTOR_OPTIONS = [
   { value: "OTHER", label: "Other" },
 ] as const;
 
+// Scope 3 relevance drivers — Categories 8 and 13 (leased assets) key off
+// ownership, 14 (franchises) and 15 (investments) off business model.
+export const OWNERSHIP_MODEL_OPTIONS = [
+  { value: "OWNED", label: "Owned — we own our operating assets" },
+  { value: "LEASED", label: "Leased — we lease our operating assets" },
+  { value: "MIXED", label: "Mixed — a combination of owned and leased" },
+] as const;
+
+export const BUSINESS_MODEL_OPTIONS = [
+  { value: "MANUFACTURER", label: "Manufacturer" },
+  { value: "FRANCHISOR", label: "Franchisor" },
+  { value: "FINANCIAL_INSTITUTION", label: "Financial institution" },
+  { value: "DISTRIBUTOR", label: "Distributor" },
+] as const;
+
 export const FACILITY_TYPE_OPTIONS = [
   { value: "INTEGRATED_STEEL_PLANT", label: "Integrated steel plant (BF-BOF)" },
   { value: "EAF_MINI_MILL", label: "EAF mini-mill" },

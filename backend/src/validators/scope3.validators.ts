@@ -1,16 +1,20 @@
 import { z } from "zod";
 import { AppError } from "../utils/AppError";
+import {
+  CALCULABLE_SCOPE3_CATEGORIES,
+  CATEGORY_NUMBER_BY_PRISMA_CATEGORY,
+  isCalculableScope3Category,
+} from "../data/scope3Categories";
+import type { Scope3Category } from "@prisma/client";
 
 // "FY2025-26" — same convention as BRSR Core / ISSB.
 const reportingPeriodRegex = /^FY\d{4}-\d{2}$/;
 
-const SCOPE3_CATEGORIES = [
-  "CAT1_PURCHASED_GOODS_SERVICES",
-  "CAT4_UPSTREAM_TRANSPORT_DISTRIBUTION",
-  "CAT6_BUSINESS_TRAVEL",
-  "CAT7_EMPLOYEE_COMMUTING",
-  "CAT11_USE_OF_SOLD_PRODUCTS",
-] as const;
+// Only the 5 categories with a calculation path can be saved against. The
+// other 10 exist in the Prisma enum for relevance reporting only, and are
+// rejected in parseScope3Entry with a "not yet supported" message rather than
+// a bare "invalid enum value" — see CALCULABLE_SCOPE3_CATEGORIES.
+const SCOPE3_CATEGORIES = CALCULABLE_SCOPE3_CATEGORIES;
 
 const CALCULATION_METHODS = ["SPEND_BASED", "ACTIVITY_BASED"] as const;
 
@@ -98,6 +102,21 @@ const ACTIVITY_SCHEMA_BY_CATEGORY: Record<(typeof SCOPE3_CATEGORIES)[number], z.
  * coerced/typed body on success, ready for scope3Calculation.service.ts.
  */
 export const parseScope3Entry = (body: unknown): Scope3EntryBaseInput => {
+  // Distinguish "a real GHG Protocol category we haven't built yet" from
+  // "not a category at all", so the client gets the same coming-soon signal
+  // the relevance endpoint gives it instead of a generic enum error.
+  const rawCategory = (body as { category?: unknown } | null | undefined)?.category;
+  if (
+    typeof rawCategory === "string" &&
+    rawCategory in CATEGORY_NUMBER_BY_PRISMA_CATEGORY &&
+    !isCalculableScope3Category(rawCategory as Scope3Category)
+  ) {
+    throw AppError.badRequest(
+      `Scope 3 Category ${CATEGORY_NUMBER_BY_PRISMA_CATEGORY[rawCategory as Scope3Category]} is not yet supported for data entry`,
+      "SCOPE3_CATEGORY_NOT_SUPPORTED",
+    );
+  }
+
   const base = scope3EntryBaseSchema.safeParse(body);
   if (!base.success) {
     throw AppError.badRequest(base.error.issues[0]?.message ?? "Invalid request body", "VALIDATION_ERROR");

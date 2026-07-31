@@ -1,4 +1,4 @@
-import type { Scope3Category, Scope3CalculationMethod } from "@/lib/types";
+import type { CalculableScope3Category, Scope3CalculationMethod } from "@/lib/types";
 import {
   spendBasedSchema,
   cat1ActivitySchema,
@@ -59,7 +59,7 @@ export const FUEL_LABELS: Record<string, string> = {
 
 export type FieldsState = Record<string, string>;
 
-export const emptyFieldsFor = (method: Scope3CalculationMethod, category: Scope3Category): FieldsState => {
+export const emptyFieldsFor = (method: Scope3CalculationMethod, category: CalculableScope3Category): FieldsState => {
   if (method === "SPEND_BASED") return { spendInr: "" };
   switch (category) {
     case "CAT1_PURCHASED_GOODS_SERVICES":
@@ -81,7 +81,7 @@ export const emptyFieldsFor = (method: Scope3CalculationMethod, category: Scope3
   }
 };
 
-export const schemaFor = (method: Scope3CalculationMethod, category: Scope3Category): ZodTypeAny => {
+export const schemaFor = (method: Scope3CalculationMethod, category: CalculableScope3Category): ZodTypeAny => {
   if (method === "SPEND_BASED") return spendBasedSchema;
   switch (category) {
     case "CAT1_PURCHASED_GOODS_SERVICES":
@@ -102,7 +102,7 @@ const toStr = (v: unknown): string => (v == null ? "" : String(v));
 /** Converts a saved entry's typed inputData (numbers) back into the form's string field state. */
 export const fieldsFromInputData = (
   method: Scope3CalculationMethod,
-  category: Scope3Category,
+  category: CalculableScope3Category,
   inputData: Record<string, unknown>,
 ): FieldsState => {
   const empty = emptyFieldsFor(method, category);

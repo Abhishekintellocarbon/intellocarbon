@@ -36,6 +36,9 @@ export interface Company {
   appliesCbam: boolean;
   appliesCcts: boolean;
   isPatDesignatedConsumer: boolean;
+  // Scope 3 relevance drivers — see Scope3RelevanceResponse.
+  ownershipModel: OwnershipModel;
+  businessModel: BusinessModel;
   onboardingCompletedAt: string | null;
   euImporterName: string | null;
   euImporterEori: string | null;
@@ -385,12 +388,55 @@ export interface IssbS1S2Metrics {
   };
 }
 
-export type Scope3Category =
+/**
+ * The 5 GHG Protocol categories with a calculation path today. Kept as its own
+ * union so the per-category switches in scope3-field-config.ts and
+ * scope3-entry-form.tsx stay exhaustive now that the full enum has 15 members
+ * — only a calculable category can ever reach a data entry form.
+ */
+export type CalculableScope3Category =
   | "CAT1_PURCHASED_GOODS_SERVICES"
   | "CAT4_UPSTREAM_TRANSPORT_DISTRIBUTION"
   | "CAT6_BUSINESS_TRAVEL"
   | "CAT7_EMPLOYEE_COMMUTING"
   | "CAT11_USE_OF_SOLD_PRODUCTS";
+
+/** All 15 GHG Protocol Scope 3 categories — mirrors the Prisma enum. */
+export type Scope3Category =
+  | CalculableScope3Category
+  | "CAT2_CAPITAL_GOODS"
+  | "CAT3_FUEL_ENERGY_RELATED"
+  | "CAT5_WASTE_GENERATED_IN_OPERATIONS"
+  | "CAT8_UPSTREAM_LEASED_ASSETS"
+  | "CAT9_DOWNSTREAM_TRANSPORT_DISTRIBUTION"
+  | "CAT10_PROCESSING_OF_SOLD_PRODUCTS"
+  | "CAT12_END_OF_LIFE_TREATMENT"
+  | "CAT13_DOWNSTREAM_LEASED_ASSETS"
+  | "CAT14_FRANCHISES"
+  | "CAT15_INVESTMENTS";
+
+export type Scope3Relevance = "MANDATORY" | "OPTIONAL" | "NOT_APPLICABLE";
+
+export type OwnershipModel = "OWNED" | "LEASED" | "MIXED";
+
+export type BusinessModel = "MANUFACTURER" | "FRANCHISOR" | "FINANCIAL_INSTITUTION" | "DISTRIBUTOR";
+
+export interface Scope3CategoryRelevance {
+  category: number;
+  name: string;
+  prismaCategory: Scope3Category;
+  calculable: boolean;
+  relevance: Scope3Relevance;
+  reasoning: string;
+}
+
+export interface Scope3RelevanceResponse {
+  companyId: string;
+  sector: string;
+  ownershipModel: OwnershipModel;
+  businessModel: BusinessModel;
+  categories: Scope3CategoryRelevance[];
+}
 
 export type Scope3CalculationMethod = "SPEND_BASED" | "ACTIVITY_BASED";
 
@@ -413,7 +459,9 @@ export interface Scope3Data {
 export interface Scope3CategoryCatalogEntry {
   number: number;
   name: string;
-  prismaCategory: Scope3Category | null;
+  prismaCategory: Scope3Category;
+  /** False for the 10 categories that have no data entry form yet. */
+  calculable: boolean;
 }
 
 export interface ReferenceOption {

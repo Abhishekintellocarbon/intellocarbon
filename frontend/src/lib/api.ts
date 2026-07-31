@@ -20,6 +20,7 @@ import type {
   IssbS1S2Metrics,
   Scope3Data,
   Scope3CategoryCatalogEntry,
+  Scope3RelevanceResponse,
   FacilityDashboard,
   ReportGenerationStatus,
   GeneratedReport,
@@ -602,6 +603,10 @@ export const issbApi = {
 
 export const scope3Api = {
   categories: (): Promise<{ categories: Scope3CategoryCatalogEntry[] }> => apiFetch("/api/scope3/categories"),
+
+  // All 15 categories tagged MANDATORY/OPTIONAL/NOT_APPLICABLE for this
+  // company, from its sector plus ownership and business model.
+  relevance: (companyId: string): Promise<Scope3RelevanceResponse> => apiFetch(`/api/scope3/relevance/${companyId}`),
 
   list: (facilityId: string, reportingPeriod: string): Promise<{ entries: Scope3Data[]; totalSubmittedTco2e: number }> =>
     apiFetch(`/api/scope3/facilities/${facilityId}/data?reportingPeriod=${encodeURIComponent(reportingPeriod)}`),

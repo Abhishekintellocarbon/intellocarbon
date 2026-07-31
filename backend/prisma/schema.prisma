@@ -77,6 +77,24 @@ model User {
   @@map("users")
 }
 
+// Whether the company's operating assets are owned, leased, or a mix — the
+// only input that decides whether Scope 3 Categories 8 and 13 (upstream and
+// downstream leased assets) exist for this company at all.
+enum OwnershipModel {
+  OWNED
+  LEASED
+  MIXED
+}
+
+// What the company actually does commercially, which is what makes Category 14
+// (franchises) and 15 (investments) relevant — a manufacturer has neither.
+enum BusinessModel {
+  MANUFACTURER
+  FRANCHISOR
+  FINANCIAL_INSTITUTION
+  DISTRIBUTOR
+}
+
 enum Sector {
   STEEL
   CEMENT
@@ -108,6 +126,16 @@ model Company {
   appliesCcts             Boolean   @default(false)
   isPatDesignatedConsumer Boolean   @default(false)
   onboardingCompletedAt   DateTime?
+
+  // Scope 3 relevance drivers. Company-level rather than Facility-level: a
+  // GHG Protocol Scope 3 inventory is drawn at the organisational boundary,
+  // and the relevance endpoint keys off companyId. Categories 8/13 (leased
+  // assets) turn on ownershipModel; 14 (franchises) and 15 (investments) turn
+  // on businessModel. Defaults match the existing client base — owned plants
+  // run by manufacturers — so pre-existing companies keep the same relevance
+  // set they'd have had before these fields existed.
+  ownershipModel OwnershipModel @default(OWNED)
+  businessModel  BusinessModel  @default(MANUFACTURER)
 
   // EU declarant / importer of record — CBAM report page 4
   euImporterName         String?
@@ -967,12 +995,64 @@ model IssbS1S2Report {
 // ISSB today) as an optional, additive supplement — not wired into either
 // report's own calculation path, so submitting a BRSR/ISSB disclosure never
 // depends on Scope 3 data existing.
+// All 15 GHG Protocol categories are enumerated, but only the original five
+// (1, 4, 6, 7, 11) have a calculation path in scope3Calculation.service.ts.
+// The other ten exist so relevance can be reported per sector and so the UI
+// can show a "Coming soon" card instead of silently omitting a category the
+// company is actually obliged to disclose. Writing data against one of the ten
+// is rejected at the service layer — see SUPPORTED_CATEGORIES.
 enum Scope3Category {
   CAT1_PURCHASED_GOODS_SERVICES
+  CAT2_CAPITAL_GOODS
+  CAT3_FUEL_ENERGY_RELATED
   CAT4_UPSTREAM_TRANSPORT_DISTRIBUTION
+  CAT5_WASTE_GENERATED_IN_OPERATIONS
   CAT6_BUSINESS_TRAVEL
   CAT7_EMPLOYEE_COMMUTING
+  CAT8_UPSTREAM_LEASED_ASSETS
+  CAT9_DOWNSTREAM_TRANSPORT_DISTRIBUTION
+  CAT10_PROCESSING_OF_SOLD_PRODUCTS
   CAT11_USE_OF_SOLD_PRODUCTS
+  CAT12_END_OF_LIFE_TREATMENT
+  CAT13_DOWNSTREAM_LEASED_ASSETS
+  CAT14_FRANCHISES
+  CAT15_INVESTMENTS
+}
+
+enum Scope3Relevance {
+  MANDATORY
+  OPTIONAL
+  NOT_APPLICABLE
+}
+
+// Per-sector materiality baseline for each of the 15 categories, following
+// standard GHG Protocol materiality guidance. This table is the sector-level
+// answer only; the company-specific overrides for Categories 8, 9, 13, 14 and
+// 15 are applied on top from Company.ownershipModel / businessModel by
+// scope3Relevance.service.ts, which is also what rewrites `reasoning` when an
+// override fires. Seeded data, not user-editable — reseeding is idempotent on
+// the [sector, category] unique key.
+model Scope3CategoryRelevance {
+  id     String @id @default(cuid())
+  sector Sector
+
+  // GHG Protocol category number, 1-15. Stored as an Int rather than the
+  // Scope3Category enum so the table reads the way the standard is written
+  // and so ordering by category needs no enum-to-number mapping in SQL.
+  category Int
+
+  relevance Scope3Relevance
+
+  // Why this category carries this relevance for this sector, shown verbatim
+  // in the UI tooltip and kept as the audit trail for the determination.
+  reasoning String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sector, category])
+  @@index([sector])
+  @@map("scope3_category_relevance")
 }
 
 enum Scope3CalculationMethod {

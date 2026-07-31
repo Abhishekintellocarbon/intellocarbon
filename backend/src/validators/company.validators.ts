@@ -1,4 +1,4 @@
-import { Sector } from "@prisma/client";
+import { BusinessModel, OwnershipModel, Sector } from "@prisma/client";
 import { z } from "zod";
 
 export const companySchema = z.object({
@@ -31,6 +31,12 @@ export const companySchema = z.object({
   appliesCbam: z.boolean().default(false),
   appliesCcts: z.boolean().default(false),
   isPatDesignatedConsumer: z.boolean().default(false),
+
+  // Scope 3 relevance drivers — see scope3Relevance.service.ts. Defaulted
+  // rather than required so existing clients that PUT a company payload
+  // without them keep the schema default instead of failing validation.
+  ownershipModel: z.nativeEnum(OwnershipModel, { errorMap: () => ({ message: "Select a valid ownership model" }) }).default("OWNED"),
+  businessModel: z.nativeEnum(BusinessModel, { errorMap: () => ({ message: "Select a valid business model" }) }).default("MANUFACTURER"),
 
   // EU declarant / importer of record — CBAM report page 4
   euImporterName: z.string().trim().max(150).optional().or(z.literal("")),
