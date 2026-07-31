@@ -5,8 +5,15 @@ import { logger } from "./utils/logger";
 import { prisma } from "./config/prisma";
 import { startScheduledJobs } from "./jobs/scheduler";
 import { hydrateEmissionFactorCache } from "./services/emissionFactor.service";
+import { logGrandfatheredEsgBundleSubscribers } from "./services/billing.service";
 
 let server: ReturnType<typeof app.listen>;
+
+// Audit-only, doesn't gate startup — a query failure here shouldn't block
+// accepting traffic. See billing.service.ts for what this actually checks.
+logGrandfatheredEsgBundleSubscribers().catch((err) =>
+  logger.error("Failed to run ESG Bundle repricing review log", err),
+);
 
 // Load the current CBAM certificate price / CEA grid factor from the DB
 // before accepting traffic, so a restart after a Super Admin edit doesn't

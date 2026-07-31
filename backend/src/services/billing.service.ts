@@ -65,6 +65,31 @@ export const getSubscriptions = async (companyId: string) => {
   return { subscriptions: enriched, usage, plans: Object.values(PLANS), combinationRules: COMBINATION_RULES };
 };
 
+/**
+ * One-time-per-deploy audit log, not a request-path check — companies with
+ * an active ESG Disclosure Bundle (BRSR_CORE_REPORTING) subscription from
+ * before the 31 Jul 2026 repricing (₹14,999 -> ₹19,999/facility/mo). Purely
+ * informational: Razorpay only bills against the specific Plan object a
+ * subscription was created on (see plans.ts's BRSR_CORE_REPORTING comment),
+ * so these companies keep paying their originally-agreed price with no
+ * code-side action — this just makes them visible for manual review rather
+ * than silently forgotten. Called once at server startup (see server.ts).
+ */
+export const logGrandfatheredEsgBundleSubscribers = async (): Promise<void> => {
+  const subs = await prisma.subscription.findMany({
+    where: { tier: "BRSR_CORE_REPORTING", status: "ACTIVE" },
+    include: { company: { select: { id: true, name: true } } },
+  });
+  if (subs.length === 0) return;
+
+  const list = subs.map((s) => `${s.company.name} (company ${s.company.id}, subscription ${s.id})`).join("; ");
+  logger.warn(
+    `[ESG Bundle repricing review] ${subs.length} compan${subs.length === 1 ? "y has" : "ies have"} an active ` +
+      `ESG Disclosure Bundle subscription predating the 31 Jul 2026 repricing (₹14,999 -> ₹19,999/facility/mo). ` +
+      `Not auto-charged the difference — review manually: ${list}`,
+  );
+};
+
 export const requireCapacityForNewFacility = async (companyId: string): Promise<void> => {
   const subscriptions = await prisma.subscription.findMany({
     where: { companyId, status: "ACTIVE" },

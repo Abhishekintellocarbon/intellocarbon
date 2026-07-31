@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Clock, FileBarChart, Globe2, Landmark, ScrollText } from "lucide-react";
+import { ArrowRight, BadgeCheck, Check, Clock, FileBarChart, Globe2, Landmark, Layers, ScrollText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
@@ -9,60 +9,61 @@ import { NotifyMeCapture } from "@/components/esg/notify-me-capture";
 import type { EsgWaitlistFramework } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title: "ESG Reporting — BRSR Core, ISSB, GRI, CSRD, CDP | Intellocarbon",
+  title: "ESG Disclosure Bundle — BRSR Core, ISSB, Scope 3, GRI, CSRD, CDP | Intellocarbon",
   description:
-    "ESG and sustainability reporting frameworks on Intellocarbon: BRSR Core and ISSB IFRS S1/S2 are live today. GRI, CSRD, and CDP are in active development.",
+    "One subscription for BRSR Core, ISSB IFRS S1/S2, and Scope 3 emissions — live today. GRI, CSRD, and CDP are in active development.",
 };
 
-interface FrameworkCard {
-  href?: string;
+interface BundleItem {
   icon: React.ComponentType<{ className?: string }>;
   name: string;
   status: "live" | "soon";
-  description: string;
   waitlistTool?: EsgWaitlistFramework;
 }
 
-const FRAMEWORKS: FrameworkCard[] = [
-  {
-    href: "/esg/brsr",
-    icon: FileBarChart,
-    name: "BRSR Core",
-    status: "live",
-    description:
-      "SEBI's mandatory Core ESG attributes for India's top listed companies and their value chains — GHG reused automatically from your existing activity data.",
-  },
-  {
-    icon: Globe2,
-    name: "GRI",
-    status: "soon",
-    description:
-      "The world's most widely used voluntary sustainability standard, impact materiality.",
-    waitlistTool: "ESG_GRI",
-  },
-  {
-    href: "/esg/issb",
-    icon: BadgeCheck,
-    name: "ISSB IFRS S1/S2",
-    status: "live",
-    description:
-      "The emerging global investor-facing standard, absorbed TCFD's climate disclosure structure — Governance, Strategy, Risk Management, and Metrics & Targets.",
-  },
-  {
-    icon: Landmark,
-    name: "CSRD",
-    status: "soon",
-    description: "EU's mandatory framework for large EU entities, double materiality.",
-    waitlistTool: "ESG_CSRD",
-  },
-  {
-    icon: ScrollText,
-    name: "CDP",
-    status: "soon",
-    description: "Buyer-driven climate disclosure scoring used by multinational supply chains.",
-    waitlistTool: "ESG_CDP",
-  },
+// Keep in sync with backend/src/data/plans.ts PLANS.BRSR_CORE_REPORTING —
+// this public page can't read that live (billing/plans is behind auth, by
+// design: logged-out visitors don't otherwise see figures on this site).
+const BUNDLE_PRICE_LABEL = "₹19,999/facility/month";
+
+const BUNDLE_ITEMS: BundleItem[] = [
+  { icon: FileBarChart, name: "BRSR Core", status: "live" },
+  { icon: BadgeCheck, name: "ISSB IFRS S1/S2", status: "live" },
+  { icon: Layers, name: "Scope 3 calculation", status: "live" },
+  { icon: Globe2, name: "GRI", status: "soon", waitlistTool: "ESG_GRI" },
+  { icon: Landmark, name: "CSRD", status: "soon", waitlistTool: "ESG_CSRD" },
+  { icon: ScrollText, name: "CDP", status: "soon", waitlistTool: "ESG_CDP" },
 ];
+
+interface MarketRow {
+  market: string;
+  framework: string;
+  status: "live" | "soon";
+}
+
+// Illustrative, not exhaustive — the goal is orienting a company to "which
+// framework does my market actually require," not a complete legal survey.
+const MARKET_ROWS: MarketRow[] = [
+  { market: "India", framework: "BRSR Core (SEBI)", status: "live" },
+  { market: "Global investors / IFRS jurisdictions", framework: "ISSB IFRS S1/S2", status: "live" },
+  { market: "European Union", framework: "CSRD", status: "soon" },
+  { market: "United States (SEC / state climate rules)", framework: "Climate disclosure rules", status: "soon" },
+  { market: "Global supply chains (buyer-driven)", framework: "CDP", status: "soon" },
+];
+
+function StatusChip({ status }: { status: "live" | "soon" }) {
+  return status === "live" ? (
+    <span className="inline-flex items-center gap-1 rounded-full border border-teal-500/30 bg-teal-500/10 px-2.5 py-1 text-[11px] font-semibold text-teal-500">
+      <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+      Live
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded-full border border-surface-border bg-surface-raised px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+      <Clock className="h-3 w-3" />
+      Coming Soon
+    </span>
+  );
+}
 
 export default function EsgHub() {
   return (
@@ -75,65 +76,100 @@ export default function EsgHub() {
       <main className="relative z-10 mx-auto max-w-5xl px-6 pb-24 pt-10 text-center">
         <span className="inline-flex items-center gap-2 rounded-full border border-surface-border bg-surface px-3.5 py-1.5 text-xs font-medium text-muted-foreground">
           <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
-          One data entry. Every ESG framework.
+          One subscription. Every ESG framework.
         </span>
 
         <h1 className="mt-6 text-[36px] font-semibold leading-tight text-balance sm:text-[48px]">
           <span className="text-gradient">ESG</span> reporting on Intellocarbon
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-balance text-muted-foreground sm:text-lg">
-          BRSR Core and ISSB IFRS S1/S2 are live today. GRI, CSRD, and CDP are in active development — join
-          the waitlist to be notified.
+          BRSR Core, ISSB IFRS S1/S2, and Scope 3 emissions are live today, in one bundled subscription. GRI, CSRD,
+          and CDP are in active development.
         </p>
 
-        <div className="mt-14 grid gap-5 text-left sm:grid-cols-2 lg:grid-cols-3">
-          {FRAMEWORKS.map((fw) => (
-            <Card
-              key={fw.name}
-              className="group relative flex flex-col p-6 transition-all duration-300 hover:-translate-y-1 hover:border-teal-500/40 hover:shadow-glow"
-            >
-              <div className="flex items-start justify-between">
-                <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-surface-border bg-surface-raised">
-                  <fw.icon className="h-5 w-5 text-teal-500" />
-                </span>
-                {fw.status === "live" ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-teal-500/30 bg-teal-500/10 px-2.5 py-1 text-[11px] font-semibold text-teal-500">
-                    <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
-                    Live
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-surface-border bg-surface-raised px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    Coming Soon
-                  </span>
-                )}
+        {/* Unified ESG Disclosure Bundle */}
+        <Card className="mx-auto mt-14 max-w-2xl p-8 text-left">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-xl font-semibold">ESG Disclosure Bundle</h2>
+            <p className="text-2xl font-bold tabular-nums text-teal-500">{BUNDLE_PRICE_LABEL}</p>
+          </div>
+
+          <p className="mt-3 text-sm text-muted-foreground">
+            Priced above CBAM and CCTS because it covers more ground: Scope 3 value-chain emissions on top of Scope
+            1/2, several disclosure frameworks rather than one, and a single data entry that feeds all of them — no
+            re-entering the same activity data per framework.
+          </p>
+
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {BUNDLE_ITEMS.map((item) => (
+              <div
+                key={item.name}
+                className="flex items-center justify-between gap-3 rounded-xl border border-surface-border bg-surface-raised/60 px-4 py-3"
+              >
+                <div className="flex items-center gap-2.5">
+                  <item.icon className="h-4 w-4 shrink-0 text-teal-500" />
+                  <span className="text-sm font-medium">{item.name}</span>
+                </div>
+                <StatusChip status={item.status} />
               </div>
+            ))}
+          </div>
 
-              <h3 className="mt-4 font-semibold">{fw.name}</h3>
-              <p className="mt-1.5 flex-1 text-sm text-muted-foreground">{fw.description}</p>
+          <Link href="/esg/brsr" className="mt-7 block">
+            <Button size="lg" className="w-full">
+              Get Started
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+          <p className="mt-2.5 text-center text-xs text-muted-foreground">
+            Starts with BRSR Core — ISSB IFRS S1/S2 and Scope 3 are available from the same facility dashboard.
+          </p>
 
-              {fw.status === "live" && fw.href ? (
-                <Link href={fw.href} className="mt-5">
-                  <Button size="sm" className="w-full">
-                    Get Started
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
-                </Link>
-              ) : (
-                fw.waitlistTool && <NotifyMeCapture framework={fw.waitlistTool} />
-              )}
-            </Card>
-          ))}
+          <div className="mt-8 border-t border-surface-border pt-6">
+            <p className="text-sm font-medium">Want GRI, CSRD, or CDP first?</p>
+            <p className="mt-1 text-xs text-muted-foreground">Join the waitlist for whichever one you need.</p>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {BUNDLE_ITEMS.filter((i) => i.waitlistTool).map((item) => (
+                <div key={item.name}>
+                  <p className="text-xs font-semibold text-muted-foreground">{item.name}</p>
+                  <NotifyMeCapture framework={item.waitlistTool!} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Lightweight global mandate comparison */}
+        <div className="mx-auto mt-16 max-w-2xl text-left">
+          <h2 className="text-center text-lg font-semibold">Which framework does your market actually require?</h2>
+          <p className="mt-1.5 text-center text-sm text-muted-foreground">
+            A quick orientation, not a complete legal survey — check with counsel for your specific obligations.
+          </p>
+          <div className="mt-6 space-y-2.5">
+            {MARKET_ROWS.map((row) => (
+              <div
+                key={row.market}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-surface-border bg-surface px-4 py-3"
+              >
+                <span className="text-sm font-medium">{row.market}</span>
+                <div className="flex items-center gap-2.5">
+                  <span className="text-sm text-muted-foreground">{row.framework}</span>
+                  <StatusChip status={row.status} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <Card className="mx-auto mt-20 max-w-xl p-8">
+        <Card className="mx-auto mt-16 max-w-xl p-8">
           <h2 className="text-lg font-semibold">Already tracking CBAM or CCTS with us?</h2>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            BRSR Core reuses the same activity data you&apos;ve already submitted — no double entry.
+            The ESG Disclosure Bundle reuses the same activity data you&apos;ve already submitted — no double entry.
           </p>
           <Link href="/esg/brsr" className="mt-5 inline-block">
             <Button>
-              Start your BRSR Core disclosure
+              <Check className="h-4 w-4" />
+              Start your ESG disclosure
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
