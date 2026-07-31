@@ -44,11 +44,15 @@ const facilityCapacityOf = (s: Pick<Subscription, "isCustomDeal" | "customFacili
 // rather than only via a pre-bundled combo tier like CBAM_PLUS_CCTS. See the
 // `@@unique([companyId, tier])` comment on the Subscription model.
 export const getSubscriptions = async (companyId: string) => {
-  const subscriptions = await prisma.subscription.findMany({
-    where: { companyId },
-    orderBy: { createdAt: "asc" },
-  });
-  const usage = await getUsage(companyId);
+  // Independent reads (usage doesn't depend on the subscriptions list) —
+  // run concurrently rather than as two sequential round trips.
+  const [subscriptions, usage] = await Promise.all([
+    prisma.subscription.findMany({
+      where: { companyId },
+      orderBy: { createdAt: "asc" },
+    }),
+    getUsage(companyId),
+  ]);
   // Shown on the billing page next to an already-active plan so a company
   // adding a facility sees what it costs before confirming — same prorated
   // basis as the plan-merge credit calc below (logProratedCredit), reused
