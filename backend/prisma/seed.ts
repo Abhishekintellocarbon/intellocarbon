@@ -1,31 +1,13 @@
-import { PrismaClient } from "@prisma/client";
-import { SCOPE3_RELEVANCE_BASELINE } from "../src/data/scope3RelevanceBaseline";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/config/prisma";
+import { seedReferenceData } from "../src/scripts/seedReferenceData";
 
 /**
- * Reference-data seed. Idempotent by design — every write is an upsert on a
- * natural key, so this is safe to run on every deploy and safe to run twice.
- * It must never create or modify tenant data (companies, facilities,
- * emissions entries); reference tables only.
+ * Entry point for `prisma db seed` / `npm run prisma:seed` in local
+ * development, where tsx is available. Production runs the compiled
+ * dist/scripts/seedReferenceData.js directly from the Dockerfile CMD — see
+ * that file for why the implementation lives under src/ rather than here.
  */
-const seedScope3CategoryRelevance = async () => {
-  for (const row of SCOPE3_RELEVANCE_BASELINE) {
-    await prisma.scope3CategoryRelevance.upsert({
-      where: { sector_category: { sector: row.sector, category: row.category } },
-      create: row,
-      update: { relevance: row.relevance, reasoning: row.reasoning },
-    });
-  }
-  const total = await prisma.scope3CategoryRelevance.count();
-  console.log(`Seeded Scope 3 category relevance: ${SCOPE3_RELEVANCE_BASELINE.length} rows upserted, ${total} rows in table.`);
-};
-
-const main = async () => {
-  await seedScope3CategoryRelevance();
-};
-
-main()
+seedReferenceData()
   .catch((error) => {
     console.error("Seed failed:", error);
     process.exitCode = 1;

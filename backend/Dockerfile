@@ -27,6 +27,12 @@ COPY package.json ./
 
 EXPOSE 4000
 
-# Apply pending migrations, then start the server. Requires DIRECT_URL (a
-# non-pooled connection) to be set — see README for Supabase connection setup.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+# Apply pending migrations, seed reference data, then start the server.
+# Requires DIRECT_URL (a non-pooled connection) to be set — see README for
+# Supabase connection setup.
+#
+# The seed is idempotent (upserts on natural keys) and touches reference
+# tables only, never tenant data, so re-running it on every container start is
+# safe. It runs as compiled JS rather than `prisma db seed`, because that
+# would shell out to tsx — a devDependency this stage has pruned.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/scripts/seedReferenceData.js && node dist/server.js"]
