@@ -32,13 +32,27 @@ const API_ORIGINS = [
 // 'unsafe-inline' for script-src — it still blocks loading script from any
 // origin other than the ones explicitly listed below, which is the actual
 // XSS vector CSP is meant to close here (attacker-controlled external JS).
+const IS_DEV = process.env.NODE_ENV !== "production";
+
+// `next dev` compiles modules with eval() — React Refresh and webpack's
+// eval-source-map both do it — so without 'unsafe-eval' the dev bundle is
+// blocked and React never hydrates: pages return 200 with the right <title>
+// and a completely inert DOM. Production bundles never eval, so this is
+// scoped to dev and the deployed header is unchanged.
+const DEV_SCRIPT_SRC = IS_DEV ? " 'unsafe-eval'" : "";
+
+// The dev server's hot-module-reload channel is a WebSocket to the same host
+// and port. 'self' doesn't cover it — CSP matches scheme as well as origin,
+// so ws:// against an http:// page is a cross-scheme fetch and gets blocked.
+const DEV_CONNECT_SRC = IS_DEV ? " ws://localhost:* http://localhost:*" : "";
+
 const CSP = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' ${RAZORPAY_CHECKOUT_ORIGIN} ${PLAUSIBLE_ORIGIN}`,
+  `script-src 'self' 'unsafe-inline'${DEV_SCRIPT_SRC} ${RAZORPAY_CHECKOUT_ORIGIN} ${PLAUSIBLE_ORIGIN}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
-  `connect-src 'self' ${API_ORIGINS} ${RAZORPAY_API_ORIGIN} ${PLAUSIBLE_ORIGIN} ${SENTRY_INGEST_ORIGINS}`,
+  `connect-src 'self'${DEV_CONNECT_SRC} ${API_ORIGINS} ${RAZORPAY_API_ORIGIN} ${PLAUSIBLE_ORIGIN} ${SENTRY_INGEST_ORIGINS}`,
   `frame-src ${RAZORPAY_CHECKOUT_ORIGIN} ${RAZORPAY_API_ORIGIN}`,
   "object-src 'none'",
   "base-uri 'self'",
