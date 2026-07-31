@@ -21,10 +21,9 @@ interface BundleItem {
   waitlistTool?: EsgWaitlistFramework;
 }
 
-// Keep in sync with backend/src/data/plans.ts PLANS.BRSR_CORE_REPORTING —
-// this public page can't read that live (billing/plans is behind auth, by
-// design: logged-out visitors don't otherwise see figures on this site).
-const BUNDLE_PRICE_LABEL = "₹19,999/facility/month";
+// No price figure on this page — pricing lives on /billing, which is behind
+// auth by design: logged-out visitors don't see figures anywhere on this site.
+// Do not reintroduce a hardcoded price label here.
 
 const BUNDLE_ITEMS: BundleItem[] = [
   { icon: FileBarChart, name: "BRSR Core", status: "live" },
@@ -91,7 +90,9 @@ export default function EsgHub() {
         <Card className="mx-auto mt-14 max-w-2xl p-8 text-left">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-xl font-semibold">ESG Disclosure Bundle</h2>
-            <p className="text-2xl font-bold tabular-nums text-teal-500">{BUNDLE_PRICE_LABEL}</p>
+            <Link href="/billing" className="text-sm font-semibold text-teal-500 hover:underline">
+              See pricing
+            </Link>
           </div>
 
           <p className="mt-3 text-sm text-muted-foreground">
@@ -115,14 +116,19 @@ export default function EsgHub() {
             ))}
           </div>
 
-          <Link href="/esg/brsr" className="mt-7 block">
+          <Link href="/signup" className="mt-7 block">
             <Button size="lg" className="w-full">
               Get Started
               <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
           <p className="mt-2.5 text-center text-xs text-muted-foreground">
-            Starts with BRSR Core — ISSB IFRS S1/S2 and Scope 3 are available from the same facility dashboard.
+            Create an account or{" "}
+            <Link href="/login" className="font-medium text-teal-500 hover:underline">
+              log in
+            </Link>{" "}
+            to see pricing and start with BRSR Core — ISSB IFRS S1/S2 and Scope 3 are available from the same facility
+            dashboard.
           </p>
 
           <div className="mt-8 border-t border-surface-border pt-6">
