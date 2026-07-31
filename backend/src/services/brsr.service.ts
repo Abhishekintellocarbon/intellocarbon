@@ -1,8 +1,7 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
-import { requireOwnedFacility } from "./facility.service";
 import { buildBrsrCoreMetrics } from "./brsrCalculation.service";
-import { requireEsgBundleAccess } from "./esgBundleAccess.service";
+import { requireOwnedFacilityForEsgBundle, throwEsgBundleAccessDenied } from "./esgBundleAccess.service";
 import { isBrsrReportWindowOpen, brsrUnlockDate } from "../data/complianceDeadlines";
 
 const fmtUnlockDate = (d: Date) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -49,8 +48,7 @@ export interface BrsrCoreDataInput {
 }
 
 export const listBrsrReports = async (userId: string, facilityId: string) => {
-  const facility = await requireOwnedFacility(userId, facilityId);
-  await requireEsgBundleAccess(facility.companyId);
+  await requireOwnedFacilityForEsgBundle(userId, facilityId);
   return prisma.brsrCoreReport.findMany({
     where: { facilityId },
     orderBy: { reportingPeriod: "desc" },
@@ -58,8 +56,7 @@ export const listBrsrReports = async (userId: string, facilityId: string) => {
 };
 
 const requireOwnedBrsrReport = async (userId: string, facilityId: string, reportingPeriod: string) => {
-  const facility = await requireOwnedFacility(userId, facilityId);
-  await requireEsgBundleAccess(facility.companyId);
+  const facility = await requireOwnedFacilityForEsgBundle(userId, facilityId);
 
   const report = await prisma.brsrCoreReport.findUnique({
     where: { facilityId_reportingPeriod: { facilityId, reportingPeriod } },
@@ -67,7 +64,7 @@ const requireOwnedBrsrReport = async (userId: string, facilityId: string, report
   if (!report) {
     throw AppError.notFound("BRSR Core disclosure not found for this facility and reporting period");
   }
-  return report;
+  return { facility, report };
 };
 
 /**
@@ -83,8 +80,7 @@ export const saveBrsrCoreData = async (
   input: BrsrCoreDataInput,
   submit: boolean,
 ) => {
-  const facility = await requireOwnedFacility(userId, facilityId);
-  await requireEsgBundleAccess(facility.companyId);
+  const facility = await requireOwnedFacilityForEsgBundle(userId, facilityId);
 
   const existing = await prisma.brsrCoreReport.findUnique({
     where: { facilityId_reportingPeriod: { facilityId, reportingPeriod: input.reportingPeriod } },
@@ -135,12 +131,7 @@ export const saveBrsrCoreData = async (
 };
 
 export const getBrsrReportData = async (userId: string, facilityId: string, reportingPeriod: string) => {
-  const report = await requireOwnedBrsrReport(userId, facilityId, reportingPeriod);
-
-  const facility = await prisma.facility.findUniqueOrThrow({
-    where: { id: facilityId },
-    include: { company: true },
-  });
+  const { facility, report } = await requireOwnedBrsrReport(userId, facilityId, reportingPeriod);
 
   if (report.status !== "SUBMITTED") {
     throw AppError.badRequest("Submit this BRSR Core disclosure before generating a report", "BRSR_REPORT_NOT_SUBMITTED");
@@ -155,7 +146,16 @@ export const getBrsrReportContextById = async (userId: string, reportId: string)
   const report = await prisma.brsrCoreReport.findUnique({
     where: { id: reportId },
     include: {
-      facility: { include: { company: { include: { owner: true } } } },
+      facility: {
+        include: {
+          company: {
+            include: {
+              owner: true,
+              subscriptions: { where: { status: "ACTIVE", tier: "BRSR_CORE_REPORTING" }, select: { id: true } },
+            },
+          },
+        },
+      },
       verificationRequest: { include: { verifier: true } },
     },
   });
@@ -163,7 +163,9 @@ export const getBrsrReportContextById = async (userId: string, reportId: string)
   if (!report || report.facility.company.ownerId !== userId) {
     throw AppError.notFound("BRSR Core report not found");
   }
-  await requireEsgBundleAccess(report.companyId);
+  if (report.facility.company.subscriptions.length === 0) {
+    throwEsgBundleAccessDenied();
+  }
   if (report.status !== "SUBMITTED") {
     throw AppError.badRequest("Submit this BRSR Core disclosure before generating a report", "BRSR_REPORT_NOT_SUBMITTED");
   }
