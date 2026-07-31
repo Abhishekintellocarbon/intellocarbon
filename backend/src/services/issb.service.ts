@@ -1,8 +1,7 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
-import { requireOwnedFacility } from "./facility.service";
 import { buildIssbS1S2Metrics } from "./issbCalculation.service";
-import { requireEsgBundleAccess } from "./esgBundleAccess.service";
+import { requireOwnedFacilityForEsgBundle, throwEsgBundleAccessDenied } from "./esgBundleAccess.service";
 import { isIssbReportWindowOpen, issbUnlockDate } from "../data/complianceDeadlines";
 
 const fmtUnlockDate = (d: Date) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -44,8 +43,7 @@ export interface IssbS1S2DataInput {
 }
 
 export const listIssbReports = async (userId: string, facilityId: string) => {
-  const facility = await requireOwnedFacility(userId, facilityId);
-  await requireEsgBundleAccess(facility.companyId);
+  await requireOwnedFacilityForEsgBundle(userId, facilityId);
   return prisma.issbS1S2Report.findMany({
     where: { facilityId },
     orderBy: { reportingPeriod: "desc" },
@@ -53,8 +51,7 @@ export const listIssbReports = async (userId: string, facilityId: string) => {
 };
 
 const requireOwnedIssbReport = async (userId: string, facilityId: string, reportingPeriod: string) => {
-  const facility = await requireOwnedFacility(userId, facilityId);
-  await requireEsgBundleAccess(facility.companyId);
+  const facility = await requireOwnedFacilityForEsgBundle(userId, facilityId);
 
   const report = await prisma.issbS1S2Report.findUnique({
     where: { facilityId_reportingPeriod: { facilityId, reportingPeriod } },
@@ -62,7 +59,7 @@ const requireOwnedIssbReport = async (userId: string, facilityId: string, report
   if (!report) {
     throw AppError.notFound("ISSB IFRS S1/S2 disclosure not found for this facility and reporting period");
   }
-  return report;
+  return { facility, report };
 };
 
 /**
@@ -76,8 +73,7 @@ export const saveIssbS1S2Data = async (
   input: IssbS1S2DataInput,
   submit: boolean,
 ) => {
-  const facility = await requireOwnedFacility(userId, facilityId);
-  await requireEsgBundleAccess(facility.companyId);
+  const facility = await requireOwnedFacilityForEsgBundle(userId, facilityId);
 
   const existing = await prisma.issbS1S2Report.findUnique({
     where: { facilityId_reportingPeriod: { facilityId, reportingPeriod: input.reportingPeriod } },
@@ -123,12 +119,7 @@ export const saveIssbS1S2Data = async (
 };
 
 export const getIssbReportData = async (userId: string, facilityId: string, reportingPeriod: string) => {
-  const report = await requireOwnedIssbReport(userId, facilityId, reportingPeriod);
-
-  const facility = await prisma.facility.findUniqueOrThrow({
-    where: { id: facilityId },
-    include: { company: true },
-  });
+  const { facility, report } = await requireOwnedIssbReport(userId, facilityId, reportingPeriod);
 
   if (report.status !== "SUBMITTED") {
     throw AppError.badRequest(
@@ -146,14 +137,25 @@ export const getIssbReportContextById = async (userId: string, reportId: string)
   const report = await prisma.issbS1S2Report.findUnique({
     where: { id: reportId },
     include: {
-      facility: { include: { company: { include: { owner: true } } } },
+      facility: {
+        include: {
+          company: {
+            include: {
+              owner: true,
+              subscriptions: { where: { status: "ACTIVE", tier: "BRSR_CORE_REPORTING" }, select: { id: true } },
+            },
+          },
+        },
+      },
     },
   });
 
   if (!report || report.facility.company.ownerId !== userId) {
     throw AppError.notFound("ISSB IFRS S1/S2 report not found");
   }
-  await requireEsgBundleAccess(report.companyId);
+  if (report.facility.company.subscriptions.length === 0) {
+    throwEsgBundleAccessDenied();
+  }
   if (report.status !== "SUBMITTED") {
     throw AppError.badRequest(
       "Submit this ISSB IFRS S1/S2 disclosure before generating a report",
