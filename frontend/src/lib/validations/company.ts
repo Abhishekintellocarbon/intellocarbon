@@ -66,5 +66,17 @@ export const euDeclarantSchema = z.object({
   euImporterContactPhone: optionalString(30),
 });
 
-export const companySettingsSchema = companyWizardSchema.merge(euDeclarantSchema);
+/**
+ * Scope 3 relevance drivers. Settings-only, not part of the onboarding
+ * wizard — existing and newly created companies take the schema defaults
+ * (OWNED / MANUFACTURER) and can refine them here afterwards.
+ */
+export const scope3ProfileSchema = z.object({
+  ownershipModel: z.enum(["OWNED", "LEASED", "MIXED"], { error: "Select an ownership model" }),
+  businessModel: z.enum(["MANUFACTURER", "FRANCHISOR", "FINANCIAL_INSTITUTION", "DISTRIBUTOR"], {
+    error: "Select a business model",
+  }),
+});
+
+export const companySettingsSchema = companyWizardSchema.merge(euDeclarantSchema).merge(scope3ProfileSchema);
 export type CompanySettingsValues = z.infer<typeof companySettingsSchema>;

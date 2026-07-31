@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { companySettingsSchema, type CompanySettingsValues } from "@/lib/validations/company";
-import { SECTOR_OPTIONS, FY_START_MONTH_OPTIONS } from "@/lib/constants";
+import { SECTOR_OPTIONS, FY_START_MONTH_OPTIONS, OWNERSHIP_MODEL_OPTIONS, BUSINESS_MODEL_OPTIONS } from "@/lib/constants";
 import { authApi, companyApi, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -233,6 +233,8 @@ function CompanySettingsContent() {
           appliesCbam: company.appliesCbam,
           appliesCcts: company.appliesCcts,
           isPatDesignatedConsumer: company.isPatDesignatedConsumer,
+          ownershipModel: company.ownershipModel ?? "OWNED",
+          businessModel: company.businessModel ?? "MANUFACTURER",
           euImporterName: company.euImporterName ?? "",
           euImporterEori: company.euImporterEori ?? "",
           euImporterCountry: company.euImporterCountry ?? "",
@@ -393,6 +395,38 @@ function CompanySettingsContent() {
                   </option>
                 ))}
               </Select>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 sm:p-8">
+          <h2 className="mb-1 font-medium">Value chain profile</h2>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Determines which GHG Protocol Scope 3 categories apply to you — leased assets drive Categories 8 and 13,
+            and your business model drives Categories 14 and 15.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="ownershipModel">Asset ownership model</Label>
+              <Select id="ownershipModel" error={Boolean(errors.ownershipModel)} {...register("ownershipModel")}>
+                {OWNERSHIP_MODEL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+              <FieldError message={errors.ownershipModel?.message} />
+            </div>
+            <div>
+              <Label htmlFor="businessModel">Business model</Label>
+              <Select id="businessModel" error={Boolean(errors.businessModel)} {...register("businessModel")}>
+                {BUSINESS_MODEL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+              <FieldError message={errors.businessModel?.message} />
             </div>
           </div>
         </Card>

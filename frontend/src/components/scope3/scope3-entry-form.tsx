@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select";
 import { FieldError } from "@/components/ui/field-error";
 import { Alert } from "@/components/ui/alert";
 import { scope3Api, ApiError } from "@/lib/api";
-import type { Scope3Category, Scope3CalculationMethod, Scope3Data } from "@/lib/types";
+import type { CalculableScope3Category, Scope3CalculationMethod, Scope3Data } from "@/lib/types";
 import {
   METHOD_LABELS,
   MATERIAL_LABELS,
@@ -36,7 +36,7 @@ function ActivityFields({
   setField,
   errors,
 }: {
-  category: Scope3Category;
+  category: CalculableScope3Category;
   fields: FieldsState;
   setField: (key: string, value: string) => void;
   errors: Record<string, string>;
@@ -245,7 +245,7 @@ export function Scope3EntryForm({
 }: {
   facilityId: string;
   reportingPeriod: string;
-  category: Scope3Category;
+  category: CalculableScope3Category;
   existingEntry?: Scope3Data;
   onSaved: () => void;
   onDeleted: () => void;
