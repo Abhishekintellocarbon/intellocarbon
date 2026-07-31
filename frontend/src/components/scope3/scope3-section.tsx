@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { DraftBadge, SubmittedBadge } from "@/components/ui/draft-badge";
-import { scope3Api } from "@/lib/api";
+import { scope3Api, ApiError } from "@/lib/api";
 import type { Scope3Category, Scope3CategoryCatalogEntry, Scope3Data } from "@/lib/types";
 import { METHOD_LABELS } from "./scope3-field-config";
 import { Scope3EntryForm } from "./scope3-entry-form";
@@ -34,8 +34,8 @@ export function Scope3Section({ facilityId, reportingPeriod }: { facilityId: str
       setEntries(dataRes.entries);
       setTotal(dataRes.totalSubmittedTco2e);
       setLoadError(null);
-    } catch {
-      setLoadError("Couldn't load Scope 3 data. Please refresh the page.");
+    } catch (err) {
+      setLoadError(err instanceof ApiError ? err.message : "Couldn't load Scope 3 data. Please refresh the page.");
     }
   }, [facilityId, reportingPeriod]);
 
@@ -71,9 +71,9 @@ export function Scope3Section({ facilityId, reportingPeriod }: { facilityId: str
         </Alert>
       )}
 
-      {!categories ? (
+      {!categories && !loadError ? (
         <p className="mt-4 text-sm text-muted-foreground">Loading Scope 3 categories...</p>
-      ) : (
+      ) : categories ? (
         <div className="mt-4 space-y-3">
           {categories.map((cat) => {
             if (!cat.prismaCategory) {
@@ -143,7 +143,7 @@ export function Scope3Section({ facilityId, reportingPeriod }: { facilityId: str
             );
           })}
         </div>
-      )}
+      ) : null}
     </Card>
   );
 }

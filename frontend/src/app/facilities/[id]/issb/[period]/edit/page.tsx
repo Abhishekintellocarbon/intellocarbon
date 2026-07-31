@@ -7,7 +7,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { DraftBadge } from "@/components/ui/draft-badge";
 import { IssbS1S2Form } from "@/components/issb/issb-s1s2-form";
-import { issbApi } from "@/lib/api";
+import { issbApi, ApiError } from "@/lib/api";
 import type { IssbS1S2Report } from "@/lib/types";
 
 function EditIssbReportContent() {
@@ -20,7 +20,7 @@ function EditIssbReportContent() {
     issbApi
       .list(params.id)
       .then(({ reports }) => setReport(reports.find((r) => r.reportingPeriod === period) ?? null))
-      .catch(() => setError("Couldn't load this ISSB disclosure."));
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this ISSB disclosure."));
   }, [params.id, period]);
 
   return (

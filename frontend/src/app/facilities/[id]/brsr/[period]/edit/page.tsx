@@ -7,7 +7,7 @@ import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
 import { DraftBadge } from "@/components/ui/draft-badge";
 import { BrsrCoreForm } from "@/components/brsr/brsr-core-form";
-import { brsrApi } from "@/lib/api";
+import { brsrApi, ApiError } from "@/lib/api";
 import type { BrsrCoreReport } from "@/lib/types";
 
 function EditBrsrReportContent() {
@@ -20,7 +20,7 @@ function EditBrsrReportContent() {
     brsrApi
       .list(params.id)
       .then(({ reports }) => setReport(reports.find((r) => r.reportingPeriod === period) ?? null))
-      .catch(() => setError("Couldn't load this BRSR Core disclosure."));
+      .catch((err) => setError(err instanceof ApiError ? err.message : "Couldn't load this BRSR Core disclosure."));
   }, [params.id, period]);
 
   return (

@@ -1,11 +1,13 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { requireOwnedFacility } from "./facility.service";
+import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { calculateScope3Emissions } from "./scope3Calculation.service";
 import type { Scope3EntryBaseInput } from "../validators/scope3.validators";
 
 export const listScope3Data = async (userId: string, facilityId: string, reportingPeriod?: string) => {
-  await requireOwnedFacility(userId, facilityId);
+  const facility = await requireOwnedFacility(userId, facilityId);
+  await requireEsgBundleAccess(facility.companyId);
   const entries = await prisma.scope3Data.findMany({
     where: { facilityId, ...(reportingPeriod ? { reportingPeriod } : {}) },
     orderBy: [{ reportingPeriod: "desc" }, { category: "asc" }],
@@ -19,7 +21,8 @@ export const listScope3Data = async (userId: string, facilityId: string, reporti
 };
 
 const requireOwnedScope3Entry = async (userId: string, facilityId: string, reportingPeriod: string, category: string) => {
-  await requireOwnedFacility(userId, facilityId);
+  const facility = await requireOwnedFacility(userId, facilityId);
+  await requireEsgBundleAccess(facility.companyId);
   const entry = await prisma.scope3Data.findUnique({
     where: { facilityId_reportingPeriod_category: { facilityId, reportingPeriod, category: category as never } },
   });
@@ -38,6 +41,7 @@ const requireOwnedScope3Entry = async (userId: string, facilityId: string, repor
  */
 export const saveScope3Data = async (userId: string, facilityId: string, input: Scope3EntryBaseInput, submit: boolean) => {
   const facility = await requireOwnedFacility(userId, facilityId);
+  await requireEsgBundleAccess(facility.companyId);
 
   const existing = await prisma.scope3Data.findUnique({
     where: {
