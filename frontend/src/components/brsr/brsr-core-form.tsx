@@ -15,6 +15,7 @@ import { useAutosave } from "@/hooks/use-autosave";
 import { brsrCoreSchema, type BrsrCoreFormValues } from "@/lib/validations/brsr";
 import { brsrApi, ApiError } from "@/lib/api";
 import type { BrsrCoreReport } from "@/lib/types";
+import { Scope3Section } from "@/components/scope3/scope3-section";
 
 const toStr = (v: number | null | undefined) => (v != null ? String(v) : "");
 
@@ -321,6 +322,8 @@ export function BrsrCoreForm({
           </div>
         </div>
       </Card>
+
+      <Scope3Section facilityId={facilityId} reportingPeriod={reportingPeriod} />
 
       <Card className="p-6">
         <Label htmlFor="notes">

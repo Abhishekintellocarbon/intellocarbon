@@ -15,6 +15,7 @@ import { useAutosave } from "@/hooks/use-autosave";
 import { issbS1S2Schema, type IssbS1S2FormValues } from "@/lib/validations/issb";
 import { issbApi, ApiError } from "@/lib/api";
 import type { IssbS1S2Report } from "@/lib/types";
+import { Scope3Section } from "@/components/scope3/scope3-section";
 
 const toStr = (v: number | null | undefined) => (v != null ? String(v) : "");
 
@@ -325,6 +326,8 @@ export function IssbS1S2Form({
           </div>
         </div>
       </Card>
+
+      <Scope3Section facilityId={facilityId} reportingPeriod={reportingPeriod} />
 
       <Card className="p-6">
         <Label htmlFor="notes">

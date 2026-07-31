@@ -2,6 +2,7 @@ import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { requireOwnedFacility } from "./facility.service";
 import { buildIssbS1S2Metrics } from "./issbCalculation.service";
+import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { isIssbReportWindowOpen, issbUnlockDate } from "../data/complianceDeadlines";
 
 const fmtUnlockDate = (d: Date) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -43,7 +44,8 @@ export interface IssbS1S2DataInput {
 }
 
 export const listIssbReports = async (userId: string, facilityId: string) => {
-  await requireOwnedFacility(userId, facilityId);
+  const facility = await requireOwnedFacility(userId, facilityId);
+  await requireEsgBundleAccess(facility.companyId);
   return prisma.issbS1S2Report.findMany({
     where: { facilityId },
     orderBy: { reportingPeriod: "desc" },
@@ -51,7 +53,8 @@ export const listIssbReports = async (userId: string, facilityId: string) => {
 };
 
 const requireOwnedIssbReport = async (userId: string, facilityId: string, reportingPeriod: string) => {
-  await requireOwnedFacility(userId, facilityId);
+  const facility = await requireOwnedFacility(userId, facilityId);
+  await requireEsgBundleAccess(facility.companyId);
 
   const report = await prisma.issbS1S2Report.findUnique({
     where: { facilityId_reportingPeriod: { facilityId, reportingPeriod } },
@@ -74,6 +77,7 @@ export const saveIssbS1S2Data = async (
   submit: boolean,
 ) => {
   const facility = await requireOwnedFacility(userId, facilityId);
+  await requireEsgBundleAccess(facility.companyId);
 
   const existing = await prisma.issbS1S2Report.findUnique({
     where: { facilityId_reportingPeriod: { facilityId, reportingPeriod: input.reportingPeriod } },
@@ -149,6 +153,7 @@ export const getIssbReportContextById = async (userId: string, reportId: string)
   if (!report || report.facility.company.ownerId !== userId) {
     throw AppError.notFound("ISSB IFRS S1/S2 report not found");
   }
+  await requireEsgBundleAccess(report.companyId);
   if (report.status !== "SUBMITTED") {
     throw AppError.badRequest(
       "Submit this ISSB IFRS S1/S2 disclosure before generating a report",

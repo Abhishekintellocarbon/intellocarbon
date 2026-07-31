@@ -88,29 +88,45 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
   },
   // Standalone add-on — purchasable on its own or alongside any CBAM/CCTS tier,
   // since Subscription now allows one row per (company, tier) rather than a
-  // single subscription per company. Priced at ₹14,999/facility/mo = 1499900 paise,
-  // the amount to use when creating the corresponding plan in the Razorpay dashboard.
+  // single subscription per company.
+  //
+  // Formerly "BRSR Core Reporting" at ₹14,999/facility/mo with ISSB bundled
+  // in free as a beta scaffold. Repriced to ₹19,999/facility/mo as the "ESG
+  // Disclosure Bundle" now that ISSB (Scope 1/2 reuse + Scope 3 calculation
+  // engine, see scope3Calculation.service.ts) and BRSR Core are both a real,
+  // supported feature set — with GRI/CSRD/CDP as the natural next additions
+  // to this same bundle, per COMBINATION_RULES' comment below. The
+  // SubscriptionTier enum value stays BRSR_CORE_REPORTING (renaming it would
+  // touch every existing Subscription row's FK-like enum reference) — only
+  // this plan's marketing name/price/copy changed, which is exactly what a
+  // subscriber and the pricing page see.
+  //
+  // IMPORTANT — this does not retroactively reprice any existing active
+  // subscriber: Razorpay bills against the specific Plan object a
+  // subscription was created against (looked up via razorpayPlanIdEnvVar at
+  // *checkout* time only), not against this file. To actually charge new
+  // subscribers ₹19,999, create a new ₹19,999/mo Plan in the Razorpay
+  // dashboard and point RAZORPAY_PLAN_ID_BRSR_CORE at it — existing
+  // subscribers keep billing at their originally-agreed price on the old
+  // Plan object, untouched, until they're migrated deliberately.
   BRSR_CORE_REPORTING: {
     tier: "BRSR_CORE_REPORTING",
-    name: "BRSR Core Reporting",
-    forWhom: "Listed companies and their value chain partners required to disclose the 9 BRSR Core ESG attributes.",
+    name: "ESG Disclosure Bundle",
+    forWhom: "Listed companies and their value chain partners required to disclose BRSR Core and/or ISSB IFRS S1/S2.",
     facilityLimit: null,
-    priceInr: 14999,
-    priceLabel: "₹14,999/facility/mo",
-    description: "SEBI BRSR Core — the 9 mandated ESG attributes, reusing your existing GHG calculation data.",
+    priceInr: 19999,
+    priceLabel: "₹19,999/facility/mo",
+    description: "BRSR Core + ISSB IFRS S1/S2 — reusing your existing GHG calculation data, with GRI/CSRD/CDP planned next.",
     features: [
       "All 9 BRSR Core attributes (GHG, water, waste, energy, workforce, diversity, inclusion, openness, fairness)",
+      "ISSB IFRS S1 & S2 disclosure — Governance, Strategy, Risk Management, Metrics & Targets",
+      "Scope 3 calculation engine — 5 GHG Protocol value-chain categories (Purchased goods & services, Upstream transport & distribution, Business travel, Employee commuting, Use of sold products), spend-based or activity-based",
       "GHG footprint reused automatically from your CBAM/CCTS activity data — no double entry",
       "BRSR Core PDF report matching SEBI HO/CFD/CFD-SEC-2/P/CIR/2023/122 format",
       "Reasonable-assurance verification workflow",
-      // ISSB IFRS S1/S2 has no independent pricing yet — bundled here as a
-      // beta-scaffold feature under this tier rather than a new SubscriptionTier
-      // value, pending a separate pricing decision. Route access is not
-      // actually gated on this tier (see /esg/issb — same as BRSR Core itself,
-      // which has no route-level tier check either, see brsr.routes.ts).
-      "ISSB IFRS S1 & S2 disclosure module (beta, included at no extra cost pending a standalone pricing decision)",
       "Standalone or bundled with any CBAM/CCTS plan",
       "7-year document retention",
+      "GRI, CSRD, and CDP disclosures planned as future additions to this bundle",
     ],
     razorpayPlanIdEnvVar: "RAZORPAY_PLAN_ID_BRSR_CORE",
   },
@@ -125,7 +141,9 @@ export interface PlanCombinationRule {
 }
 
 // Extensible on purpose: the only combined tier that exists today is
-// CBAM_PLUS_CCTS, but a future ESG framework addition (GRI, ISSB, CDP) that
+// CBAM_PLUS_CCTS. ISSB is already folded into the ESG Disclosure Bundle
+// (BRSR_CORE_REPORTING tier — see its plan definition above) rather than
+// needing its own combination rule; a future GRI/CSRD/CDP addition that
 // ships its own combined tier just adds another entry here — nothing else
 // in the merge-detection logic (see billing.service.ts) needs to change.
 // Do not add speculative rules for frameworks/tiers that don't exist yet.
