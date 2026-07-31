@@ -15,7 +15,7 @@ const TIERS: { value: SubscriptionTier; label: string }[] = [
   { value: "CCTS_COMPLIANCE", label: "CCTS Compliance" },
   { value: "CBAM_COMPLIANCE", label: "CBAM Compliance" },
   { value: "CBAM_PLUS_CCTS", label: "CBAM + CCTS" },
-  { value: "BRSR_CORE_REPORTING", label: "BRSR Core Reporting" },
+  { value: "BRSR_CORE_REPORTING", label: "ESG Disclosure Bundle" },
 ];
 
 const PAYMENT_MODES: ManualPaymentMode[] = ["CHEQUE", "NEFT", "RTGS", "UPI", "CASH", "OTHER"];
