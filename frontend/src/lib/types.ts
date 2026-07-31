@@ -385,6 +385,37 @@ export interface IssbS1S2Metrics {
   };
 }
 
+export type Scope3Category =
+  | "CAT1_PURCHASED_GOODS_SERVICES"
+  | "CAT4_UPSTREAM_TRANSPORT_DISTRIBUTION"
+  | "CAT6_BUSINESS_TRAVEL"
+  | "CAT7_EMPLOYEE_COMMUTING"
+  | "CAT11_USE_OF_SOLD_PRODUCTS";
+
+export type Scope3CalculationMethod = "SPEND_BASED" | "ACTIVITY_BASED";
+
+export interface Scope3Data {
+  id: string;
+  companyId: string;
+  facilityId: string;
+  reportingPeriod: string;
+  category: Scope3Category;
+  calculationMethod: Scope3CalculationMethod;
+  inputData: Record<string, unknown>;
+  calculatedEmissionsTco2e: number;
+  emissionFactorSource: string;
+  status: "DRAFT" | "SUBMITTED";
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Scope3CategoryCatalogEntry {
+  number: number;
+  name: string;
+  prismaCategory: Scope3Category | null;
+}
+
 export interface ReferenceOption {
   value: string;
   label: string;

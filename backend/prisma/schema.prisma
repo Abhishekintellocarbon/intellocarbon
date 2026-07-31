@@ -130,6 +130,7 @@ model Company {
   notifications        Notification[]
   brsrCoreReports      BrsrCoreReport[]
   issbS1S2Reports      IssbS1S2Report[]
+  scope3Data           Scope3Data[]
   auditLogs            AuditLog[]
   reports              Report[]
   documents            Document[]
@@ -608,6 +609,7 @@ model Facility {
   notifications       Notification[]
   brsrCoreReports     BrsrCoreReport[]
   issbS1S2Reports     IssbS1S2Report[]
+  scope3Data          Scope3Data[]
   auditLogs           AuditLog[]
   reports             Report[]
   documents           Document[]
@@ -955,6 +957,73 @@ model IssbS1S2Report {
   @@map("issb_s1_s2_reports")
 }
 
+// --- Scope 3 (GHG Protocol value-chain emissions) --------------------------
+// A new, standalone calculation architecture, deliberately decoupled from the
+// Scope 1/2 engine that powers CBAM/CCTS (ActivityData/EmissionCalculationResult)
+// — see scope3Calculation.service.ts. Phase 1 covers the 5 GHG Protocol
+// categories most relevant to Indian industrial clients; the other 10 are
+// intentionally unmodelled for now (surfaced as "not yet supported" in the UI
+// rather than silently omitted). Feeds the ESG Disclosure Bundle (BRSR Core +
+// ISSB today) as an optional, additive supplement — not wired into either
+// report's own calculation path, so submitting a BRSR/ISSB disclosure never
+// depends on Scope 3 data existing.
+enum Scope3Category {
+  CAT1_PURCHASED_GOODS_SERVICES
+  CAT4_UPSTREAM_TRANSPORT_DISTRIBUTION
+  CAT6_BUSINESS_TRAVEL
+  CAT7_EMPLOYEE_COMMUTING
+  CAT11_USE_OF_SOLD_PRODUCTS
+}
+
+enum Scope3CalculationMethod {
+  SPEND_BASED
+  ACTIVITY_BASED
+}
+
+model Scope3Data {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  // Same "FY2025-26" convention as BrsrCoreReport/IssbS1S2Report, so a
+  // facility's Scope 3 entries line up with the same reporting window.
+  reportingPeriod String
+
+  category          Scope3Category
+  calculationMethod Scope3CalculationMethod
+
+  // Shape depends on category + calculationMethod — see
+  // scope3Calculation.service.ts for the per-combination input contract.
+  // Kept as JSON rather than one column per possible field across 5
+  // categories x 2 methods, matching EmissionCalculationResult's rationale
+  // for ActivityData's per-sector inputs.
+  inputData Json
+
+  calculatedEmissionsTco2e Float
+  // Exact cited factor set + version used for this calculation (e.g. "US EPA
+  // Supply Chain GHG Emission Factors v1.3 (NAICS-6, 2022 data)" or "UK
+  // DEFRA/DESNZ GHG Conversion Factors 2025 — Business travel- air") — always
+  // populated, never a placeholder, matching the "cite exactly which factor
+  // set and version" requirement this module was built against.
+  emissionFactorSource     String
+
+  // DRAFT -> SUBMITTED, same lifecycle as ActivityData/BrsrCoreReport/IssbS1S2Report.
+  status DataEntryStatus @default(DRAFT)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One entry per category per facility per reporting period — resaving the
+  // same category upserts rather than accumulating duplicate rows.
+  @@unique([facilityId, reportingPeriod, category])
+  @@index([companyId])
+  @@map("scope3_data")
+}
+
 model RefreshToken {
   id         String    @id @default(cuid())
   tokenHash  String    @unique
@@ -1141,18 +1210,18 @@ enum CctsEntityStatus {
 // documents, so entries are added/edited by a human verifying against the
 // actual gazette text, never auto-scraped from secondary sources.
 model CctsObligatedEntity {
-  id           String @id @default(cuid())
-  companyName  String
+  id          String  @id @default(cuid())
+  companyName String
   // Free-text, not the CBAM `Sector` enum above — CCTS's own notified
   // sector list (Aluminium, Cement, Chlor-Alkali, Fertilizer, Iron & Steel,
   // Petrochemicals, Petroleum Refining, Pulp & Paper, Textile) is a distinct
   // regulatory list from CBAM's product-based sectors and doesn't map 1:1.
-  sector       String
+  sector      String
   // e.g. "Integrated", "EAF", "DRI" for Iron & Steel — free-text since each
   // sector's sub-classification differs and BEE's own lists aren't uniform.
-  subSector    String?
-  state        String
-  district     String?
+  subSector   String?
+  state       String
+  district    String?
 
   // Which gazette notification this entry comes from, e.g. "G.S.R. 234(E)".
   notificationReference String

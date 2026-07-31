@@ -18,6 +18,8 @@ import type {
   BrsrCoreMetrics,
   IssbS1S2Report,
   IssbS1S2Metrics,
+  Scope3Data,
+  Scope3CategoryCatalogEntry,
   FacilityDashboard,
   ReportGenerationStatus,
   GeneratedReport,
@@ -596,6 +598,26 @@ export const issbApi = {
     link.remove();
     URL.revokeObjectURL(objectUrl);
   },
+};
+
+export const scope3Api = {
+  categories: (): Promise<{ categories: Scope3CategoryCatalogEntry[] }> => apiFetch("/api/scope3/categories"),
+
+  list: (facilityId: string, reportingPeriod: string): Promise<{ entries: Scope3Data[]; totalSubmittedTco2e: number }> =>
+    apiFetch(`/api/scope3/facilities/${facilityId}/data?reportingPeriod=${encodeURIComponent(reportingPeriod)}`),
+
+  // One endpoint for both draft and submit saves (submit: true switches
+  // which validator runs server-side) — same convention as issbApi.save.
+  save: (facilityId: string, input: Record<string, unknown>, submit: boolean): Promise<{ entry: Scope3Data }> =>
+    apiFetch(`/api/scope3/facilities/${facilityId}/data`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, submit }),
+    }),
+
+  remove: (facilityId: string, reportingPeriod: string, category: string): Promise<void> =>
+    apiFetch(`/api/scope3/facilities/${facilityId}/data/${encodeURIComponent(reportingPeriod)}/${category}`, {
+      method: "DELETE",
+    }),
 };
 
 export const billingApi = {
