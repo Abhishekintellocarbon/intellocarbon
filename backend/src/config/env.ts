@@ -31,13 +31,19 @@ const envSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional().default(""),
   TWILIO_WHATSAPP_FROM: z.string().optional().default(""),
 
-  RAZORPAY_KEY_ID: z.string().optional().default(""),
-  RAZORPAY_KEY_SECRET: z.string().optional().default(""),
-  RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(""),
-  RAZORPAY_PLAN_ID_CCTS_COMPLIANCE: z.string().optional().default(""),
-  RAZORPAY_PLAN_ID_CBAM_COMPLIANCE: z.string().optional().default(""),
-  RAZORPAY_PLAN_ID_CBAM_PLUS_CCTS: z.string().optional().default(""),
-  RAZORPAY_PLAN_ID_BRSR_CORE: z.string().optional().default(""),
+  // Trimmed: these are pasted by hand into a hosting dashboard, and a
+  // trailing newline or space is invisible there but is sent verbatim as part
+  // of the credential. That surfaced as a Razorpay 401 "Authentication
+  // failed" on every checkout, with the value looking correct in the UI.
+  // The same silent failure applies to the webhook secret (every event
+  // rejected) and the plan IDs (plan not found), so all seven are trimmed.
+  RAZORPAY_KEY_ID: z.string().trim().optional().default(""),
+  RAZORPAY_KEY_SECRET: z.string().trim().optional().default(""),
+  RAZORPAY_WEBHOOK_SECRET: z.string().trim().optional().default(""),
+  RAZORPAY_PLAN_ID_CCTS_COMPLIANCE: z.string().trim().optional().default(""),
+  RAZORPAY_PLAN_ID_CBAM_COMPLIANCE: z.string().trim().optional().default(""),
+  RAZORPAY_PLAN_ID_CBAM_PLUS_CCTS: z.string().trim().optional().default(""),
+  RAZORPAY_PLAN_ID_BRSR_CORE: z.string().trim().optional().default(""),
 
   // Error monitoring (Sentry) — left blank, Sentry.init() becomes a no-op
   // client (nothing is sent, nothing crashes) until a real DSN is set.

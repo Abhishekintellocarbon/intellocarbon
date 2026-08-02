@@ -25,7 +25,9 @@ const planIdForTier = (tier: SubscriptionTier): string => {
       "PLAN_NOT_SELF_SERVE",
     );
   }
-  const planId = process.env[plan.razorpayPlanIdEnvVar];
+  // Trimmed here too: this reads process.env directly rather than the parsed
+  // `env` object, so it doesn't inherit that schema's trim.
+  const planId = process.env[plan.razorpayPlanIdEnvVar]?.trim();
   if (!planId) {
     throw AppError.badRequest(
       `Razorpay plan ID for ${plan.name} is not configured (${plan.razorpayPlanIdEnvVar})`,
