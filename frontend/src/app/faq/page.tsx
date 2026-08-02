@@ -6,7 +6,7 @@ import { FaqAccordion } from "@/components/faq/faq-accordion";
 export const metadata: Metadata = {
   title: "FAQ — Intellocarbon",
   description:
-    "Answers to common questions about CCTS thresholds and deadlines, CBAM reporting and Article 9 deduction, and how the Intellocarbon platform works.",
+    "Answers to common questions about CCTS thresholds and deadlines, CBAM reporting and carbon price already paid in India, and how the Intellocarbon platform works.",
 };
 
 const CCTS_FAQS = [

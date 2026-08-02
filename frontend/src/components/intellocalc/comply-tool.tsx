@@ -399,8 +399,8 @@ function ComplyResultsView({ results, leadId }: { results: ComplyResults; leadId
 
       {results.combinedNote && (
         <div className="mt-4 rounded-xl border border-surface-border bg-surface-raised p-4 text-xs text-muted-foreground">
-          You qualify for the Article 9 deduction — your CCTS carbon price paid in India reduces your CBAM
-          exposure. Only Intellocarbon calculates this automatically.
+          Your CCTS carbon price paid in India reduces your CBAM exposure, and Intellocarbon accounts for it
+          automatically.
         </div>
       )}
 

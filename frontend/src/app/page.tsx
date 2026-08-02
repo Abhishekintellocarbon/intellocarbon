@@ -22,7 +22,7 @@ const PILLARS = [
     icon: ShieldCheck,
     title: "CBAM Compliance",
     description:
-      "Calculate and report Specific Embedded Emissions for EU Carbon Border Adjustment Mechanism. Quarterly reports. Annual declaration. Article 9 deduction automatic.",
+      "Calculate and report Specific Embedded Emissions for EU Carbon Border Adjustment Mechanism. Quarterly reports. Annual declaration. Carbon price already paid in India accounted for automatically.",
     cta: "Start CBAM",
   },
   {
