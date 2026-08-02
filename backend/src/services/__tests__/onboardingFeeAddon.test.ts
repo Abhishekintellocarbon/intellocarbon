@@ -72,6 +72,17 @@ describe("additional-facility onboarding fee add-on", () => {
     expect(params.quantity).toBe(1);
   });
 
+  it("schedules the capacity increase at cycle end, matching what the FAQ promises", async () => {
+    await addFacilityCapacity(companyId, "CCTS_COMPLIANCE");
+
+    const [subId, params] = update.mock.calls[0] as [string, { quantity: number; schedule_change_at: string }];
+    expect(subId).toBe(razorpaySubscriptionId);
+    expect(params.quantity).toBe(2);
+    // "now" would charge a prorated amount mid-cycle, contradicting the
+    // billing page's "starting from your next billing cycle".
+    expect(params.schedule_change_at).toBe("cycle_end");
+  });
+
   it("raises exactly one fee per facility added", async () => {
     await addFacilityCapacity(companyId, "CCTS_COMPLIANCE");
     await addFacilityCapacity(companyId, "CCTS_COMPLIANCE");

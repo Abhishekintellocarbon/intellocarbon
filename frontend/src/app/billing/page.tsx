@@ -327,9 +327,20 @@ function BillingContent() {
     }
   };
 
-  const handleAddFacility = async (tier: SubscriptionTier, incrementalPriceInr: number | null) => {
-    const priceText = incrementalPriceInr != null ? `₹${incrementalPriceInr.toLocaleString("en-IN")}` : "the prorated price";
-    if (!confirm(`Add one more facility to your ${getPlanName(tier)} plan for ${priceText} this cycle?`)) return;
+  const handleAddFacility = async (tier: SubscriptionTier, additionalMonthlyInr: number | null) => {
+    // Nothing is charged now — the capacity change is scheduled at cycle end,
+    // so say what actually happens rather than quoting a mid-cycle amount.
+    const priceText =
+      additionalMonthlyInr != null ? `₹${additionalMonthlyInr.toLocaleString("en-IN")}/month` : "the per-facility price";
+    if (
+      !confirm(
+        `Add one more facility to your ${getPlanName(tier)} plan?\n\n` +
+          `Your monthly charge increases by ${priceText} from your next billing cycle. ` +
+          `A one-time ₹${ONBOARDING_FEE_ADDITIONAL_FACILITY_INR.toLocaleString("en-IN")} onboarding fee for the ` +
+          `additional facility is added to that same invoice. Nothing is charged today.`,
+      )
+    )
+      return;
     setError(null);
     setAddFacilityNotice(null);
     setAddingFacilityTier(tier);
@@ -466,15 +477,16 @@ function BillingContent() {
                 <div className="flex flex-wrap items-center gap-3">
                   {canAddFacility && (
                     <div className="flex items-center gap-2">
-                      {subscription.incrementalFacilityPriceInr != null && (
+                      {subscription.additionalFacilityMonthlyInr != null && (
                         <span className="text-xs text-muted-foreground">
-                          +₹{subscription.incrementalFacilityPriceInr.toLocaleString("en-IN")} for one more facility
+                          +₹{subscription.additionalFacilityMonthlyInr.toLocaleString("en-IN")}/mo from next cycle for
+                          one more facility
                         </span>
                       )}
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => handleAddFacility(subscription.tier, subscription.incrementalFacilityPriceInr)}
+                        onClick={() => handleAddFacility(subscription.tier, subscription.additionalFacilityMonthlyInr)}
                         isLoading={addingFacilityTier === subscription.tier}
                       >
                         + Add facility
