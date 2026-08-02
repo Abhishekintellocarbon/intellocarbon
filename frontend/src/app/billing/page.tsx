@@ -12,6 +12,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { FacilityCalculator } from "@/components/billing/facility-calculator";
 import { useAuth } from "@/context/auth-context";
 import { billingApi, ApiError } from "@/lib/api";
+import { onboardingFeeInr } from "@/lib/constants";
 import { openRazorpayCheckout } from "@/lib/razorpay";
 import type { PlanCombinationRule, PlanDefinition, Subscription, SubscriptionTier } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -91,7 +92,7 @@ function PlanCard({
   quantity,
   onQuantityChange,
   isCurrent,
-  isSwitchable,
+  actionLabel,
   isLoading,
   onSubscribe,
 }: {
@@ -99,7 +100,9 @@ function PlanCard({
   quantity: number;
   onQuantityChange: (q: number) => void;
   isCurrent: boolean;
-  isSwitchable: boolean;
+  /** Computed by the caller, which is the only place that knows whether this
+   *  plan would merge with an existing one or stack alongside it. */
+  actionLabel: string;
   isLoading: boolean;
   onSubscribe: () => void;
 }) {
@@ -137,6 +140,21 @@ function PlanCard({
         <FacilityCalculator pricePerFacility={plan.priceInr ?? 0} quantity={quantity} onChange={onQuantityChange} />
       </div>
 
+      {/* Kept visually separate from the recurring total above: this is billed
+          once at setup, not monthly, and its amount steps with facility count. */}
+      <div className="mt-3 rounded-[12px] border border-surface-border bg-surface-raised/60 px-4 py-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <span className="text-sm text-muted-foreground">One-time onboarding fee</span>
+          <span className="text-sm font-semibold tabular-nums text-foreground">
+            ₹{onboardingFeeInr(quantity).toLocaleString("en-IN")}
+          </span>
+        </div>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          {quantity > 1 ? "Multi-facility" : "Single facility"} rate, charged once — not part of the monthly
+          subscription above. Invoiced separately; it is not collected in this checkout.
+        </p>
+      </div>
+
       <ul className="mt-5 flex-1 space-y-2.5">
         {plan.features.map((f) => (
           <li key={f} className="flex items-start gap-2 text-sm text-foreground/90">
@@ -153,12 +171,11 @@ function PlanCard({
         isLoading={isLoading}
         onClick={onSubscribe}
       >
-        {isCurrent ? "Active" : isSwitchable ? "Switch plan" : "Get Started"}
+        {actionLabel}
       </Button>
 
       <p className="mt-3 text-xs leading-relaxed text-muted">
-        One-time compliance onboarding fee: ₹25,000 (single facility) or ₹40,000 (multi-facility). Covers
-        baseline data setup, facility configuration, and first-month guidance.
+        The onboarding fee covers baseline data setup, facility configuration, and first-month guidance.
       </p>
     </Card>
   );
@@ -471,7 +488,22 @@ function BillingContent() {
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {plans.map((plan) => {
               const isCurrent = subscriptions.some((s) => s.tier === plan.tier && s.status === "ACTIVE");
-              const isSwitchable = subscriptions.some((s) => s.status === "ACTIVE") && !isCurrent;
+
+              // Only a plan that completes a COMBINATION_RULE actually replaces
+              // what's already active (CCTS + CBAM -> CBAM + CCTS, which cancels
+              // the two originals). Every other tier stacks as an additional
+              // subscription — the ESG Disclosure Bundle in particular is sold
+              // alongside CBAM/CCTS, not instead of it. Labelling those "Switch
+              // plan" told subscribers the opposite of what the button does.
+              const mergesWithExisting = findMergeOffer(plan.tier) !== null;
+              const hasAnyActivePlan = subscriptions.some((s) => s.status === "ACTIVE");
+              const actionLabel = isCurrent
+                ? "Active"
+                : mergesWithExisting
+                  ? "Switch plan"
+                  : hasAnyActivePlan
+                    ? `Add ${plan.name}`
+                    : "Get Started";
               return (
                 <PlanCard
                   key={plan.tier}
@@ -479,7 +511,7 @@ function BillingContent() {
                   quantity={quantities[plan.tier] ?? 1}
                   onQuantityChange={(q) => setQuantities((prev) => ({ ...prev, [plan.tier]: q }))}
                   isCurrent={isCurrent}
-                  isSwitchable={isSwitchable}
+                  actionLabel={actionLabel}
                   isLoading={checkingOutTier === plan.tier}
                   onSubscribe={() => handlePlanCardClick(plan.tier)}
                 />

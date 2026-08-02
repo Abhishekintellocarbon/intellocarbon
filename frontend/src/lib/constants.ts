@@ -10,6 +10,19 @@ export const SECTOR_OPTIONS = [
   { value: "OTHER", label: "Other" },
 ] as const;
 
+/**
+ * One-time compliance onboarding fee, part of locked pricing. Display only —
+ * nothing in the backend models this fee and no Razorpay charge is created
+ * for it, so it is invoiced outside the product today. If it ever becomes
+ * collected in-flow, it should move to backend/src/data/plans.ts and be
+ * served with the plans payload rather than duplicated here.
+ */
+export const ONBOARDING_FEE_SINGLE_FACILITY_INR = 25000;
+export const ONBOARDING_FEE_MULTI_FACILITY_INR = 40000;
+
+export const onboardingFeeInr = (facilityCount: number): number =>
+  facilityCount > 1 ? ONBOARDING_FEE_MULTI_FACILITY_INR : ONBOARDING_FEE_SINGLE_FACILITY_INR;
+
 // Scope 3 relevance drivers — Categories 8 and 13 (leased assets) key off
 // ownership, 14 (franchises) and 15 (investments) off business model.
 export const OWNERSHIP_MODEL_OPTIONS = [
