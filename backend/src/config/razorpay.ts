@@ -29,6 +29,27 @@ if (!isRazorpayConfigured) {
   }
 }
 
+/** Which Razorpay account this deploy talks to, read off the key id's prefix. */
+const razorpayMode = (): "LIVE" | "TEST" => (env.RAZORPAY_KEY_ID.startsWith("rzp_live") ? "LIVE" : "TEST");
+
+/**
+ * Enough to tell a mistyped credential from a mode/account mismatch, without
+ * printing anything secret.
+ *
+ * The key id is logged in full because it is already a public identifier —
+ * createCheckout returns it to the browser as `razorpayKeyId` and hands it to
+ * Razorpay's checkout script. Printing it lets you diff it character by
+ * character against the dashboard, which is what catches a truncated paste or
+ * a stale key.
+ *
+ * The secret is never printed, only measured. Razorpay's 401 is identical
+ * whether the secret is mistyped, truncated, from the other mode, or since
+ * rotated — but a length that doesn't match the dashboard's proves truncation
+ * on its own, which narrows the search without disclosing the value.
+ */
+const credentialFingerprint = (): string =>
+  `Key id ${env.RAZORPAY_KEY_ID} (public), secret length ${env.RAZORPAY_KEY_SECRET.length} (value never logged).`;
+
 /**
  * Everything beyond the API keys that a working checkout needs. Plan IDs are
  * read from process.env by name (matching planIdForTier in
@@ -76,11 +97,10 @@ if (isRazorpayConfigured) {
     }
     logger.warn(`${message} Continuing because this is not production.`);
   } else {
-    // The key id is a public identifier (it's handed to the browser at
-    // checkout), so logging its mode prefix leaks nothing and answers "which
-    // Razorpay account is this deploy actually pointed at" at a glance.
-    const mode = env.RAZORPAY_KEY_ID.startsWith("rzp_live") ? "LIVE" : "TEST";
-    logger.info(`Razorpay configured in ${mode} mode — real checkout enabled, all plan IDs and webhook secret present`);
+    logger.info(
+      `Razorpay configured in ${razorpayMode()} mode — real checkout enabled, all plan IDs and webhook secret present. ` +
+        credentialFingerprint(),
+    );
   }
 }
 
@@ -123,7 +143,11 @@ export const verifyRazorpayCredentials = async (): Promise<void> => {
       const message =
         "Razorpay rejected the configured credentials (HTTP 401 Authentication failed). " +
         "Every checkout will fail until RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are a matching pair " +
-        "from the same key, in the same mode (test/live), and not since regenerated.";
+        "from the same key, in the same mode (test/live), and not since regenerated. " +
+        // Repeated here rather than left to the startup line above: when a
+        // deploy dies on this, the failure log should carry everything needed
+        // to compare against the dashboard without hunting for another line.
+        `Mode reads as ${razorpayMode()} from the key id. ${credentialFingerprint()}`;
       // `cause` keeps Razorpay's own response attached to the thrown error,
       // so the startup log shows their description alongside ours.
       if (isProd) throw new Error(message, { cause: err });
