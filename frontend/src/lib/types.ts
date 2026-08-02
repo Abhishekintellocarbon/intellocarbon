@@ -577,6 +577,8 @@ export interface Subscription {
   // getSubscriptions).
   /** Full per-facility monthly price added from the next billing cycle — not a mid-cycle prorated amount. */
   additionalFacilityMonthlyInr: number | null;
+  /** One-time onboarding fee attached to this subscription's first invoice, in rupees; null if none. */
+  onboardingFeeChargedInr: number | null;
   createdAt: string;
   updatedAt: string;
 }

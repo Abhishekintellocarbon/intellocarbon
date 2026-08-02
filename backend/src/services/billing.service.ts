@@ -12,6 +12,7 @@ import {
   COMBINATION_RULES,
   findMergeCandidate,
   ONBOARDING_FEE_ADDITIONAL_FACILITY_INR,
+  onboardingFeeInr,
 } from "../data/plans";
 import { sendSubscriptionActivatedEmail, sendPaymentFailedEmail } from "./email.service";
 
@@ -55,12 +56,13 @@ const facilityCapacityOf = (s: Pick<Subscription, "isCustomDeal" | "customFacili
 export const getSubscriptions = async (companyId: string) => {
   // Independent reads (usage doesn't depend on the subscriptions list) —
   // run concurrently rather than as two sequential round trips.
-  const [subscriptions, usage] = await Promise.all([
+  const [subscriptions, usage, company] = await Promise.all([
     prisma.subscription.findMany({
       where: { companyId },
       orderBy: { createdAt: "asc" },
     }),
     getUsage(companyId),
+    prisma.company.findUnique({ where: { id: companyId }, select: { onboardingFeePaidAt: true } }),
   ]);
   // Shown on the billing page next to an already-active plan so a company
   // adding a facility sees what it costs before confirming.
@@ -69,7 +71,15 @@ export const getSubscriptions = async (companyId: string) => {
     additionalFacilityMonthlyInr:
       s.status === "ACTIVE" && !s.isCustomDeal ? getAdditionalFacilityMonthlyInr(s) : null,
   }));
-  return { subscriptions: enriched, usage, plans: Object.values(PLANS), combinationRules: COMBINATION_RULES };
+  return {
+    subscriptions: enriched,
+    usage,
+    plans: Object.values(PLANS),
+    combinationRules: COMBINATION_RULES,
+    // Drives whether checkout quotes the one-time fee at all — a company that
+    // has already settled it (or was grandfathered) must not see it again.
+    onboardingFeeSettled: company?.onboardingFeePaidAt != null,
+  };
 };
 
 /**
@@ -186,6 +196,32 @@ export const markSubscriptionPastDue = async (subscriptionId: string): Promise<S
 };
 
 /**
+ * Records the onboarding fee as settled once the payment that carried it
+ * actually succeeds — never at checkout creation, so a customer who opens the
+ * modal and walks away is still charged on their next attempt.
+ *
+ * Razorpay bills a creation-time add-on on the first invoice, so the money
+ * arrives in the same authorisation payment that activates the subscription.
+ * Guarded on the company still being unsettled, which makes a replayed or
+ * duplicated webhook a no-op rather than a second write.
+ */
+const settleOnboardingFeeIfCharged = async (subscription: Subscription): Promise<void> => {
+  if (subscription.onboardingFeeChargedInr == null) return;
+
+  const { count } = await prisma.company.updateMany({
+    where: { id: subscription.companyId, onboardingFeePaidAt: null },
+    data: { onboardingFeePaidAt: new Date(), onboardingFeePaidInr: subscription.onboardingFeeChargedInr },
+  });
+
+  if (count > 0) {
+    logger.info(
+      `[Billing] Onboarding fee of ₹${subscription.onboardingFeeChargedInr} settled for company=${subscription.companyId} ` +
+        `via subscription ${subscription.razorpaySubscriptionId} — it will not be charged again.`,
+    );
+  }
+};
+
+/**
  * Turns a raw Razorpay SDK rejection during checkout into the same shape
  * addFacilityCapacity produces: the real error goes to the logs, the caller
  * gets a plain sentence it can show. Without this the SDK error propagated
@@ -207,7 +243,12 @@ const razorpayCheckoutFailure = (action: string, companyId: string, tier: Subscr
 };
 
 const devBypassCheckout = async (companyId: string, tier: SubscriptionTier, facilitiesIncluded: number) => {
-  logger.warn(`[Billing] dev-bypass checkout — company=${companyId} tier=${tier} activated with no payment collected`);
+  // The onboarding fee is deliberately left unsettled here: nothing was
+  // collected, so the company still owes it on a real checkout.
+  logger.warn(
+    `[Billing] dev-bypass checkout — company=${companyId} tier=${tier} activated with no payment collected ` +
+      `(neither the subscription nor the ₹${onboardingFeeInr(facilitiesIncluded)} onboarding fee)`,
+  );
   const subscription = await activateSubscriptionForTier(companyId, tier, new Date(Date.now() + 30 * DAY_MS), facilitiesIncluded);
   return { devBypass: true as const, subscription };
 };
@@ -431,6 +472,11 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier, 
     }
   }
 
+  // Charged once per company. A company that has already settled it — including
+  // one grandfathered at migration time — gets no add-on, so a second tier
+  // never re-bills it.
+  const onboardingFeeChargedInr = company.onboardingFeePaidAt ? null : onboardingFeeInr(facilitiesIncluded);
+
   let razorpaySubscription: { id: string };
   try {
     razorpaySubscription = await razorpay.subscriptions.create({
@@ -439,6 +485,24 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier, 
       total_count: 120,
       quantity: facilitiesIncluded,
       notes: { companyId, tier },
+      // Razorpay bills an add-on passed at creation on the subscription's
+      // *first* invoice only, in the same authorisation payment as the first
+      // month. That is what makes this a single checkout modal, and it is
+      // also why later invoices are plan-price-only without us doing anything
+      // — the add-on is attached to the invoice, never to the plan.
+      ...(onboardingFeeChargedInr
+        ? {
+            addons: [
+              {
+                item: {
+                  name: "One-time onboarding fee",
+                  amount: onboardingFeeChargedInr * 100, // paise
+                  currency: "INR",
+                },
+              },
+            ],
+          }
+        : {}),
     });
   } catch (err) {
     throw razorpayCheckoutFailure("create the Razorpay subscription", companyId, tier, err);
@@ -453,11 +517,13 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier, 
       razorpayCustomerId,
       razorpaySubscriptionId: razorpaySubscription.id,
       facilitiesIncluded,
+      onboardingFeeChargedInr,
     },
     update: {
       status: "INCOMPLETE",
       razorpayCustomerId,
       razorpaySubscriptionId: razorpaySubscription.id,
+      onboardingFeeChargedInr,
     },
   });
 
@@ -465,6 +531,7 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier, 
     devBypass: false as const,
     razorpayKeyId: env.RAZORPAY_KEY_ID,
     razorpaySubscriptionId: razorpaySubscription.id,
+    onboardingFeeChargedInr,
     subscription,
   };
 };
@@ -658,6 +725,8 @@ export const handleWebhookEvent = async (event: {
         subscription.tier,
         subscriptionEntity.current_end ? new Date(subscriptionEntity.current_end * 1000) : undefined,
       );
+
+      await settleOnboardingFeeIfCharged(subscription);
 
       if (paymentEntity) {
         await prisma.payment.create({
