@@ -57,7 +57,7 @@ const CBAM_FAQS = [
   {
     question: "Can carbon price paid in India reduce my CBAM liability?",
     answer:
-      "Yes — this is the Article 9 deduction. Intellocarbon calculates it automatically from the carbon price you've already paid in India.",
+      "Yes — Intellocarbon automatically accounts for carbon price already paid in India when calculating your CBAM liability.",
   },
 ];
 
