@@ -127,6 +127,15 @@ model Company {
   isPatDesignatedConsumer Boolean   @default(false)
   onboardingCompletedAt   DateTime?
 
+  // One-time compliance onboarding fee. Company-level, not per-subscription:
+  // it is charged once for the company, so holding a second tier must not
+  // charge it again. `onboardingFeePaidAt` set means "settled, never charge
+  // again" — including grandfathered companies that predate in-flow
+  // collection, which are backfilled with an amount of 0 and were never
+  // billed. `onboardingFeePaidInr` is what was actually collected.
+  onboardingFeePaidInr Int?
+  onboardingFeePaidAt  DateTime?
+
   // Scope 3 relevance drivers. Company-level rather than Facility-level: a
   // GHG Protocol Scope 3 inventory is drawn at the organisational boundary,
   // and the relevance endpoint keys off companyId. Categories 8/13 (leased
@@ -224,6 +233,14 @@ model Subscription {
   // only hold one Subscription per (companyId, tier). Superseded by
   // customFacilityCount when isCustomDeal is true, same as before.
   facilitiesIncluded Int @default(1)
+
+  // Onboarding fee attached to this subscription's first invoice as a
+  // Razorpay add-on at creation, in rupees. Null when none was attached
+  // (dev-bypass, or the company had already paid). Recorded here rather than
+  // inferred later because the company's facility count can change between
+  // checkout and the webhook that confirms payment — and because a checkout
+  // the customer abandons must never mark the fee as paid.
+  onboardingFeeChargedInr Int?
 
   isCustomDeal        Boolean   @default(false)
   customFacilityCount Int?

@@ -636,6 +636,8 @@ export const billingApi = {
     usage: { facilityCount: number };
     plans: PlanDefinition[];
     combinationRules: PlanCombinationRule[];
+    /** False while the company still owes the one-time onboarding fee. */
+    onboardingFeeSettled: boolean;
   }> => apiFetch("/api/billing/subscription"),
 
   checkout: (tier: SubscriptionTier, facilitiesIncluded?: number): Promise<CheckoutResult> =>

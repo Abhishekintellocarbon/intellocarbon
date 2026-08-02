@@ -96,6 +96,7 @@ function PlanCard({
   quantity,
   onQuantityChange,
   isCurrent,
+  onboardingFeeDue,
   actionLabel,
   isLoading,
   onSubscribe,
@@ -104,6 +105,8 @@ function PlanCard({
   quantity: number;
   onQuantityChange: (q: number) => void;
   isCurrent: boolean;
+  /** False once the company has settled the one-time fee (or was grandfathered). */
+  onboardingFeeDue: boolean;
   /** Computed by the caller, which is the only place that knows whether this
    *  plan would merge with an existing one or stack alongside it. */
   actionLabel: string;
@@ -144,30 +147,35 @@ function PlanCard({
         <FacilityCalculator pricePerFacility={plan.priceInr ?? 0} quantity={quantity} onChange={onQuantityChange} />
       </div>
 
-      {/* Kept visually separate from the recurring total above: this is billed
-          once at setup, not monthly, and its amount steps with facility count. */}
+      {/* One payment covers both lines: Razorpay bills the one-time fee on the
+          subscription's first invoice, so this is a single card entry. */}
       <div className="mt-3 rounded-[12px] border border-surface-border bg-surface-raised/60 px-4 py-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span className="text-sm text-muted-foreground">One-time onboarding fee</span>
-          <span className="text-sm font-semibold tabular-nums text-foreground">
-            ₹{onboardingFeeInr(quantity).toLocaleString("en-IN")}
+        {onboardingFeeDue && (
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <span className="text-sm text-muted-foreground">One-time onboarding fee</span>
+            <span className="text-sm font-semibold tabular-nums text-foreground">
+              ₹{onboardingFeeInr(quantity).toLocaleString("en-IN")}
+            </span>
+          </div>
+        )}
+        <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <span className="text-sm text-muted-foreground">
+            ₹{((plan.priceInr ?? 0) * quantity).toLocaleString("en-IN")}/month starting today
+          </span>
+          <span className="text-sm tabular-nums text-muted-foreground">
+            ₹{((plan.priceInr ?? 0) * quantity).toLocaleString("en-IN")}
           </span>
         </div>
-        {/* Show the arithmetic rather than a bare total, so the per-facility
-            step is visible before the company commits to a facility count. */}
-        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground tabular-nums">
-          ₹{ONBOARDING_FEE_FIRST_FACILITY_INR.toLocaleString("en-IN")} for the first facility
-          {quantity > 1 && (
-            <>
-              {" "}
-              + ₹{ONBOARDING_FEE_ADDITIONAL_FACILITY_INR.toLocaleString("en-IN")} ×{" "}
-              {quantity - 1} additional
-            </>
-          )}
-        </p>
-        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-          Charged once — not part of the monthly subscription above. Invoiced separately; it is not collected in
-          this checkout.
+        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-t border-surface-border pt-2">
+          <span className="text-sm font-medium">Total due today</span>
+          <span className="text-base font-semibold tabular-nums text-teal-500">
+            ₹{(((plan.priceInr ?? 0) * quantity) + (onboardingFeeDue ? onboardingFeeInr(quantity) : 0)).toLocaleString("en-IN")}
+          </span>
+        </div>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          {onboardingFeeDue
+            ? `Charged in one payment. The ₹${ONBOARDING_FEE_FIRST_FACILITY_INR.toLocaleString("en-IN")} first-facility fee plus ₹${ONBOARDING_FEE_ADDITIONAL_FACILITY_INR.toLocaleString("en-IN")} per additional facility is billed once; every later month is the subscription amount only.`
+            : "Your one-time onboarding fee is already settled — this is the subscription amount only."}
         </p>
       </div>
 
@@ -213,6 +221,7 @@ function BillingContent() {
   const [addingFacilityTier, setAddingFacilityTier] = useState<SubscriptionTier | null>(null);
   const [addFacilityNotice, setAddFacilityNotice] = useState<string | null>(null);
   const [devBypassNotice, setDevBypassNotice] = useState(false);
+  const [onboardingFeeSettled, setOnboardingFeeSettled] = useState(true);
   const [mergeNotice, setMergeNotice] = useState<string | null>(null);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [pendingMergeOffer, setPendingMergeOffer] = useState<{
@@ -229,6 +238,7 @@ function BillingContent() {
         setCombinationRules(data.combinationRules);
         setSubscriptions(data.subscriptions);
         setUsage(data.usage);
+        setOnboardingFeeSettled(data.onboardingFeeSettled);
         setQuantities((prev) => {
           const next = { ...prev };
           for (const plan of data.plans) {
@@ -539,6 +549,7 @@ function BillingContent() {
                   quantity={quantities[plan.tier] ?? 1}
                   onQuantityChange={(q) => setQuantities((prev) => ({ ...prev, [plan.tier]: q }))}
                   isCurrent={isCurrent}
+                  onboardingFeeDue={!onboardingFeeSettled}
                   actionLabel={actionLabel}
                   isLoading={checkingOutTier === plan.tier}
                   onSubscribe={() => handlePlanCardClick(plan.tier)}
