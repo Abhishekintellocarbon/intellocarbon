@@ -17,11 +17,18 @@ export const SECTOR_OPTIONS = [
  * collected in-flow, it should move to backend/src/data/plans.ts and be
  * served with the plans payload rather than duplicated here.
  */
-export const ONBOARDING_FEE_SINGLE_FACILITY_INR = 25000;
-export const ONBOARDING_FEE_MULTI_FACILITY_INR = 40000;
+export const ONBOARDING_FEE_FIRST_FACILITY_INR = 25000;
+export const ONBOARDING_FEE_ADDITIONAL_FACILITY_INR = 10000;
 
+/**
+ * ₹25,000 for the first facility plus ₹10,000 for each additional one.
+ * Replaces a flat "₹25,000 single / ₹40,000 multi" split that charged the
+ * same ₹40,000 whether a company onboarded 2 facilities or 20.
+ *
+ * 1 → ₹25,000 · 2 → ₹35,000 · 3 → ₹45,000 · 5 → ₹65,000
+ */
 export const onboardingFeeInr = (facilityCount: number): number =>
-  facilityCount > 1 ? ONBOARDING_FEE_MULTI_FACILITY_INR : ONBOARDING_FEE_SINGLE_FACILITY_INR;
+  ONBOARDING_FEE_FIRST_FACILITY_INR + ONBOARDING_FEE_ADDITIONAL_FACILITY_INR * Math.max(0, facilityCount - 1);
 
 // Scope 3 relevance drivers — Categories 8 and 13 (leased assets) key off
 // ownership, 14 (franchises) and 15 (investments) off business model.
