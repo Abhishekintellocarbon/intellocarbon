@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import * as Sentry from "@sentry/node";
 import type { Subscription, SubscriptionStatus, SubscriptionTier } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { env } from "../config/env";
@@ -176,6 +177,27 @@ export const markSubscriptionPastDue = async (subscriptionId: string): Promise<S
   }
 
   return subscription;
+};
+
+/**
+ * Turns a raw Razorpay SDK rejection during checkout into the same shape
+ * addFacilityCapacity produces: the real error goes to the logs, the caller
+ * gets a plain sentence it can show. Without this the SDK error propagated
+ * unwrapped, so the client saw the generic 500 body ("Something went wrong")
+ * with no indication that billing specifically had failed.
+ *
+ * Reported to Sentry explicitly because AppError becomes a 4xx, and Sentry's
+ * express handler only captures 5xx — so converting these to AppError would
+ * otherwise have silently dropped checkout failures out of error monitoring,
+ * which is where you'd look first when payments stop working.
+ */
+const razorpayCheckoutFailure = (action: string, companyId: string, tier: SubscriptionTier, err: unknown): AppError => {
+  logger.error(`[Billing] Failed to ${action} for company=${companyId} tier=${tier}`, err);
+  Sentry.captureException(err, { tags: { area: "billing", action }, extra: { companyId, tier } });
+  return AppError.badRequest(
+    "Couldn't start checkout — please try again or contact support",
+    "RAZORPAY_CHECKOUT_FAILED",
+  );
 };
 
 const devBypassCheckout = async (companyId: string, tier: SubscriptionTier, facilitiesIncluded: number) => {
@@ -383,21 +405,30 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier, 
 
   let razorpayCustomerId = existingForCompany?.razorpayCustomerId ?? undefined;
   if (!razorpayCustomerId) {
-    const customer = await razorpay.customers.create({
-      name: company.owner.name,
-      email: company.owner.email,
-      notes: { companyId },
-    });
-    razorpayCustomerId = customer.id;
+    try {
+      const customer = await razorpay.customers.create({
+        name: company.owner.name,
+        email: company.owner.email,
+        notes: { companyId },
+      });
+      razorpayCustomerId = customer.id;
+    } catch (err) {
+      throw razorpayCheckoutFailure("create a Razorpay customer", companyId, tier, err);
+    }
   }
 
-  const razorpaySubscription = await razorpay.subscriptions.create({
-    plan_id: planId,
-    customer_notify: 1,
-    total_count: 120,
-    quantity: facilitiesIncluded,
-    notes: { companyId, tier },
-  });
+  let razorpaySubscription: { id: string };
+  try {
+    razorpaySubscription = await razorpay.subscriptions.create({
+      plan_id: planId,
+      customer_notify: 1,
+      total_count: 120,
+      quantity: facilitiesIncluded,
+      notes: { companyId, tier },
+    });
+  } catch (err) {
+    throw razorpayCheckoutFailure("create the Razorpay subscription", companyId, tier, err);
+  }
 
   const subscription = await prisma.subscription.upsert({
     where: { companyId_tier: { companyId, tier } },
