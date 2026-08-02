@@ -12,7 +12,11 @@ import { AppHeader } from "@/components/layout/app-header";
 import { FacilityCalculator } from "@/components/billing/facility-calculator";
 import { useAuth } from "@/context/auth-context";
 import { billingApi, ApiError } from "@/lib/api";
-import { onboardingFeeInr } from "@/lib/constants";
+import {
+  ONBOARDING_FEE_ADDITIONAL_FACILITY_INR,
+  ONBOARDING_FEE_FIRST_FACILITY_INR,
+  onboardingFeeInr,
+} from "@/lib/constants";
 import { openRazorpayCheckout } from "@/lib/razorpay";
 import type { PlanCombinationRule, PlanDefinition, Subscription, SubscriptionTier } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -149,9 +153,21 @@ function PlanCard({
             ₹{onboardingFeeInr(quantity).toLocaleString("en-IN")}
           </span>
         </div>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-          {quantity > 1 ? "Multi-facility" : "Single facility"} rate, charged once — not part of the monthly
-          subscription above. Invoiced separately; it is not collected in this checkout.
+        {/* Show the arithmetic rather than a bare total, so the per-facility
+            step is visible before the company commits to a facility count. */}
+        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground tabular-nums">
+          ₹{ONBOARDING_FEE_FIRST_FACILITY_INR.toLocaleString("en-IN")} for the first facility
+          {quantity > 1 && (
+            <>
+              {" "}
+              + ₹{ONBOARDING_FEE_ADDITIONAL_FACILITY_INR.toLocaleString("en-IN")} ×{" "}
+              {quantity - 1} additional
+            </>
+          )}
+        </p>
+        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+          Charged once — not part of the monthly subscription above. Invoiced separately; it is not collected in
+          this checkout.
         </p>
       </div>
 
