@@ -37,9 +37,12 @@ if (!isRazorpayConfigured) {
  * path will see.
  */
 const missingBillingConfig = (): string[] => {
+  // Trimmed to match planIdForTier's own read: a whitespace-only value is
+  // non-empty here but useless there, which would pass this guard and then
+  // fail every checkout — exactly the split-brain the guard exists to prevent.
   const missing = Object.values(PLANS)
     .map((plan) => plan.razorpayPlanIdEnvVar)
-    .filter((name): name is string => Boolean(name) && !process.env[name!]);
+    .filter((name): name is string => Boolean(name) && !process.env[name!]?.trim());
 
   // Without this, verifyWebhookSignature() fails closed on every event, so a
   // subscription created at checkout stays INCOMPLETE forever — the customer
