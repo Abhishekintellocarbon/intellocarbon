@@ -6,6 +6,7 @@ import { prisma } from "./config/prisma";
 import { startScheduledJobs } from "./jobs/scheduler";
 import { hydrateEmissionFactorCache } from "./services/emissionFactor.service";
 import { logGrandfatheredEsgBundleSubscribers } from "./services/billing.service";
+import { verifyRazorpayCredentials } from "./config/razorpay";
 
 let server: ReturnType<typeof app.listen>;
 
@@ -20,8 +21,21 @@ logGrandfatheredEsgBundleSubscribers().catch((err) =>
 // briefly serve the code defaults. Falls back to those defaults (already
 // set as the initial module state) if the read fails, rather than blocking
 // startup on it.
-hydrateEmissionFactorCache()
-  .catch((err) => logger.error("Failed to hydrate emission factor cache from DB — using code defaults", err))
+// Gates startup on purpose, unlike the two above: credentials Razorpay
+// rejects mean every checkout 401s, and that should fail the deploy rather
+// than be found by the first customer who tries to pay. Only an actual auth
+// rejection rejects here — an unreachable or slow Razorpay warns and
+// continues, so their outage can't block our releases.
+verifyRazorpayCredentials()
+  .catch((err) => {
+    logger.error("Refusing to start — Razorpay credential check failed", err instanceof Error ? err.message : err);
+    process.exit(1);
+  })
+  .then(() =>
+    hydrateEmissionFactorCache().catch((err) =>
+      logger.error("Failed to hydrate emission factor cache from DB — using code defaults", err),
+    ),
+  )
   .finally(() => {
     server = app.listen(env.PORT, () => {
       logger.info(`Intellocarbon API listening on port ${env.PORT} [${env.NODE_ENV}]`);

@@ -83,3 +83,58 @@ if (isRazorpayConfigured) {
     logger.info(`Razorpay configured in ${mode} mode — real checkout enabled, all plan IDs and webhook secret present`);
   }
 }
+
+const CREDENTIAL_CHECK_TIMEOUT_MS = 10_000;
+
+/** Razorpay answers a bad key/secret pair with HTTP 401. */
+const isAuthFailure = (err: unknown): boolean =>
+  typeof err === "object" && err !== null && (err as { statusCode?: number }).statusCode === 401;
+
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
+  Promise.race([
+    promise,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms).unref()),
+  ]);
+
+/**
+ * Confirms at startup that Razorpay actually accepts the configured key and
+ * secret, rather than discovering it when a customer's first checkout 401s.
+ * The config guard above only proves the values are non-empty; it cannot tell
+ * a correct secret from a mistyped one.
+ *
+ * Deliberately distinguishes two failures that look similar in a log:
+ *
+ * - **Credentials rejected (401)** — a configuration error that will break
+ *   every purchase. Fatal in production, so the deploy fails and the
+ *   platform keeps the previous healthy release serving.
+ * - **Razorpay unreachable, slow, or 5xx** — nothing to do with our config.
+ *   Warn and continue, so an outage on their side can't block our deploys.
+ *
+ * Read-only: lists at most one customer and creates nothing.
+ */
+export const verifyRazorpayCredentials = async (): Promise<void> => {
+  if (!isRazorpayConfigured || !razorpay) return;
+
+  try {
+    await withTimeout(razorpay.customers.all({ count: 1 }), CREDENTIAL_CHECK_TIMEOUT_MS);
+    logger.info("Razorpay credentials verified — the API accepted this key and secret");
+  } catch (err) {
+    if (isAuthFailure(err)) {
+      const message =
+        "Razorpay rejected the configured credentials (HTTP 401 Authentication failed). " +
+        "Every checkout will fail until RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET are a matching pair " +
+        "from the same key, in the same mode (test/live), and not since regenerated.";
+      // `cause` keeps Razorpay's own response attached to the thrown error,
+      // so the startup log shows their description alongside ours.
+      if (isProd) throw new Error(message, { cause: err });
+      logger.error(`${message} Continuing because this is not production.`);
+      return;
+    }
+
+    logger.warn(
+      "Couldn't verify Razorpay credentials at startup — the API was unreachable, slow, or returned an error " +
+        "that isn't an auth failure. Continuing: this says nothing about whether our configuration is correct.",
+      err,
+    );
+  }
+};
