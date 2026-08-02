@@ -61,13 +61,11 @@ export const getSubscriptions = async (companyId: string) => {
     getUsage(companyId),
   ]);
   // Shown on the billing page next to an already-active plan so a company
-  // adding a facility sees what it costs before confirming — same prorated
-  // basis as the plan-merge credit calc below (logProratedCredit), reused
-  // rather than rebuilt.
+  // adding a facility sees what it costs before confirming.
   const enriched = subscriptions.map((s) => ({
     ...s,
-    incrementalFacilityPriceInr:
-      s.status === "ACTIVE" && !s.isCustomDeal ? getIncrementalFacilityPriceInr(s) : null,
+    additionalFacilityMonthlyInr:
+      s.status === "ACTIVE" && !s.isCustomDeal ? getAdditionalFacilityMonthlyInr(s) : null,
   }));
   return { subscriptions: enriched, usage, plans: Object.values(PLANS), combinationRules: COMBINATION_RULES };
 };
@@ -239,11 +237,19 @@ const logProratedCredit = (companyId: string, oldSub: Subscription, combinedTier
   );
 };
 
-/** Prorated cost of adding one more facility to this active subscription right now, for display on the billing page before the company confirms. */
-export const getIncrementalFacilityPriceInr = (subscription: Pick<Subscription, "tier" | "currentPeriodEnd">): number => {
-  const fullPriceInr = getPlan(subscription.tier).priceInr ?? 0;
-  return prorateForRemainingCycle(subscription.currentPeriodEnd, fullPriceInr);
-};
+/**
+ * What one more facility adds to this subscription's monthly charge, shown on
+ * the billing page before the company confirms.
+ *
+ * The full per-facility price, not a prorated remainder: the capacity change
+ * is scheduled at cycle_end (see addFacilityCapacity), so nothing is charged
+ * mid-cycle and the company simply pays this much more from its next invoice
+ * onward. This previously returned a flat-30-day prorated approximation of
+ * the current cycle's remainder, which both contradicted the billing page's
+ * own FAQ and was never guaranteed to match what Razorpay actually charged.
+ */
+export const getAdditionalFacilityMonthlyInr = (subscription: Pick<Subscription, "tier">): number =>
+  getPlan(subscription.tier).priceInr ?? 0;
 
 // Cancels/relabels the obsolete single-framework rows and creates (or
 // reactivates) the combined-tier row, all in one transaction. Shared by both
@@ -538,13 +544,18 @@ export const addFacilityCapacity = async (companyId: string, tier: SubscriptionT
   }
 
   const newCount = subscription.facilitiesIncluded + 1;
-  const incrementalPriceInr = getIncrementalFacilityPriceInr(subscription);
+  const additionalMonthlyInr = getAdditionalFacilityMonthlyInr(subscription);
 
   if (isRazorpayConfigured && razorpay && subscription.razorpaySubscriptionId) {
     try {
       await razorpay.subscriptions.update(subscription.razorpaySubscriptionId, {
         quantity: newCount,
-        schedule_change_at: "now",
+        // cycle_end, not now: the billing page tells customers a new facility
+        // "increases your monthly charge starting from your next billing
+        // cycle". Charging a prorated amount mid-cycle contradicted that, and
+        // the extra capacity is usable immediately either way because access
+        // is gated on our own facilitiesIncluded, not on Razorpay's quantity.
+        schedule_change_at: "cycle_end",
       });
     } catch (err) {
       logger.error(
@@ -561,7 +572,7 @@ export const addFacilityCapacity = async (companyId: string, tier: SubscriptionT
   } else {
     logger.warn(
       `[Billing] dev-bypass facility add-on — company=${companyId} tier=${tier} facilitiesIncluded ${subscription.facilitiesIncluded} -> ${newCount}, ` +
-        `≈₹${incrementalPriceInr} incremental charge and ₹${ONBOARDING_FEE_ADDITIONAL_FACILITY_INR} onboarding fee not actually collected`,
+        `+₹${additionalMonthlyInr}/mo from the next cycle and a ₹${ONBOARDING_FEE_ADDITIONAL_FACILITY_INR} onboarding fee, neither actually collected`,
     );
   }
 

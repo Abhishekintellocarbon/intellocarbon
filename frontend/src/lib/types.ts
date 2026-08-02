@@ -575,7 +575,8 @@ export interface Subscription {
   // Prorated cost of adding one more facility right now — only populated for
   // ACTIVE, non-custom-deal subscriptions (see billing.service.ts's
   // getSubscriptions).
-  incrementalFacilityPriceInr: number | null;
+  /** Full per-facility monthly price added from the next billing cycle — not a mid-cycle prorated amount. */
+  additionalFacilityMonthlyInr: number | null;
   createdAt: string;
   updatedAt: string;
 }
