@@ -134,6 +134,24 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
 
 export const getPlan = (tier: SubscriptionTier): PlanDefinition => PLANS[tier];
 
+/**
+ * One-time compliance onboarding fee: ₹25,000 for the first facility plus
+ * ₹10,000 for each additional one, i.e.
+ * 25000 + 10000 * (facilityCount - 1).
+ *
+ * Only the per-additional-facility half is collected in-flow today, as a
+ * Razorpay add-on raised by addFacilityCapacity. The first-facility ₹25,000
+ * (and any extra facilities bought in the initial checkout) is still invoiced
+ * manually — nothing in the checkout path raises it. Mirrored for display in
+ * frontend/src/lib/constants.ts; keep the two in step until the fee is served
+ * with the plans payload.
+ */
+export const ONBOARDING_FEE_FIRST_FACILITY_INR = 25000;
+export const ONBOARDING_FEE_ADDITIONAL_FACILITY_INR = 10000;
+
+export const onboardingFeeInr = (facilityCount: number): number =>
+  ONBOARDING_FEE_FIRST_FACILITY_INR + ONBOARDING_FEE_ADDITIONAL_FACILITY_INR * Math.max(0, facilityCount - 1);
+
 export interface PlanCombinationRule {
   /** Every tier here, held active simultaneously, merges into `combinedTier`. */
   tiers: SubscriptionTier[];

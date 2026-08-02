@@ -6,7 +6,13 @@ import { env } from "../config/env";
 import { isRazorpayConfigured, razorpay } from "../config/razorpay";
 import { AppError } from "../utils/AppError";
 import { logger } from "../utils/logger";
-import { getPlan, PLANS, COMBINATION_RULES, findMergeCandidate } from "../data/plans";
+import {
+  getPlan,
+  PLANS,
+  COMBINATION_RULES,
+  findMergeCandidate,
+  ONBOARDING_FEE_ADDITIONAL_FACILITY_INR,
+} from "../data/plans";
 import { sendSubscriptionActivatedEmail, sendPaymentFailedEmail } from "./email.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -456,6 +462,57 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier, 
 };
 
 /**
+ * Raises the ₹10,000 per-additional-facility onboarding fee as a Razorpay
+ * add-on against the company's existing subscription. Razorpay attaches an
+ * add-on to the *next* invoice that subscription generates — it is not an
+ * immediate charge, so the company is billed at its next renewal alongside
+ * the recurring amount.
+ *
+ * Deliberately raised *after* the quantity update succeeds, and deliberately
+ * non-fatal: by that point the capacity increase is already live in Razorpay
+ * and in the response the caller is about to get. Throwing here would leave
+ * the company holding capacity it appears to have bought while the request
+ * reports failure — a worse state than an uncollected fee, which the ERROR
+ * log and Sentry event below make recoverable by manual invoice.
+ */
+const raiseAdditionalFacilityOnboardingFee = async (
+  razorpaySubscriptionId: string,
+  companyId: string,
+  tier: SubscriptionTier,
+): Promise<void> => {
+  // Only ever reached from the configured branch of addFacilityCapacity, but
+  // checked rather than asserted so a future caller can't smuggle in a null.
+  if (!razorpay) return;
+
+  try {
+    const addon = await razorpay.subscriptions.createAddon(razorpaySubscriptionId, {
+      item: {
+        name: "One-time onboarding fee — additional facility",
+        amount: ONBOARDING_FEE_ADDITIONAL_FACILITY_INR * 100, // Razorpay amounts are in paise.
+        currency: "INR",
+      },
+      quantity: 1,
+    });
+    logger.info(
+      `[Billing] Raised ₹${ONBOARDING_FEE_ADDITIONAL_FACILITY_INR} additional-facility onboarding fee ` +
+        `(addon ${addon.id}) on subscription ${razorpaySubscriptionId} for company=${companyId} tier=${tier} — ` +
+        `bills on that subscription's next invoice`,
+    );
+  } catch (err) {
+    logger.error(
+      `[Billing] UNCOLLECTED ₹${ONBOARDING_FEE_ADDITIONAL_FACILITY_INR} onboarding fee — failed to raise the add-on ` +
+        `on subscription ${razorpaySubscriptionId} for company=${companyId} tier=${tier}. ` +
+        `The facility capacity WAS granted; invoice this fee manually.`,
+      err,
+    );
+    Sentry.captureException(err, {
+      tags: { area: "billing", action: "onboarding-fee-addon" },
+      extra: { companyId, tier, razorpaySubscriptionId, amountInr: ONBOARDING_FEE_ADDITIONAL_FACILITY_INR },
+    });
+  }
+};
+
+/**
  * Adds one facility's worth of capacity to an already-active subscription
  * (facilitiesIncluded += 1), mirrored onto Razorpay by bumping that
  * subscription's `quantity` (plans are priced per facility, so quantity is
@@ -499,10 +556,12 @@ export const addFacilityCapacity = async (companyId: string, tier: SubscriptionT
         "RAZORPAY_QUANTITY_UPDATE_FAILED",
       );
     }
+
+    await raiseAdditionalFacilityOnboardingFee(subscription.razorpaySubscriptionId, companyId, tier);
   } else {
     logger.warn(
       `[Billing] dev-bypass facility add-on — company=${companyId} tier=${tier} facilitiesIncluded ${subscription.facilitiesIncluded} -> ${newCount}, ` +
-        `≈₹${incrementalPriceInr} incremental charge not actually collected`,
+        `≈₹${incrementalPriceInr} incremental charge and ₹${ONBOARDING_FEE_ADDITIONAL_FACILITY_INR} onboarding fee not actually collected`,
     );
   }
 
