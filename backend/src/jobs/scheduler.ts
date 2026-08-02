@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { logger } from "../utils/logger";
 import { runDailyComplianceCheck } from "../services/complianceCheck.service";
+import { deleteStaleIncompleteSubscriptions } from "../services/billing.service";
 
 /**
  * Runs in-process inside this long-running Express server (Render), not as
@@ -15,5 +16,16 @@ export const startScheduledJobs = (): void => {
       logger.error("Daily compliance check job failed", err);
     });
   });
-  logger.info("Scheduled jobs registered: daily compliance check at 06:00 IST");
+  // Registered separately rather than chained onto the compliance check, so
+  // a failure in either can't stop the other from running. 00:45 UTC keeps
+  // the two from overlapping.
+  cron.schedule("45 0 * * *", () => {
+    deleteStaleIncompleteSubscriptions().catch((err) => {
+      logger.error("Stale INCOMPLETE subscription cleanup failed", err);
+    });
+  });
+
+  logger.info(
+    "Scheduled jobs registered: daily compliance check at 06:00 IST, stale INCOMPLETE subscription cleanup at 06:15 IST",
+  );
 };

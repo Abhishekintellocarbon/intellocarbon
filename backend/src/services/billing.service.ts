@@ -107,6 +107,53 @@ export const logGrandfatheredEsgBundleSubscribers = async (): Promise<void> => {
   );
 };
 
+/** How long a subscription may sit unactivated before the daily job clears it. */
+export const STALE_INCOMPLETE_SUBSCRIPTION_HOURS = 24;
+
+/**
+ * Deletes subscriptions left INCOMPLETE by a checkout that was never
+ * completed — the customer closed the modal, or Razorpay rejected the
+ * request outright. They collect nothing and activate nothing, but they do
+ * sit on the billing page looking like real plans.
+ *
+ * Deleted rather than cancelled: the billing page renders every subscription
+ * regardless of status, so cancelling would leave the row visible and
+ * relabel it "Canceled", which reads as churn for a plan the company never
+ * had. A never-activated row has no payments attached (Payment cascades on
+ * delete anyway) and no audit value.
+ *
+ * Never touches ACTIVE, PAST_DUE or CANCELED, and the 24h floor is far
+ * beyond the minutes a real authorisation takes, so a checkout in progress
+ * is never caught. No Razorpay call: a stuck row either has no
+ * razorpaySubscriptionId (creation failed) or points at one Razorpay expires
+ * on its own — the id is logged first so an orphan stays traceable.
+ */
+export const deleteStaleIncompleteSubscriptions = async (): Promise<number> => {
+  const cutoff = new Date(Date.now() - STALE_INCOMPLETE_SUBSCRIPTION_HOURS * 60 * 60 * 1000);
+
+  const stale = await prisma.subscription.findMany({
+    where: { status: "INCOMPLETE", createdAt: { lt: cutoff } },
+    select: { id: true, companyId: true, tier: true, razorpaySubscriptionId: true, createdAt: true },
+  });
+  if (stale.length === 0) return 0;
+
+  logger.info(
+    `[Billing] Clearing ${stale.length} subscription(s) left INCOMPLETE for over ${STALE_INCOMPLETE_SUBSCRIPTION_HOURS}h: ` +
+      stale
+        .map((s) => `company=${s.companyId} tier=${s.tier} razorpaySubscription=${s.razorpaySubscriptionId ?? "none"}`)
+        .join("; "),
+  );
+
+  // Status is re-checked in the delete, not just the read: a webhook could
+  // activate one of these between the two queries, and deleting a paid,
+  // active subscription would be far worse than leaving clutter.
+  const { count } = await prisma.subscription.deleteMany({
+    where: { id: { in: stale.map((s) => s.id) }, status: "INCOMPLETE" },
+  });
+
+  return count;
+};
+
 export const requireCapacityForNewFacility = async (companyId: string): Promise<void> => {
   const subscriptions = await prisma.subscription.findMany({
     where: { companyId, status: "ACTIVE" },
