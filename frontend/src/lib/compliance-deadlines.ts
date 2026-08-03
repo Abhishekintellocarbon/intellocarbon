@@ -54,11 +54,18 @@ const dateFor = (year: number, md: MonthDay): Date =>
 export interface ComplianceEvent {
   date: Date;
   label: string;
+  /** Whole days from `now` to the event, rounded like the backend's daysUntil. */
+  daysRemaining: number;
+}
+
+interface DatedEvent {
+  date: Date;
+  label: string;
 }
 
 /** Every calendar event in a given year, unsorted. */
-function eventsForYear(year: number): ComplianceEvent[] {
-  const events: ComplianceEvent[] = [];
+function eventsForYear(year: number): DatedEvent[] {
+  const events: DatedEvent[] = [];
 
   for (const q of CBAM_QUARTERS) {
     const filedQuarter = CBAM_TARGET_QUARTER_BY_UNLOCK_MONTH[q.unlock.month];
@@ -95,9 +102,17 @@ function eventsForYear(year: number): ComplianceEvent[] {
   return events;
 }
 
+/** Whole days between two instants, rounded like the backend's daysUntil. */
+const daysBetween = (from: Date, to: Date): number =>
+  Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
+
 /**
  * The soonest compliance event strictly after `now`. Looks across the current
  * and next two years so a date late in December still resolves.
+ *
+ * This is the single source of truth for every deadline the marketing site
+ * displays — homepage stat strip, hero mockup badge, and anywhere else a date
+ * appears. Do not hardcode a deadline date in a page; call this instead.
  */
 export function getNextComplianceDeadline(now: Date = new Date()): ComplianceEvent {
   const year = now.getUTCFullYear();
@@ -109,7 +124,12 @@ export function getNextComplianceDeadline(now: Date = new Date()): ComplianceEve
 
   // The three-year horizon always contains a future event; the fallback keeps
   // the return type non-nullable for callers.
-  return upcoming[0] ?? { date: dateFor(year + 1, CCTS_DEADLINE), label: "CCTS compliance deadline" };
+  const next: DatedEvent = upcoming[0] ?? {
+    date: dateFor(year + 1, CCTS_DEADLINE),
+    label: "CCTS compliance deadline",
+  };
+
+  return { ...next, daysRemaining: daysBetween(now, next.date) };
 }
 
 const MONTHS = [
@@ -130,4 +150,68 @@ const MONTHS = [
 /** Formats as "1 Oct 2026", matching the existing stat-card style. */
 export function formatDeadline(date: Date): string {
   return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+}
+
+/**
+ * Current calendar quarter as "Q3 2026" — same shape as the backend's
+ * dashboardShared quarterLabel. Used to keep sample/mockup framing current
+ * rather than pinned to a quarter that has already gone by.
+ */
+export function currentQuarterLabel(now: Date = new Date()): string {
+  return `Q${Math.floor(now.getUTCMonth() / 3) + 1} ${now.getUTCFullYear()}`;
+}
+
+const fyLabelForEndYear = (endYear: number): string =>
+  `FY${endYear - 1}-${String(endYear % 100).padStart(2, "0")}`;
+
+/**
+ * The next CCTS submission deadline (31 Jul) and the Indian FY whose data it
+ * covers — the FY that closed on the 31 Mar immediately before it.
+ */
+export function getNextCctsDeadline(now: Date = new Date()): {
+  date: Date;
+  fyLabel: string;
+  daysRemaining: number;
+} {
+  const year = now.getUTCFullYear();
+  const thisYear = dateFor(year, CCTS_DEADLINE);
+  const date = now.getTime() <= thisYear.getTime() ? thisYear : dateFor(year + 1, CCTS_DEADLINE);
+
+  return {
+    date,
+    fyLabel: fyLabelForEndYear(date.getUTCFullYear()),
+    daysRemaining: daysBetween(now, date),
+  };
+}
+
+/** "31 July 2027" — long form, for prose such as the FAQ answers. */
+export function formatLongDeadline(date: Date): string {
+  const LONG_MONTHS = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  return `${date.getUTCDate()} ${LONG_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+}
+
+/**
+ * The FY that CCTS reporting currently covers — the one that closed on the
+ * most recent 31 Mar. Mirrors getCctsReportPeriodStatus in the backend module.
+ */
+export function currentCctsReportingFyLabel(now: Date = new Date()): string {
+  const livingYear = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  return fyLabelForEndYear(livingYear);
+}
+
+/**
+ * How far through the current Indian FY (1 Apr – 31 Mar) `now` sits, 0-100.
+ * Drives the compliance-calendar progress bar so it tracks the real position
+ * in the year instead of a fixed fill.
+ */
+export function indianFyProgressPercent(now: Date = new Date()): number {
+  const startYear = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+  const start = Date.UTC(startYear, 3, 1);
+  const end = Date.UTC(startYear + 1, 2, 31, 23, 59, 59);
+  const fraction = (now.getTime() - start) / (end - start);
+
+  return Math.min(100, Math.max(0, Math.round(fraction * 100)));
 }

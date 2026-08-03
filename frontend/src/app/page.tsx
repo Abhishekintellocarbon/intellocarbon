@@ -11,15 +11,19 @@ import { Card } from "@/components/ui/card";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
 import { HomeRedirectGate } from "@/components/marketing/home-redirect-gate";
 import { INSIGHTS } from "@/lib/insights";
-import { formatDeadline, getNextComplianceDeadline } from "@/lib/compliance-deadlines";
+import type { ComplianceEvent } from "@/lib/compliance-deadlines";
+import {
+  currentQuarterLabel,
+  formatDeadline,
+  getNextComplianceDeadline,
+} from "@/lib/compliance-deadlines";
 
-// The next-deadline card is computed at render time; revalidate hourly so a
-// statically rendered homepage never serves a date that has already passed.
+// Every deadline on this page is computed at render time from the shared
+// utility; revalidate hourly so a statically rendered homepage never serves a
+// date that has already passed.
 export const revalidate = 3600;
 
-function buildStats() {
-  const nextDeadline = getNextComplianceDeadline();
-
+function buildStats(nextDeadline: ComplianceEvent) {
   return [
     { value: "30,000 TPA", label: "CCTS threshold — Iron & Steel" },
     { value: "50 tonnes", label: "CBAM threshold — EU exports/year" },
@@ -113,7 +117,8 @@ function BrowserChrome({ label }: { label: string }) {
 }
 
 export default function Home() {
-  const stats = buildStats();
+  const nextDeadline = getNextComplianceDeadline();
+  const stats = buildStats(nextDeadline);
 
   return (
     <HomeRedirectGate>
@@ -163,10 +168,10 @@ export default function Home() {
           <div className="rounded-2xl border border-surface-border bg-surface p-6 shadow-card">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                CBAM Liability — Q2 2026
+                CBAM Liability — {currentQuarterLabel()}
               </p>
               <span className="shrink-0 rounded-full border border-[#F5A623]/30 bg-[#F5A623]/10 px-2.5 py-1 text-[10px] font-semibold text-[#F5A623]">
-                31 Jul 2026 deadline
+                {formatDeadline(nextDeadline.date)} deadline
               </span>
             </div>
             <p className="mt-3 text-4xl font-bold text-teal-500">&euro; 4,28,320</p>

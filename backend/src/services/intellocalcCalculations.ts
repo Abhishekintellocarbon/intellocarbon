@@ -11,8 +11,24 @@ import {
   type IndiaSector,
 } from "../data/intellocalcConstants";
 import type { BorderInputs, ComplyInputs, IndiaInputs } from "../validators/leadCapture.validators";
+import {
+  getCbamReportPeriodStatus,
+  getCctsReportPeriodStatus,
+  nextCbamDeadline,
+  nextCctsDeadline,
+  nextCctsUnlockDate,
+} from "../data/complianceDeadlines";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+const DEADLINE_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** "31 October 2026" — the long form the Comply tool has always displayed. */
+const formatLongDate = (date: Date): string =>
+  `${date.getUTCDate()} ${DEADLINE_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 
 // ---------------------------------------------------------------------------
 // IntelloCalc Border — CBAM Liability Estimator
@@ -192,6 +208,12 @@ export const calculateComply = (inputs: ComplyInputs): ComplyResults => {
 
   const cctsApplicable = inputs.cctsStatus === "NOTIFIED" || inputs.cctsStatus === "MAYBE";
 
+  // Deadlines shown here come from the compliance calendar rather than literal
+  // strings, which silently went stale once the quarter they named had passed.
+  const now = new Date();
+  const cbamPeriod = getCbamReportPeriodStatus(now);
+  const cctsPeriod = getCctsReportPeriodStatus(now);
+
   const frameworks: ComplyFramework[] = [];
 
   if (cbamApplicable) {
@@ -199,7 +221,7 @@ export const calculateComply = (inputs: ComplyInputs): ComplyResults => {
       key: "CBAM",
       name: "EU Carbon Border Adjustment Mechanism",
       status: "MANDATORY",
-      deadline: "Q2 2026 quarterly report due 31 October 2026",
+      deadline: `${cbamPeriod.displayLabel} quarterly report due ${formatLongDate(nextCbamDeadline(now))}`,
       whatWeDo: "Intellocarbon generates your CBAM Communication Package and verification report.",
     });
   }
@@ -209,7 +231,9 @@ export const calculateComply = (inputs: ComplyInputs): ComplyResults => {
       key: "CCTS",
       name: "India Carbon Credit Trading Scheme",
       status: "MANDATORY",
-      deadline: "Q3 2026 monitoring period active now",
+      deadline: cctsPeriod.isOpen
+        ? `${cctsPeriod.displayLabel} reporting window open — due ${formatLongDate(nextCctsDeadline(now))}`
+        : `${cctsPeriod.displayLabel} monitoring period active — window opens ${formatLongDate(nextCctsUnlockDate(now))}`,
       whatWeDo: "Intellocarbon calculates your GHG intensity, generates BEE Forms 1 A/B/C/D, and tracks your CCC position.",
     });
   }
