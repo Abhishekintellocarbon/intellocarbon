@@ -6,6 +6,14 @@ import {
   ProductSection,
   demoMailto,
 } from "@/components/marketing/product-page";
+import {
+  currentCctsReportingFyLabel,
+  indianFyProgressPercent,
+} from "@/lib/compliance-deadlines";
+
+// The FY badge and the calendar progress bar track the real position in the
+// Indian FY; revalidate hourly so a static render cannot drift out of date.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "CCTS & Carbon Markets — Intellocarbon",
@@ -69,7 +77,10 @@ function ComplianceCalendar() {
           <span>31 March</span>
         </div>
         <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-surface-raised">
-          <div className="h-full w-[62%] rounded-full bg-gradient-teal-blue" />
+          <div
+            className="h-full rounded-full bg-gradient-teal-blue"
+            style={{ width: `${indianFyProgressPercent()}%` }}
+          />
         </div>
         <p className="mt-3 text-sm text-[#8AA0B4]">
           Position monitored continuously through the year, not assembled at the deadline.
@@ -93,7 +104,7 @@ function ProofMockup() {
               <p className="mt-1 h-3 w-40 rounded bg-surface-raised" />
             </div>
             <span className="shrink-0 rounded-full border border-teal-500/30 bg-teal-500/10 px-2.5 py-1 text-[10px] font-semibold text-teal-500">
-              FY 2025-26
+              {currentCctsReportingFyLabel()}
             </span>
           </div>
 

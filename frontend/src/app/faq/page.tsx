@@ -2,12 +2,21 @@ import type { Metadata } from "next";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
 import { ToolFooter } from "@/components/intellocalc/tool-footer";
 import { FaqAccordion } from "@/components/faq/faq-accordion";
+import { formatLongDeadline, getNextCctsDeadline } from "@/lib/compliance-deadlines";
+
+// Answers quoting a deadline are computed at render time; revalidate hourly so
+// a statically rendered page cannot serve a date that has already passed.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "FAQ — Intellocarbon",
   description:
     "Answers to common questions about CCTS thresholds and deadlines, CBAM reporting and carbon price already paid in India, and how the Intellocarbon platform works.",
 };
+
+// The compliance-deadline answer is computed from the shared calendar rather
+// than written as a literal, which went stale the day the date passed.
+const nextCcts = getNextCctsDeadline();
 
 const CCTS_FAQS = [
   {
@@ -17,7 +26,7 @@ const CCTS_FAQS = [
   },
   {
     question: "What is my compliance deadline?",
-    answer: "31 July 2026, for submission of verified emissions intensity data for FY 2025-26.",
+    answer: `${formatLongDeadline(nextCcts.date)}, for submission of verified emissions intensity data for ${nextCcts.fyLabel}.`,
   },
   {
     question: "What happens if I miss the deadline or don't meet my target?",
