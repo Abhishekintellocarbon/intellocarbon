@@ -10,12 +10,22 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
 import { HomeRedirectGate } from "@/components/marketing/home-redirect-gate";
+import { INSIGHTS } from "@/lib/insights";
+import { formatDeadline, getNextComplianceDeadline } from "@/lib/compliance-deadlines";
 
-const STATS = [
-  { value: "30,000 TPA", label: "CCTS threshold — Iron & Steel" },
-  { value: "50 tonnes", label: "CBAM threshold — EU exports/year" },
-  { value: "31 Jul 2026", label: "MRV deadline — FY 2025-26" },
-];
+// The next-deadline card is computed at render time; revalidate hourly so a
+// statically rendered homepage never serves a date that has already passed.
+export const revalidate = 3600;
+
+function buildStats() {
+  const nextDeadline = getNextComplianceDeadline();
+
+  return [
+    { value: "30,000 TPA", label: "CCTS threshold — Iron & Steel" },
+    { value: "50 tonnes", label: "CBAM threshold — EU exports/year" },
+    { value: formatDeadline(nextDeadline.date), label: nextDeadline.label },
+  ];
+}
 
 const PILLARS = [
   {
@@ -72,29 +82,7 @@ const OFFERINGS = [
   },
 ];
 
-const BLOG_POSTS = [
-  {
-    tag: "CBAM",
-    date: "July 2026",
-    title: "What Indian steel exporters need to know about CBAM in 2026",
-    excerpt:
-      "The EU Carbon Border Adjustment Mechanism is now fully operational. Here is what changes for Indian manufacturers this year.",
-  },
-  {
-    tag: "CCTS",
-    date: "July 2026",
-    title: "India's Carbon Credit Trading Scheme — Phase 2 is live for steel",
-    excerpt:
-      "Iron and Steel joined the CCTS in January 2026. Here is how the intensity targets, CCCs, and compliance calendar work.",
-  },
-  {
-    tag: "BRSR",
-    date: "July 2026",
-    title: "BRSR Core — what Indian manufacturers supplying listed companies must know",
-    excerpt:
-      "SEBI is expanding BRSR Core value-chain disclosures. If you supply to a listed company, your emissions data is now their compliance requirement.",
-  },
-];
+const BLOG_POSTS = INSIGHTS;
 
 const FOOTER_LINKS = {
   quickLinks: [
@@ -125,6 +113,8 @@ function BrowserChrome({ label }: { label: string }) {
 }
 
 export default function Home() {
+  const stats = buildStats();
+
   return (
     <HomeRedirectGate>
     <div className="relative min-h-screen overflow-hidden bg-background lg:pr-[240px]">
@@ -214,7 +204,7 @@ export default function Home() {
       {/* Stat strip */}
       <section className="relative z-10 mx-auto max-w-6xl px-6 pb-20">
         <div className="grid gap-5 sm:grid-cols-3">
-          {STATS.map((stat) => (
+          {stats.map((stat) => (
             <Card key={stat.label} className="rounded-[12px] p-6 text-center">
               <p className="text-3xl font-semibold text-gradient">{stat.value}</p>
               <p className="mt-1.5 text-sm text-muted-foreground">{stat.label}</p>
@@ -375,25 +365,27 @@ export default function Home() {
       </section>
 
       {/* Blog / insights */}
-      <section className="relative z-10 mx-auto max-w-6xl px-6 pb-20 text-center">
+      <section id="insights" className="relative z-10 mx-auto max-w-6xl px-6 pb-20 text-center">
         <h2 className="text-[28px] font-semibold sm:text-[32px]">Insights and regulatory updates</h2>
 
         <div className="mt-10 grid gap-6 text-left lg:grid-cols-3">
           {BLOG_POSTS.map((post) => (
-            <Card key={post.title} className="flex flex-col p-6">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="rounded-full border border-teal-500/30 bg-teal-500/10 px-2.5 py-1 font-semibold text-teal-500">
-                  {post.tag}
+            <Link key={post.slug} href={`/insights/${post.slug}`} className="group">
+              <Card className="flex h-full flex-col p-6 transition-all duration-300 group-hover:-translate-y-1 group-hover:border-teal-500/40 group-hover:shadow-glow">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="rounded-full border border-teal-500/30 bg-teal-500/10 px-2.5 py-1 font-semibold text-teal-500">
+                    {post.tag}
+                  </span>
+                  <span className="text-muted-foreground">{post.date}</span>
+                </div>
+                <h3 className="mt-3 font-semibold leading-snug">{post.title}</h3>
+                <p className="mt-2 flex-1 text-sm text-muted-foreground">{post.excerpt}</p>
+                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-teal-500">
+                  Read more
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </span>
-                <span className="text-muted-foreground">{post.date}</span>
-              </div>
-              <h3 className="mt-3 font-semibold leading-snug">{post.title}</h3>
-              <p className="mt-2 flex-1 text-sm text-muted-foreground">{post.excerpt}</p>
-              <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-teal-500">
-                Read more
-                <ArrowRight className="h-3.5 w-3.5" />
-              </span>
-            </Card>
+              </Card>
+            </Link>
           ))}
         </div>
       </section>
