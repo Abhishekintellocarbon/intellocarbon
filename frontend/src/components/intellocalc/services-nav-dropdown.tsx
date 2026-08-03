@@ -3,15 +3,15 @@ import { ChevronDown, Globe2, MapPinned, Leaf, Calculator, Search } from "lucide
 
 export const SERVICE_LINKS = [
   {
-    href: "/#pillars",
+    href: "/products/cbam-compliance",
     icon: Globe2,
     name: "CBAM Compliance",
     blurb: "EU carbon border adjustment reporting",
   },
   {
-    href: "/#pillars",
+    href: "/products/ccts-carbon-markets",
     icon: MapPinned,
-    name: "CCTS Compliance",
+    name: "CCTS & Carbon Markets",
     blurb: "India's carbon credit trading scheme",
   },
   {
@@ -21,7 +21,7 @@ export const SERVICE_LINKS = [
     blurb: "Check if your company is on BEE's notified list",
   },
   {
-    href: "/esg",
+    href: "/products/esg-brsr",
     icon: Leaf,
     name: "BRSR Core / ESG Reporting",
     blurb: "SEBI Business Responsibility & Sustainability Reporting",

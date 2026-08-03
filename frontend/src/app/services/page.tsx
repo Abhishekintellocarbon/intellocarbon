@@ -16,8 +16,8 @@ const SERVICES = [
     icon: Globe2,
     title: "CBAM Compliance",
     description:
-      "Calculate Specific Embedded Emissions, generate CBAM Communication Packages, and claim Article 9 deductions for carbon price already paid in India — for every EU export shipment, every quarter.",
-    href: "/#pillars",
+      "Calculate Specific Embedded Emissions, generate CBAM Communication Packages, and account for carbon price already paid in India — for every EU export shipment, every quarter.",
+    href: "/products/cbam-compliance",
     cta: "Explore CBAM",
   },
   {
@@ -25,7 +25,7 @@ const SERVICES = [
     title: "CCTS Compliance",
     description:
       "Track GHG intensity against BEE targets, manage your Carbon Credit Certificate surplus or deficit position, and generate BEE-format reports for India's Carbon Credit Trading Scheme.",
-    href: "/#pillars",
+    href: "/products/ccts-carbon-markets",
     cta: "Explore CCTS",
     secondaryHref: "/ccts-obligated-entities",
     secondaryCta: "Check obligated entities list",
@@ -35,7 +35,7 @@ const SERVICES = [
     title: "BRSR Core / ESG Reporting",
     description:
       "SEBI's mandatory Business Responsibility and Sustainability Reporting, built to reuse the GHG data you've already entered for CBAM and CCTS — only 8 additional ESG attributes to complete.",
-    href: "/esg",
+    href: "/products/esg-brsr",
     cta: "Explore ESG",
   },
   {

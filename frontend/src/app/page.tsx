@@ -22,7 +22,7 @@ const PILLARS = [
     icon: ShieldCheck,
     title: "CBAM Compliance",
     description:
-      "Calculate and report Specific Embedded Emissions for EU Carbon Border Adjustment Mechanism. Quarterly reports. Annual declaration. Article 9 deduction automatic.",
+      "Calculate and report Specific Embedded Emissions for EU Carbon Border Adjustment Mechanism. Quarterly reports. Annual declaration. Carbon price already paid in India accounted for automatically.",
     cta: "Start CBAM",
   },
   {
@@ -105,9 +105,9 @@ const FOOTER_LINKS = {
     { label: "Pricing", href: "/billing" },
   ],
   platform: [
-    { label: "CBAM", href: "#pillars" },
-    { label: "CCTS", href: "#pillars" },
-    { label: "BRSR", href: "/esg" },
+    { label: "CBAM", href: "/products/cbam-compliance" },
+    { label: "CCTS", href: "/products/ccts-carbon-markets" },
+    { label: "BRSR", href: "/products/esg-brsr" },
     { label: "IntelloCalc", href: "/intellocalc" },
     { label: "CCTS Obligated Entities", href: "/ccts-obligated-entities" },
   ],

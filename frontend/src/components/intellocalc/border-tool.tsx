@@ -183,7 +183,7 @@ export function BorderTool() {
               sub={`Approximately ${fmtInr(results.cbamLiabilityInr)}`}
             />
             {results.article9DeductionEur !== undefined && (
-              <ResultLine label="Article 9 Deduction (CCTS)" value={fmtEur(results.article9DeductionEur)} />
+              <ResultLine label="Carbon Price Paid in India (CCTS)" value={fmtEur(results.article9DeductionEur)} />
             )}
             {results.netLiabilityEur !== undefined && (
               <ResultLine
