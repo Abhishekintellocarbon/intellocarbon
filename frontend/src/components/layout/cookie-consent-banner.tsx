@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Cookie, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCookieConsent } from "@/hooks/use-cookie-consent";
-import { CONSENT_OPEN_EVENT } from "@/lib/cookie-consent";
+import { CONSENT_OPEN_EVENT, type OptionalPreferences } from "@/lib/cookie-consent";
 import { isPublicRoute } from "@/lib/public-routes";
 
 const FOCUSABLE_SELECTOR =
@@ -24,16 +24,19 @@ export function CookieConsentBanner() {
   const pathname = usePathname();
   const { hydrated, hasDecided, consent, save } = useCookieConsent();
   const [managing, setManaging] = useState(false);
-  const [analytics, setAnalytics] = useState(false);
+  const [chosen, setChosen] = useState<OptionalPreferences>({ analytics: false, performance: false });
 
   // Nothing renders until the stored decision has been read on the client;
   // rendering the banner during SSR would flash it at visitors who already
   // decided, and would not match the server HTML on hydration.
   const visible = hydrated && !hasDecided && isPublicRoute(pathname);
 
-  // Seed the toggle from any prior decision each time the panel is opened.
+  // Seed the toggles from any prior decision each time the panel is opened.
   const openManage = useCallback(() => {
-    setAnalytics(consent?.preferences.analytics ?? false);
+    setChosen({
+      analytics: consent?.preferences.analytics ?? false,
+      performance: consent?.preferences.performance ?? false,
+    });
     setManaging(true);
   }, [consent]);
 
@@ -58,8 +61,8 @@ export function CookieConsentBanner() {
             <Cookie className="mt-0.5 hidden h-5 w-5 shrink-0 text-teal-500 sm:block" aria-hidden="true" />
             <p className="text-sm leading-relaxed text-[#8AA0B4]">
               <span className="font-medium text-[#E8F0F7]">We use cookies.</span> Essential cookies run
-              automatically — they keep you signed in and the site working. Non-essential cookies, which we use
-              only for anonymous analytics, run only if you agree. Read our{" "}
+              automatically — they keep you signed in and the site working. Non-essential ones, which we use
+              only for anonymous analytics and error diagnostics, run only if you agree. Read our{" "}
               <Link
                 href="/privacy"
                 className="rounded-sm font-medium text-teal-500 underline underline-offset-2 transition-colors hover:text-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -87,11 +90,11 @@ export function CookieConsentBanner() {
 
       {managing && (
         <CookiePreferencesDialog
-          analytics={analytics}
-          onAnalyticsChange={setAnalytics}
+          chosen={chosen}
+          onChange={setChosen}
           onClose={() => setManaging(false)}
           onSave={() => {
-            save("custom", analytics);
+            save("custom", chosen);
             setManaging(false);
           }}
         />
@@ -101,18 +104,13 @@ export function CookieConsentBanner() {
 }
 
 interface CookiePreferencesDialogProps {
-  analytics: boolean;
-  onAnalyticsChange: (value: boolean) => void;
+  chosen: OptionalPreferences;
+  onChange: (value: OptionalPreferences) => void;
   onClose: () => void;
   onSave: () => void;
 }
 
-function CookiePreferencesDialog({
-  analytics,
-  onAnalyticsChange,
-  onClose,
-  onSave,
-}: CookiePreferencesDialogProps) {
+function CookiePreferencesDialog({ chosen, onChange, onClose, onSave }: CookiePreferencesDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
 
@@ -192,8 +190,14 @@ function CookiePreferencesDialog({
           <CookieCategory
             title="Analytics"
             description="Plausible Analytics: anonymous, cookieless page-view statistics that tell us which pages are useful. No personal data, no cross-site tracking. Turned off means the Plausible script is never loaded."
-            checked={analytics}
-            onChange={onAnalyticsChange}
+            checked={chosen.analytics}
+            onChange={(analytics) => onChange({ ...chosen, analytics })}
+          />
+          <CookieCategory
+            title="Performance"
+            description="Sentry: diagnostic reports when a page errors or runs slowly, so we can fix it. Includes error details and page-load timings, with no personal data attached. Turned off means the Sentry script never starts and nothing is sent."
+            checked={chosen.performance}
+            onChange={(performance) => onChange({ ...chosen, performance })}
           />
         </div>
 

@@ -14,7 +14,7 @@ export const CONSENT_STORAGE_KEY = "intellocarbon.cookie-consent";
  * Bump it whenever a new non-essential category is added, because consent
  * given for the old set of categories is not consent for the new one.
  */
-export const CONSENT_VERSION = 1;
+export const CONSENT_VERSION = 2;
 
 /** Six months, after which we re-ask rather than assume the decision stands. */
 export const CONSENT_MAX_AGE_MS = 182 * 24 * 60 * 60 * 1000;
@@ -45,6 +45,8 @@ export interface ConsentPreferences {
   essential: true;
   /** Plausible Analytics. False unless the visitor actively opted in. */
   analytics: boolean;
+  /** Sentry monitoring (errors + performance tracing). Opt-in, like analytics. */
+  performance: boolean;
 }
 
 export interface StoredConsent {
@@ -56,12 +58,22 @@ export interface StoredConsent {
 }
 
 /** The state assumed before any valid decision exists: nothing optional runs. */
-export const DENY_ALL: ConsentPreferences = { essential: true, analytics: false };
+export const DENY_ALL: ConsentPreferences = { essential: true, analytics: false, performance: false };
 
-export const preferencesFor = (decision: ConsentDecision, analytics: boolean): ConsentPreferences => ({
-  essential: true,
-  analytics: decision === "accepted" ? true : decision === "rejected" ? false : analytics,
-});
+/** The optional categories, as chosen in the Manage dialog. */
+export interface OptionalPreferences {
+  analytics: boolean;
+  performance: boolean;
+}
+
+export const preferencesFor = (
+  decision: ConsentDecision,
+  chosen: OptionalPreferences,
+): ConsentPreferences => {
+  if (decision === "accepted") return { essential: true, analytics: true, performance: true };
+  if (decision === "rejected") return { essential: true, analytics: false, performance: false };
+  return { essential: true, analytics: chosen.analytics, performance: chosen.performance };
+};
 
 /**
  * Parses a raw localStorage value into a still-valid decision, or null if there
@@ -96,12 +108,17 @@ export function parseStoredConsent(raw: string | null, now: number = Date.now())
 
   if (typeof preferences !== "object" || preferences === null) return null;
   if (typeof preferences.analytics !== "boolean") return null;
+  if (typeof preferences.performance !== "boolean") return null;
 
   return {
     version: CONSENT_VERSION,
     decision,
     timestamp,
-    preferences: { essential: true, analytics: preferences.analytics },
+    preferences: {
+      essential: true,
+      analytics: preferences.analytics,
+      performance: preferences.performance,
+    },
   };
 }
 
@@ -117,12 +134,24 @@ export function readStoredConsent(): StoredConsent | null {
   }
 }
 
+/**
+ * Live consent check for code outside React — specifically Sentry's
+ * `beforeSend`, which has to re-check on every event so that withdrawing
+ * consent mid-session stops transmission from an already-initialised SDK.
+ */
+export function isPerformanceConsented(): boolean {
+  return readStoredConsent()?.preferences.performance === true;
+}
+
 /** Records a decision and notifies listeners in this tab. */
-export function writeStoredConsent(decision: ConsentDecision, analytics: boolean): StoredConsent {
+export function writeStoredConsent(
+  decision: ConsentDecision,
+  chosen: OptionalPreferences,
+): StoredConsent {
   const consent: StoredConsent = {
     version: CONSENT_VERSION,
     decision,
-    preferences: preferencesFor(decision, analytics),
+    preferences: preferencesFor(decision, chosen),
     timestamp: Date.now(),
   };
 

@@ -13,7 +13,7 @@ const record = (overrides: Record<string, unknown> = {}) =>
   JSON.stringify({
     version: CONSENT_VERSION,
     decision: "custom",
-    preferences: { essential: true, analytics: true },
+    preferences: { essential: true, analytics: true, performance: false },
     timestamp: NOW - 1000,
     ...overrides,
   });
@@ -23,6 +23,31 @@ describe("parseStoredConsent", () => {
     const parsed = parseStoredConsent(record(), NOW);
     expect(parsed?.decision).toBe("custom");
     expect(parsed?.preferences.analytics).toBe(true);
+    expect(parsed?.preferences.performance).toBe(false);
+  });
+
+  it("rejects a v1 record, which predates the Performance category", () => {
+    // Consent given for {essential, analytics} is not consent for Sentry, so a
+    // pre-Performance record must re-prompt rather than be silently migrated.
+    const v1 = JSON.stringify({
+      version: 1,
+      decision: "accepted",
+      preferences: { essential: true, analytics: true },
+      timestamp: NOW - 1000,
+    });
+    expect(parseStoredConsent(v1, NOW)).toBeNull();
+  });
+
+  it("rejects a record missing the performance flag", () => {
+    expect(
+      parseStoredConsent(record({ preferences: { essential: true, analytics: true } }), NOW),
+    ).toBeNull();
+    expect(
+      parseStoredConsent(
+        record({ preferences: { essential: true, analytics: true, performance: "on" } }),
+        NOW,
+      ),
+    ).toBeNull();
   });
 
   it("treats a missing or unparseable value as no decision", () => {
@@ -62,23 +87,42 @@ describe("parseStoredConsent", () => {
 
   it("always reports essential cookies as on", () => {
     const parsed = parseStoredConsent(
-      record({ decision: "rejected", preferences: { essential: false, analytics: false } }),
+      record({
+        decision: "rejected",
+        preferences: { essential: false, analytics: false, performance: false },
+      }),
       NOW,
     );
     expect(parsed?.preferences.essential).toBe(true);
     expect(parsed?.preferences.analytics).toBe(false);
+    expect(parsed?.preferences.performance).toBe(false);
   });
 });
 
 describe("preferencesFor", () => {
-  it("forces analytics on for accept-all and off for reject", () => {
-    expect(preferencesFor("accepted", false).analytics).toBe(true);
-    expect(preferencesFor("rejected", true).analytics).toBe(false);
+  it("turns every optional category on for accept-all", () => {
+    const prefs = preferencesFor("accepted", { analytics: false, performance: false });
+    expect(prefs.analytics).toBe(true);
+    expect(prefs.performance).toBe(true);
   });
 
-  it("honours the toggle for a custom choice", () => {
-    expect(preferencesFor("custom", true).analytics).toBe(true);
-    expect(preferencesFor("custom", false).analytics).toBe(false);
+  it("turns every optional category off for reject", () => {
+    const prefs = preferencesFor("rejected", { analytics: true, performance: true });
+    expect(prefs.analytics).toBe(false);
+    expect(prefs.performance).toBe(false);
+  });
+
+  it("keeps the two categories independent for a custom choice", () => {
+    expect(preferencesFor("custom", { analytics: true, performance: false })).toEqual({
+      essential: true,
+      analytics: true,
+      performance: false,
+    });
+    expect(preferencesFor("custom", { analytics: false, performance: true })).toEqual({
+      essential: true,
+      analytics: false,
+      performance: true,
+    });
   });
 });
 

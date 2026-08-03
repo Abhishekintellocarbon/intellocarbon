@@ -8,6 +8,7 @@ import {
   readStoredConsent,
   writeStoredConsent,
   type ConsentDecision,
+  type OptionalPreferences,
   type StoredConsent,
 } from "@/lib/cookie-consent";
 
@@ -22,11 +23,15 @@ export interface CookieConsentState {
   consent: StoredConsent | null;
   /** True once a valid, unexpired decision exists. */
   hasDecided: boolean;
-  /** The only question the script loaders need to ask. */
+  /** Gates the Plausible script tags. */
   analyticsAllowed: boolean;
-  save: (decision: ConsentDecision, analytics?: boolean) => void;
+  /** Gates Sentry browser-SDK initialisation. */
+  performanceAllowed: boolean;
+  save: (decision: ConsentDecision, chosen?: OptionalPreferences) => void;
   reopen: () => void;
 }
+
+const NOTHING_OPTIONAL: OptionalPreferences = { analytics: false, performance: false };
 
 /**
  * Subscribes to the stored consent decision. Updates arrive from three places:
@@ -58,8 +63,8 @@ export function useCookieConsent(): CookieConsentState {
     };
   }, []);
 
-  const save = useCallback((decision: ConsentDecision, analytics = false) => {
-    setConsent(writeStoredConsent(decision, analytics));
+  const save = useCallback((decision: ConsentDecision, chosen = NOTHING_OPTIONAL) => {
+    setConsent(writeStoredConsent(decision, chosen));
   }, []);
 
   const reopen = useCallback(() => {
@@ -72,6 +77,7 @@ export function useCookieConsent(): CookieConsentState {
     consent,
     hasDecided: hydrated && consent !== null,
     analyticsAllowed: hydrated && consent?.preferences.analytics === true,
+    performanceAllowed: hydrated && consent?.preferences.performance === true,
     save,
     reopen,
   };
