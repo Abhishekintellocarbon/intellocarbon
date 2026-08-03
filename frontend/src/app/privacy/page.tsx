@@ -72,6 +72,8 @@ const SECTIONS: { heading: string; blocks: Block[] }[] = [
           "A payment processor, for payment processing and billing",
           "An email delivery provider, for transactional email delivery (account notifications, compliance alerts, deadline reminders)",
           "Cloud hosting providers, for frontend and backend application hosting",
+          "An analytics provider (Plausible), for aggregate, cookieless page-view statistics on public pages — used only with your consent, as described in Section 8",
+          "An error and performance monitoring provider (Sentry), for diagnostic reports when a page or request fails — used in your browser only with your consent, as described in Section 8",
         ],
       },
       {
@@ -138,11 +140,43 @@ const SECTIONS: { heading: string; blocks: Block[] }[] = [
     ],
   },
   {
-    heading: "8. Cookies and Analytics",
+    heading: "8. Cookies, Analytics and Consent",
     blocks: [
       {
         type: "p",
-        text: "We use a privacy-focused analytics tool on our marketing pages to understand aggregate site usage. This tool does not use cookies or track individual users across sites. Analytics is not applied to authenticated platform routes or billing pages.",
+        text: "8.1 We group the technologies we use into three categories. Only the first runs automatically; the other two run solely if you have given consent for that category.",
+      },
+      {
+        type: "list",
+        items: [
+          "Essential — strictly necessary for the Platform to function: authenticating you and keeping you signed in, maintaining session security, and remembering the cookie choice described below. These cannot be switched off, as the Platform cannot be provided without them.",
+          "Analytics — Plausible Analytics, which produces aggregate page-view statistics for our public pages. It is cookieless, collects no personal data, and does not track individual users across sites. It is loaded only on public marketing pages, and never on authenticated Platform routes or billing pages.",
+          "Performance — Sentry, which reports diagnostic information when a page fails or performs poorly, so that we can identify and fix faults. Reports cover error details, page addresses (with sensitive query parameters removed) and load timings; we configure Sentry not to attach personally identifying request data.",
+        ],
+      },
+      {
+        type: "p",
+        text: "8.2 Consent is requested by a banner shown on our public pages on your first visit. Until you make a choice, and if you decline, neither the Analytics nor the Performance scripts are loaded or initialised at all — nothing is requested from those providers and no data is sent to them. Declining does not affect your ability to use any part of the Platform.",
+      },
+      {
+        type: "p",
+        text: "8.3 Your choice is recorded in your own browser's local storage, as a first-party record containing the categories you selected and the date of your decision. It is not a third-party cookie, is not transmitted to our servers, and is not used to identify you.",
+      },
+      {
+        type: "p",
+        text: "8.4 A recorded choice lasts six months, after which the banner reappears so that you can confirm or change it. If we add a new non-essential category, we ask again rather than applying your previous choice to it.",
+      },
+      {
+        type: "p",
+        text: "8.5 You can change or withdraw your consent at any time, and as easily as it was given, using the “Cookie settings” link in the site footer. Withdrawing consent stops the relevant data being collected or transmitted immediately. You can also clear your browser's site data, which erases the record and causes the banner to be shown again.",
+      },
+      {
+        type: "p",
+        text: "8.6 The Analytics and Performance categories are independent: consenting to one does not enable the other. Where you have consented to the Performance category, Sentry's diagnostic reporting applies across the Platform, including authenticated routes, so that faults you encounter while signed in can be diagnosed.",
+      },
+      {
+        type: "p",
+        text: "8.7 Separately from your browser, we operate server-side error monitoring on our own infrastructure. This observes our systems rather than storing information on your device, is necessary to run the Platform securely and reliably, and is therefore not covered by the consent banner.",
       },
     ],
   },
@@ -204,7 +238,7 @@ export default function PrivacyPage() {
         <p className="mx-auto mt-4 max-w-2xl text-balance text-[#8AA0B4] sm:text-lg">
           Intellocarbon Solutions Private Limited
         </p>
-        <p className="mt-2 text-sm text-[#8AA0B4]">Effective Date: 10 July 2026</p>
+        <p className="mt-2 text-sm text-[#8AA0B4]">Effective Date: 3 August 2026</p>
       </section>
 
       <main className="relative z-10 mx-auto max-w-3xl px-6 pb-24">
