@@ -14,6 +14,9 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
 // still catches other control bytes rather than relying on that alone), and
 // caps length defensively.
 const sanitizeFileName = (name: string): string =>
+  // Matching control characters is the point here — they are exactly what has
+  // to be stripped before the name reaches a Content-Disposition header.
+  // eslint-disable-next-line no-control-regex
   (name.replace(/["\x00-\x1f\x7f]/g, "_").trim() || "upload").slice(0, 255);
 
 export const uploadEvidenceDocument = async (
