@@ -27,11 +27,11 @@ export const CBAM_QUARTERS: CbamQuarter[] = [
   { quarter: 4, unlock: { month: 10, day: 1 }, deadline: { month: 10, day: 31 } },
 ];
 
-// EU Omnibus simplification (Regulation amendment, Oct 2025) moved the annual
-// CBAM declaration and certificate surrender deadline from 31 May to 30 Sept
-// of the year following the reporting year. First annual declaration under
-// this rule (covering 2026 imports) is due 30 September 2027.
-export const CBAM_ANNUAL_DECLARATION_DEADLINE: MonthDay = { month: 9, day: 30 };
+// The annual CBAM declaration and certificate surrender fall due on 31 May of
+// the year following the reporting year, a date set by the EU's 2025 Omnibus
+// simplification package. First annual declaration under this rule (covering
+// 2026 imports) is due 31 May 2027.
+export const CBAM_ANNUAL_DECLARATION_DEADLINE: MonthDay = { month: 5, day: 31 };
 export const CBAM_FIRST_ANNUAL_DECLARATION_YEAR = 2027;
 
 const dateFor = (year: number, md: MonthDay): Date => new Date(Date.UTC(year, md.month - 1, md.day, 23, 59, 59));
@@ -94,9 +94,9 @@ export const nextCctsDeadline = (now: Date): Date => {
 };
 
 /**
- * Next upcoming CBAM annual declaration deadline (30 Sept) on/after `now`.
+ * Next upcoming CBAM annual declaration deadline (31 May) on/after `now`.
  * Clamped to CBAM_FIRST_ANNUAL_DECLARATION_YEAR — the rule only takes effect
- * for 2026 imports onward, so there is no real 30 Sept 2026 deadline.
+ * for 2026 imports onward, so there is no real 31 May 2026 deadline.
  */
 export const nextCbamAnnualDeclarationDeadline = (now: Date): Date => {
   const year = now.getUTCFullYear();

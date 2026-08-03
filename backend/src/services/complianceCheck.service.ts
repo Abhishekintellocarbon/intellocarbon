@@ -183,11 +183,11 @@ const checkCbamDeadlineAlerts = async (company: CompanyWithRelations, now: Date)
 
 // --- 6/7. CBAM annual declaration 30-day warning + 7-day urgent alert -----
 //
-// EU Omnibus simplification (Oct 2025): the annual CBAM declaration and
-// certificate surrender covers a full reporting calendar year and is due 30
-// Sept of the *following* year — e.g. the declaration for 2026 imports is
-// due 30 Sept 2027 (see CBAM_ANNUAL_DECLARATION_DEADLINE). Distinct from the
-// quarterly filing alerts above.
+// The annual CBAM declaration and certificate surrender covers a full
+// reporting calendar year and is due 31 May of the *following* year — e.g. the
+// declaration for 2026 imports is due 31 May 2027 (see
+// CBAM_ANNUAL_DECLARATION_DEADLINE). Distinct from the quarterly filing alerts
+// above.
 
 const checkCbamAnnualDeclarationAlert = async (company: CompanyWithRelations, now: Date): Promise<void> => {
   if (company.facilities.length === 0) return;

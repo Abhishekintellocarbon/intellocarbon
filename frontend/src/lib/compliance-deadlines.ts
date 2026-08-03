@@ -41,11 +41,11 @@ const CBAM_QUARTERS: CbamQuarter[] = [
 const CBAM_TARGET_QUARTER_BY_UNLOCK_MONTH: Record<number, number> = { 1: 4, 4: 1, 7: 2, 10: 3 };
 
 /**
- * The EU Omnibus simplification moved the annual declaration and certificate
- * surrender deadline from 31 May to 30 Sept of the year following the reporting
- * year. First declaration under this rule (covering 2026 imports) is due 2027.
+ * The annual declaration and certificate surrender fall due on 31 May of the
+ * year following the reporting year, per the EU's 2025 Omnibus simplification
+ * package. First declaration under this rule (covering 2026 imports) is 2027.
  */
-const CBAM_ANNUAL_DECLARATION_DEADLINE: MonthDay = { month: 9, day: 30 };
+const CBAM_ANNUAL_DECLARATION_DEADLINE: MonthDay = { month: 5, day: 31 };
 const CBAM_FIRST_ANNUAL_DECLARATION_YEAR = 2027;
 
 const dateFor = (year: number, md: MonthDay): Date =>

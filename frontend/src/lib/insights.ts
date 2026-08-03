@@ -35,7 +35,7 @@ export const INSIGHTS: Insight[] = [
       {
         heading: "The certificate surrender date moved",
         paragraphs: [
-          "The annual declaration and financial certificate surrender for the 2026 reporting year fall due on 30 September 2027. That is later than originally legislated — the obligation previously landed on 31 May of the following year, and the EU's 2025 Omnibus simplification package pushed it back while reworking several other CBAM timelines and administrative thresholds.",
+          "Financial certificate surrender for the 2026 reporting year begins on 31 May 2027. That date is later than originally legislated: it was pushed back through the EU's 2025 Omnibus simplification package, which reworked several CBAM timelines and administrative thresholds at the same time.",
           "That extension is worth understanding correctly. It delays the moment money changes hands; it does not delay the moment your data has to be right. The emissions being surrendered against in 2027 are the emissions from goods you are shipping now, in 2026. Data quality problems discovered in 2027 cannot be fixed retroactively for shipments that have already left the port.",
         ],
       },
