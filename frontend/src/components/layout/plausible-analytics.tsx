@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { usePathname } from "next/navigation";
+import { useCookieConsent } from "@/hooks/use-cookie-consent";
 
 // Exact-match marketing routes — kept separate from the prefix list below so
 // adding a new authenticated top-level route (e.g. "/about-us-internal")
@@ -25,6 +26,15 @@ const isMarketingRoute = (pathname: string): boolean => {
 
 export function PlausibleAnalytics() {
   const pathname = usePathname();
+  const { analyticsAllowed } = useCookieConsent();
+
+  // Consent gate. Plausible is cookieless, but it is still non-essential, so
+  // nothing loads until the visitor has actively opted in — no stored consent,
+  // an expired one, or a "reject"/analytics-off choice all mean these <Script>
+  // tags are never rendered and plausible.io is never contacted. Because this
+  // is a conditional render rather than a runtime no-op, the tags also unmount
+  // if consent is withdrawn later in the same session.
+  if (!analyticsAllowed) return null;
   if (!pathname || !isMarketingRoute(pathname)) return null;
 
   // Privacy-friendly analytics by Plausible.

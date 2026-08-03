@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/auth-context";
 import { PlausibleAnalytics } from "@/components/layout/plausible-analytics";
+import { CookieConsentBanner } from "@/components/layout/cookie-consent-banner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-background text-foreground">
         <PlausibleAnalytics />
         <AuthProvider>{children}</AuthProvider>
+        <CookieConsentBanner />
       </body>
     </html>
   );

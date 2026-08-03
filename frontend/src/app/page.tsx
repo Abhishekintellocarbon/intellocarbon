@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
 import { HomeRedirectGate } from "@/components/marketing/home-redirect-gate";
+import { CookieSettingsLink } from "@/components/layout/cookie-settings-link";
 import { INSIGHTS } from "@/lib/insights";
 import type { ComplianceEvent } from "@/lib/compliance-deadlines";
 import {
@@ -450,6 +451,9 @@ export default function Home() {
                 <Link href="/privacy" className="text-sm text-muted-foreground hover:text-teal-500">
                   Privacy
                 </Link>
+              </li>
+              <li>
+                <CookieSettingsLink className="text-sm text-muted-foreground no-underline hover:text-teal-500" />
               </li>
               <li>
                 <span className="text-sm text-muted-foreground">notifications@intellocarbon.com</span>
