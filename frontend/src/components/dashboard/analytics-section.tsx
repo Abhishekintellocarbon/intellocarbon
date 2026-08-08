@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { companyApi } from "@/lib/api";
 import type { CompanyDashboardAnalytics } from "@/lib/types";
 import { ChartSkeleton } from "./shared/chart-skeleton";
@@ -11,6 +13,7 @@ import { CctsIntensityGauge } from "./ccts-intensity-gauge";
 import { FacilityComparisonChart } from "./facility-comparison-chart";
 import { YearOverYearCard } from "./year-over-year-card";
 import { EsgBrsrSection } from "./brsr/esg-brsr-section";
+import { LivePositionPanel } from "./esg/live-position-panel";
 
 /**
  * Company-wide analytics — inserted below the existing dashboard summary
@@ -60,7 +63,30 @@ export function AnalyticsSection() {
         </div>
       )}
 
-      {analytics?.brsr?.hasReports && <EsgBrsrSection brsr={analytics.brsr} />}
+      {/* Company-wide live position — the per-facility dashboard has its own
+          RecentActivityFeed, but this level had none. Rendered after the
+          charts so the numbers stay above the fold. */}
+      {analytics && (
+        <div className="mt-10">
+          <LivePositionPanel
+            items={analytics.livePosition}
+            description="What's changed across your CBAM and CCTS position, and what's coming up."
+          />
+        </div>
+      )}
+
+      {analytics?.brsr?.hasReports && (
+        <>
+          <EsgBrsrSection brsr={analytics.brsr} />
+          <Link
+            href="/esg/overview"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-teal-500 hover:text-teal-400"
+          >
+            Open the full ESG Overview
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </>
+      )}
     </div>
   );
 }

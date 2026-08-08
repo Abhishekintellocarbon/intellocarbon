@@ -22,9 +22,9 @@ const METHODOLOGY = [
 const WHY_CARDS = [
   {
     icon: Globe2,
-    title: "CBAM, CCTS & BRSR in one platform",
+    title: "CBAM, CCTS & ESG in one platform",
     description:
-      "Carbon border compliance, India's domestic carbon market, and SEBI BRSR ESG reporting — all from a single data entry point.",
+      "Carbon border compliance, India's domestic carbon market, and ESG disclosure — SEBI BRSR Core, ISSB IFRS S1/S2 and Scope 3 — all from a single data entry point.",
   },
   {
     icon: ShieldCheck,
@@ -81,8 +81,9 @@ export default function AboutPage() {
               CCTS BEE Forms, EPR filings, ESG reports — generated automatically.
             </p>
             <p className="mt-4 max-w-2xl text-sm text-[#8AA0B4]">
-              <span className="font-medium text-teal-500">BRSR Core is live today</span> on the platform. Broader
-              ESG frameworks — GRI, ISSB IFRS S1/S2, CSRD, and CDP — are in active development.
+              Under the ESG pillar,{" "}
+              <span className="font-medium text-teal-500">BRSR Core, ISSB IFRS S1/S2 and Scope 3 are live today</span>{" "}
+              on the platform. Broader ESG frameworks — GRI, CSRD, and CDP — are in active development.
             </p>
 
             <div className="mt-12 grid gap-8 sm:grid-cols-2 sm:items-start">

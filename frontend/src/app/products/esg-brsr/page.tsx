@@ -8,7 +8,7 @@ import {
 } from "@/components/marketing/product-page";
 
 export const metadata: Metadata = {
-  title: "ESG & BRSR Reporting — Intellocarbon",
+  title: "ESG Disclosure — BRSR Core, ISSB IFRS S1/S2, Scope 3 | Intellocarbon",
   description:
     "BRSR Core, ISSB IFRS S1/S2 and full Scope 1-2-3 accounting engineered from a single data foundation, built to scale as global disclosure standards evolve.",
 };

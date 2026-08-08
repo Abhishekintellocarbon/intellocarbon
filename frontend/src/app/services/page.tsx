@@ -8,7 +8,7 @@ import { ToolFooter } from "@/components/intellocalc/tool-footer";
 export const metadata: Metadata = {
   title: "Services — Intellocarbon",
   description:
-    "CBAM compliance, CCTS compliance, BRSR Core / ESG reporting, and free IntelloCalc calculators — all from one Intellocarbon platform.",
+    "CBAM compliance, CCTS compliance, ESG disclosure (BRSR Core, ISSB IFRS S1/S2, Scope 3), and free IntelloCalc calculators — all from one Intellocarbon platform.",
 };
 
 const SERVICES = [
@@ -32,11 +32,13 @@ const SERVICES = [
   },
   {
     icon: Leaf,
-    title: "BRSR Core / ESG Reporting",
+    title: "ESG Disclosure",
     description:
-      "SEBI's mandatory Business Responsibility and Sustainability Reporting, built to reuse the GHG data you've already entered for CBAM and CCTS — only 8 additional ESG attributes to complete.",
-    href: "/products/esg-brsr",
+      "One bundle for the frameworks your investors and regulators ask for — SEBI BRSR Core, ISSB IFRS S1/S2, and Scope 3 value-chain emissions. Built to reuse the GHG data you've already entered for CBAM and CCTS, so BRSR Core needs only 8 additional ESG attributes.",
+    href: "/esg",
     cta: "Explore ESG",
+    secondaryHref: "/products/esg-brsr",
+    secondaryCta: "See BRSR Core in detail",
   },
   {
     icon: Calculator,
@@ -62,7 +64,7 @@ export default function ServicesPage() {
           Everything you need, one platform
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-balance text-[#8AA0B4] sm:text-lg">
-          CBAM, CCTS, BRSR Core and free calculators — from a single data entry point, built for Indian industry.
+          CBAM, CCTS, ESG disclosure and free calculators — from a single data entry point, built for Indian industry.
         </p>
       </section>
 
