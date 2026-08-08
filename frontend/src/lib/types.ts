@@ -1031,8 +1031,25 @@ export interface CompanyBrsrAnalytics {
   facilityComparison: CompanyBrsrFacilityComparisonPoint[];
 }
 
+/**
+ * "Live position" strip item — mirrors backend/src/services/livePosition.helpers.ts.
+ * Every item is computed from real data; the backend omits anything it can't
+ * compute, so the frontend never has to render a placeholder.
+ */
+export interface LivePositionItem {
+  id: string;
+  kind: "DATA_UPDATE" | "DEADLINE" | "TREND" | "PRICE";
+  label: string;
+  detail: string;
+  timestamp: string | null;
+  deltaPct?: number;
+  lowerIsBetter?: boolean;
+  href?: string;
+}
+
 export interface CompanyDashboardAnalytics {
   facilityCount: number;
+  livePosition: LivePositionItem[];
   emissionsTrend: CompanyEmissionsTrendPoint[];
   liabilityTrend: CompanyLiabilityTrendPoint[];
   currentCertificatePrice: { pricePerTonneEur: number; quarterLabel: string };
@@ -1042,6 +1059,64 @@ export interface CompanyDashboardAnalytics {
   yearOverYear: CompanyYearOverYear;
   // null when the company has no active BRSR Core subscription.
   brsr: CompanyBrsrAnalytics | null;
+}
+
+// --- Unified ESG Overview (/esg) ---
+// Mirrors backend/src/services/esgOverview.service.ts.
+
+export interface EsgFrameworkCompleteness {
+  periodLabel: string | null;
+  complete: number;
+  total: number;
+  requirements: { key: string; label: string; complete: boolean }[];
+}
+
+export interface EsgIssbSummary {
+  hasReports: boolean;
+  periodLabel: string | null;
+  facilitiesReporting: number;
+  scope1Tco2e: number;
+  scope2Tco2e: number;
+  scope3Tco2e: number | null;
+  totalTco2e: number;
+  nearestTargetYear: number | null;
+  baselineYear: number | null;
+  baselineEmissionsTco2e: number | null;
+  changeFromBaselinePct: number | null;
+}
+
+export interface EsgScope3CategoryBreakdownEntry {
+  category: number;
+  name: string;
+  prismaCategory: string;
+  relevance: Scope3Relevance;
+  tco2e: number;
+  pct: number;
+  entryCount: number;
+}
+
+export interface EsgScope3Summary {
+  hasData: boolean;
+  periodLabel: string | null;
+  totalTco2e: number;
+  categories: EsgScope3CategoryBreakdownEntry[];
+  mandatoryCalculableCount: number;
+  mandatoryCalculableDisclosed: number;
+}
+
+export interface EsgOverview {
+  companyName: string;
+  facilityCount: number;
+  currentFyLabel: string;
+  brsr: CompanyBrsrAnalytics;
+  issb: EsgIssbSummary;
+  scope3: EsgScope3Summary;
+  completeness: {
+    brsr: EsgFrameworkCompleteness;
+    issb: EsgFrameworkCompleteness;
+    scope3: EsgFrameworkCompleteness;
+  };
+  livePosition: LivePositionItem[];
 }
 
 export interface FacilityDocument {

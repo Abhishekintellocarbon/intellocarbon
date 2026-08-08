@@ -1,4 +1,4 @@
-import type { BusinessModel, OwnershipModel, Scope3Relevance, Sector } from "@prisma/client";
+import type { BusinessModel, Company, OwnershipModel, Scope3Relevance, Sector } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { requireEsgBundleAccess } from "./esgBundleAccess.service";
@@ -109,6 +109,38 @@ const loadSectorBaseline = async (sector: Sector) => {
 };
 
 /**
+ * The relevance resolution itself, against an already-loaded company record —
+ * split out from getScope3RelevanceForCompany so callers that have their own
+ * company row and their own access gate (the ESG Overview aggregate, which
+ * needs the mandatory-category list to score Scope 3 completeness) can reuse
+ * the exact same determination instead of re-deriving it. This performs no
+ * ownership or subscription check of its own; the exported endpoint below
+ * still does both.
+ */
+export const resolveScope3Relevance = async (
+  company: Pick<Company, "sector" | "ownershipModel" | "businessModel">,
+): Promise<ResolvedCategoryRelevance[]> => {
+  const baseline = await loadSectorBaseline(company.sector);
+
+  return SCOPE3_CATEGORY_CATALOG.map((entry) => {
+    const row = baseline.get(entry.number) ?? {
+      relevance: "OPTIONAL" as Scope3Relevance,
+      reasoning: "No sector-level materiality guidance is recorded for this category — assess and report if material.",
+    };
+    const resolved = applyCompanyOverrides(entry.number, row, company.ownershipModel, company.businessModel);
+
+    return {
+      category: entry.number,
+      name: entry.name,
+      prismaCategory: entry.prismaCategory,
+      calculable: entry.calculable,
+      relevance: resolved.relevance,
+      reasoning: resolved.reasoning,
+    };
+  });
+};
+
+/**
  * All 15 categories tagged MANDATORY / OPTIONAL / NOT_APPLICABLE for one
  * company, from its sector plus its ownership and business model. Read-only
  * — this never writes and never touches Scope3Data.
@@ -126,30 +158,11 @@ export const getScope3RelevanceForCompany = async (userId: string, companyId: st
   }
   await requireEsgBundleAccess(company.id);
 
-  const baseline = await loadSectorBaseline(company.sector);
-
-  const categories: ResolvedCategoryRelevance[] = SCOPE3_CATEGORY_CATALOG.map((entry) => {
-    const row = baseline.get(entry.number) ?? {
-      relevance: "OPTIONAL" as Scope3Relevance,
-      reasoning: "No sector-level materiality guidance is recorded for this category — assess and report if material.",
-    };
-    const resolved = applyCompanyOverrides(entry.number, row, company.ownershipModel, company.businessModel);
-
-    return {
-      category: entry.number,
-      name: entry.name,
-      prismaCategory: entry.prismaCategory,
-      calculable: entry.calculable,
-      relevance: resolved.relevance,
-      reasoning: resolved.reasoning,
-    };
-  });
-
   return {
     companyId: company.id,
     sector: company.sector,
     ownershipModel: company.ownershipModel,
     businessModel: company.businessModel,
-    categories,
+    categories: await resolveScope3Relevance(company),
   };
 };

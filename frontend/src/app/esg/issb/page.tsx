@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Factory, Loader2, MapPin, Plus } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Factory, Loader2, MapPin, Plus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -28,6 +28,14 @@ function IssbFacilitySelectorContent() {
       <AppHeader />
 
       <main className="mx-auto max-w-4xl px-6 py-10">
+        <Link
+          href="/esg/overview"
+          className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-teal-500"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to ESG Overview
+        </Link>
+
         <div className="mb-8 flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-teal-blue">
             <BadgeCheck className="h-5 w-5 text-[#06120F]" />

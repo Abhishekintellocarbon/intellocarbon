@@ -5,7 +5,9 @@ import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
 import { buildBrsrCoreMetrics, type BrsrCoreMetrics } from "./brsrCalculation.service";
 import type { ReportContext } from "./report.service";
 import { getCbamCertificatePrice } from "../data/cbamReferenceData";
+import { nextCbamDeadline, nextCctsDeadline } from "../data/complianceDeadlines";
 import { round, quarterLabel, quarterSortKey, periodLabel, seeUnitFor, cctsTone } from "./dashboardShared.helpers";
+import { buildDeadlineItem, sortLivePosition, type LivePositionItem } from "./livePosition.helpers";
 
 type BrsrReportWithFacility = BrsrCoreReport & { facility: Facility };
 
@@ -18,7 +20,7 @@ type BrsrReportWithFacility = BrsrCoreReport & { facility: Facility };
  * gate passes, so a company that never bought the module never pays for
  * these queries either.
  */
-const getCompanyBrsrAnalytics = async (
+export const getCompanyBrsrAnalytics = async (
   facilities: Facility[],
   company: Pick<Company, "annualTurnoverInr" | "reportingFyStartMonth">,
 ) => {
@@ -387,8 +389,78 @@ export const getCompanyAnalytics = async (userId: string) => {
   });
   const brsr = brsrSubscription ? await getCompanyBrsrAnalytics(facilities, company) : null;
 
+  // ---- Live position — the CBAM/CCTS counterpart of the ESG Overview's
+  // strip. The per-facility dashboard already has its own recent-activity
+  // feed (facilityDashboard.service.ts); this is the company-wide view,
+  // which had none. Same rule as the ESG one: an item with no real data
+  // behind it is omitted, never stubbed.
+  const livePosition: LivePositionItem[] = [];
+
+  if (entries.length > 0) {
+    // `entries` is ordered by periodEnd; the most recently *touched* row is
+    // what "last updated" means to a user, so pick by updatedAt explicitly.
+    const mostRecentlyUpdated = entries.reduce((latest, e) => (e.updatedAt > latest.updatedAt ? e : latest), entries[0]);
+    livePosition.push({
+      id: "compliance-last-update",
+      kind: "DATA_UPDATE",
+      label: "Activity data submitted",
+      detail: `${mostRecentlyUpdated.facility.name} — ${periodLabel(mostRecentlyUpdated.periodStart!, mostRecentlyUpdated.periodEnd!)}`,
+      timestamp: mostRecentlyUpdated.updatedAt.toISOString(),
+    });
+  }
+
+  if (company.appliesCbam) {
+    const item = buildDeadlineItem({
+      id: "compliance-cbam-deadline",
+      label: "Next CBAM quarterly report deadline",
+      date: nextCbamDeadline(now),
+      now,
+      detailPrefix: "Due",
+      href: "/facilities",
+    });
+    if (item) livePosition.push(item);
+  }
+  if (company.appliesCcts) {
+    const item = buildDeadlineItem({
+      id: "compliance-ccts-deadline",
+      label: "Next CCTS compliance deadline",
+      date: nextCctsDeadline(now),
+      now,
+      detailPrefix: "Due",
+      href: "/facilities",
+    });
+    if (item) livePosition.push(item);
+  }
+
+  // The certificate price is live config (admin-editable, see the Emission
+  // Factor Manager), so a change to it genuinely moves the company's
+  // liability — worth surfacing alongside the deadlines.
+  if (financials.length > 0) {
+    livePosition.push({
+      id: "compliance-cert-price",
+      kind: "PRICE",
+      label: `CBAM certificate price €${currentCertPrice.pricePerTonneEur.toLocaleString("en-IN")}/tCO2e`,
+      detail: `Applied to your ${currentCertPrice.quarterLabel} liability`,
+      timestamp: null,
+      href: "/billing",
+    });
+  }
+
+  if (yearOverYear.hasData && yearOverYear.emissionsDeltaPct != null && yearOverYear.emissionsDeltaPct !== 0) {
+    livePosition.push({
+      id: "compliance-yoy-emissions",
+      kind: "TREND",
+      label: `Emissions ${yearOverYear.emissionsDeltaPct < 0 ? "down" : "up"} ${Math.abs(yearOverYear.emissionsDeltaPct)}% year on year`,
+      detail: `${yearOverYear.thisYear.emissionsTco2e.toLocaleString("en-IN")} tCO2e year-to-date vs ${yearOverYear.lastYear.emissionsTco2e.toLocaleString("en-IN")} tCO2e in the same window last year`,
+      timestamp: null,
+      deltaPct: yearOverYear.emissionsDeltaPct,
+      lowerIsBetter: true,
+    });
+  }
+
   return {
     facilityCount: facilities.length,
+    livePosition: sortLivePosition(livePosition),
     emissionsTrend,
     liabilityTrend,
     currentCertificatePrice: { pricePerTonneEur: currentCertPrice.pricePerTonneEur, quarterLabel: currentCertPrice.quarterLabel },

@@ -3,6 +3,7 @@ import type {
   CheckoutResult,
   Company,
   CompanyDashboardAnalytics,
+  EsgOverview,
   EmissionFactorReference,
   Facility,
   PlanDefinition,
@@ -299,6 +300,10 @@ export const companyApi = {
     apiFetch("/api/company", { method: "PUT", body: JSON.stringify(input) }),
 
   dashboard: (): Promise<{ analytics: CompanyDashboardAnalytics }> => apiFetch("/api/company/dashboard"),
+
+  // 403 ESG_BUNDLE_NOT_SUBSCRIBED when the company doesn't hold the ESG
+  // Disclosure Bundle — the overview page renders an upsell for that case.
+  esgOverview: (): Promise<{ overview: EsgOverview }> => apiFetch("/api/company/esg-overview"),
 };
 
 export const facilityApi = {
