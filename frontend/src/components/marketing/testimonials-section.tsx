@@ -24,6 +24,17 @@ import { SUPPORTED_SECTORS, TESTIMONIALS, type Testimonial } from "@/lib/testimo
 
 const AUTO_ADVANCE_MS = 6000;
 
+/**
+ * Watched by the site-wide "Free Tools" FAB (IntelloCalcToolsPanel), which
+ * hides while this section is in view. The FAB is fixed to the bottom-right on
+ * mobile and would otherwise sit on top of a card's lower-right corner —
+ * exactly the collision the inline IntelloCalc CTA already avoids this way.
+ *
+ * Exported rather than duplicated as a string literal so the section and the
+ * FAB cannot drift apart.
+ */
+export const SOCIAL_PROOF_SECTION_ID = "social-proof";
+
 export function TestimonialsSection() {
   if (TESTIMONIALS.length === 0) {
     return <CapabilityStatement />;
@@ -42,7 +53,7 @@ export function TestimonialsSection() {
  */
 function CapabilityStatement() {
   return (
-    <section className="relative z-10 mx-auto max-w-6xl px-6 pb-20 text-center">
+    <section id={SOCIAL_PROOF_SECTION_ID} className="relative z-10 mx-auto max-w-6xl px-6 pb-20 text-center">
       <h2 className="text-[28px] font-semibold sm:text-[32px]">Built for India&apos;s obligated exporters</h2>
       <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
         The calculation engine covers the sectors that carry CBAM and CCTS obligations — with the same activity
@@ -152,6 +163,7 @@ function TestimonialCarousel({ testimonials }: { testimonials: Testimonial[] }) 
 
   return (
     <section
+      id={SOCIAL_PROOF_SECTION_ID}
       className="relative z-10 mx-auto max-w-6xl px-6 pb-20"
       aria-roledescription="carousel"
       aria-label="Client testimonials"

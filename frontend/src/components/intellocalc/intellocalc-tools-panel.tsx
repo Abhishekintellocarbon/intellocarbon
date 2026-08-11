@@ -3,12 +3,27 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Globe2, MapPinned, ListChecks, Calculator, X } from "lucide-react";
+import { SOCIAL_PROOF_SECTION_ID } from "@/components/marketing/testimonials-section";
 
 // Matches the id on the homepage-only inline "Try IntelloCalc" card
 // (components/marketing/intellocalc-floating-cta.tsx) — the mobile FAB below hides
 // while that card is in view so the two floating CTAs never visually stack.
 // Harmless no-op on every other page, which doesn't render that id.
 const MOBILE_CTA_CARD_ID = "mobile-intellocalc-cta";
+
+/**
+ * Sections the mobile FAB hides over. The FAB is fixed bottom-right, so
+ * anything it would land on top of goes here.
+ *
+ * The social-proof section was added because the FAB sat over a testimonial
+ * card's lower-right corner at mobile widths. Padding the section wouldn't
+ * fix it — the FAB is fixed, so it floats over whatever is beneath it at any
+ * scroll position, not just at the section's end.
+ *
+ * Every id is optional at runtime: a page that doesn't render one is simply
+ * not observed.
+ */
+const HIDE_FAB_OVER_IDS = [MOBILE_CTA_CARD_ID, SOCIAL_PROOF_SECTION_ID];
 
 const TOOLS = [
   {
@@ -42,10 +57,24 @@ export function IntelloCalcToolsPanel() {
   const [hideFab, setHideFab] = useState(false);
 
   useEffect(() => {
-    const target = document.getElementById(MOBILE_CTA_CARD_ID);
-    if (!target) return;
-    const observer = new IntersectionObserver(([entry]) => setHideFab(entry.isIntersecting));
-    observer.observe(target);
+    const targets = HIDE_FAB_OVER_IDS.map((id) => document.getElementById(id)).filter(
+      (el): el is HTMLElement => el !== null,
+    );
+    if (targets.length === 0) return;
+
+    // One observer over all targets, tracking which are currently on screen —
+    // a shared boolean would let whichever section scrolled out last clear the
+    // flag while another is still in view, flashing the FAB back on top of it.
+    const visible = new Set<Element>();
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) visible.add(entry.target);
+        else visible.delete(entry.target);
+      }
+      setHideFab(visible.size > 0);
+    });
+
+    targets.forEach((target) => observer.observe(target));
     return () => observer.disconnect();
   }, []);
 
