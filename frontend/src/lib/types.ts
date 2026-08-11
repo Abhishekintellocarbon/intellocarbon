@@ -195,6 +195,13 @@ export interface EmissionBreakdown {
   };
   sector: Sector;
   seeUnit: string;
+  /**
+   * `ar4` is a stored key inside the persisted `breakdown` Json column, not a
+   * live API field — it keeps the old spelling (the table it holds has always
+   * been AR2/BUR3) so historical rows still parse. Same for every co2eAr4 /
+   * gwpAr4 above. The DB-column-backed fields on EmissionCalculationResult
+   * below were renamed to Ar2Bur3; these deliberately were not.
+   */
   gwpTables: { ar4: GwpTable; ar5: GwpTable };
 }
 
@@ -202,19 +209,19 @@ export interface EmissionCalculationResult {
   id: string;
   activityDataId: string;
   directCombustionCo2eAr5: number;
-  directCombustionCo2eAr4: number;
+  directCombustionCo2eAr2Bur3: number;
   directProcessCo2e: number;
   directPrecursorCo2e: number;
   directPfcCo2eAr5: number;
-  directPfcCo2eAr4: number;
+  directPfcCo2eAr2Bur3: number;
   directN2oProcessCo2eAr5: number;
-  directN2oProcessCo2eAr4: number;
+  directN2oProcessCo2eAr2Bur3: number;
   indirectElectricityCo2e: number;
   indirectSteamCo2e: number;
   totalDirectCo2eAr5: number;
-  totalDirectCo2eAr4: number;
+  totalDirectCo2eAr2Bur3: number;
   totalEmissionsCbamAr5: number;
-  totalEmissionsCctsAr4: number;
+  totalEmissionsCctsAr2Bur3: number;
   specificEmbeddedEmissionsCbam: number;
   ghgIntensityCcts: number;
   gridEmissionFactorUsed: number;
@@ -509,7 +516,7 @@ export interface EmissionFactorReference {
   precursors: PrecursorDefinition[];
   defaultGridEmissionFactor: number;
   defaultSteamEmissionFactor: number;
-  gwpTables: { ar4: GwpTable; ar5: GwpTable };
+  gwpTables: { ar2Bur3: GwpTable; ar5: GwpTable };
   enums: {
     sector: ReferenceOption[];
     facilityType: ReferenceOption[];

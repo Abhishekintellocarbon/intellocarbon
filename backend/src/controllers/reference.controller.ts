@@ -50,7 +50,7 @@ export const getEmissionFactorReference = asyncHandler(async (_req, res) => {
     precursors: Object.values(PRECURSOR_LIBRARY),
     defaultGridEmissionFactor: getGridEmissionFactor(),
     defaultSteamEmissionFactor: DEFAULT_STEAM_EMISSION_FACTOR,
-    gwpTables: { ar4: GWP_AR2_BUR3, ar5: GWP_AR5 },
+    gwpTables: { ar2Bur3: GWP_AR2_BUR3, ar5: GWP_AR5 },
     enums: {
       sector: enumOptions(Sector),
       facilityType: enumOptions(FacilityType),

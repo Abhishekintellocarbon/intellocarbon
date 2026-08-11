@@ -69,7 +69,7 @@ export const rollupFacilityGhgForFy = async (facilityId: string, window: BrsrFyW
   for (const entry of entries) {
     if (entry.calculationResult) {
       // AR2/BUR3 (CCTS) basis, per the brief — NOT the AR5/CBAM columns.
-      scope1Co2e += entry.calculationResult.totalDirectCo2eAr4;
+      scope1Co2e += entry.calculationResult.totalDirectCo2eAr2Bur3;
       scope2Co2e += entry.calculationResult.indirectElectricityCo2e + entry.calculationResult.indirectSteamCo2e;
     }
     productionQuantityT += entry.productionQuantityT ?? 0;

@@ -811,27 +811,34 @@ model EmissionCalculationResult {
   activityDataId String       @unique
   activityData   ActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
 
-  directCombustionCo2eAr5 Float
-  directCombustionCo2eAr4 Float
-  directProcessCo2e       Float
-  directPrecursorCo2e     Float
+  // The CCTS-basis fields are named Ar2Bur3 after the GWP table they actually
+  // apply (IPCC AR2, as gazetted under S.O. 2825(E) / BUR3 — never AR4). They
+  // were originally misnamed Ar4, which is why every one of them carries an
+  // @map back to its original physical column: the rename is a code-level
+  // correction only, so no migration runs and no existing row is rewritten.
+  // Rename the columns for real only alongside a data-preserving
+  // ALTER TABLE ... RENAME COLUMN migration.
+  directCombustionCo2eAr5     Float
+  directCombustionCo2eAr2Bur3 Float @map("directCombustionCo2eAr4")
+  directProcessCo2e           Float
+  directPrecursorCo2e         Float
 
   // PFC (aluminium) and process N2O (fertilizer nitric acid) need dual-GWP
   // treatment like combustion CH4/N2O, so — unlike calcination/feedstock
   // carbon, which are CO2-only and fold into directProcessCo2e — they get
   // their own AR5/AR2-BUR3 columns.
-  directPfcCo2eAr5        Float @default(0)
-  directPfcCo2eAr4        Float @default(0)
-  directN2oProcessCo2eAr5 Float @default(0)
-  directN2oProcessCo2eAr4 Float @default(0)
+  directPfcCo2eAr5            Float @default(0)
+  directPfcCo2eAr2Bur3        Float @default(0) @map("directPfcCo2eAr4")
+  directN2oProcessCo2eAr5     Float @default(0)
+  directN2oProcessCo2eAr2Bur3 Float @default(0) @map("directN2oProcessCo2eAr4")
 
   indirectElectricityCo2e Float
   indirectSteamCo2e       Float
 
-  totalDirectCo2eAr5    Float
-  totalDirectCo2eAr4    Float
-  totalEmissionsCbamAr5 Float
-  totalEmissionsCctsAr4 Float
+  totalDirectCo2eAr5        Float
+  totalDirectCo2eAr2Bur3    Float @map("totalDirectCo2eAr4")
+  totalEmissionsCbamAr5     Float
+  totalEmissionsCctsAr2Bur3 Float @map("totalEmissionsCctsAr4")
 
   specificEmbeddedEmissionsCbam Float
   ghgIntensityCcts              Float
