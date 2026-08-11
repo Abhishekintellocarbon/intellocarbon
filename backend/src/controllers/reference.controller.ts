@@ -11,6 +11,7 @@ import {
   CEMENT_CALCINATION_EMISSION_FACTOR,
 } from "../data/emissionFactors";
 import { GWP_AR2_BUR3, GWP_AR5 } from "../data/gwpTables";
+import { WATER_SOURCE_LIBRARY } from "../data/waterFactors";
 import {
   CN_CODES_BY_SECTOR,
   SECTOR_FACILITY_TYPES,
@@ -51,6 +52,9 @@ export const getEmissionFactorReference = asyncHandler(async (_req, res) => {
     defaultGridEmissionFactor: getGridEmissionFactor(),
     defaultSteamEmissionFactor: DEFAULT_STEAM_EMISSION_FACTOR,
     gwpTables: { ar2Bur3: GWP_AR2_BUR3, ar5: GWP_AR5 },
+    // ISO 14046 water sources for the optional water inventory section of the
+    // activity-data form — same shape/role as `fuels` above.
+    waterSources: Object.values(WATER_SOURCE_LIBRARY),
     enums: {
       sector: enumOptions(Sector),
       facilityType: enumOptions(FacilityType),

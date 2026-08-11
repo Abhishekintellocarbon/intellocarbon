@@ -753,6 +753,12 @@ model ActivityData {
   fuelEntries            FuelEntry[]
   processMaterialEntries ProcessMaterialEntry[]
   precursorEntries       PrecursorEntry[]
+  // Optional ISO 14046 water inventory for the same period. Deliberately a
+  // child of ActivityData rather than its own facility-period table: water is
+  // measured over the same period and divided by the same production quantity
+  // as the GHG figures, so a separate table would duplicate periodStart /
+  // periodEnd / productionQuantityT and let the two drift apart.
+  waterEntries           WaterEntry[]
   calculationResult      EmissionCalculationResult?
   verificationRequest    VerificationRequest?
   // Supporting evidence (bills/invoices) backing this submission — an empty
@@ -804,6 +810,34 @@ model PrecursorEntry {
 
   @@index([activityDataId])
   @@map("precursor_entries")
+}
+
+// One measured water source for a reporting period — the ISO 14046 inventory
+// line item, mirroring FuelEntry's shape (typed key validated against a code
+// library, quantity, optional factor override).
+//
+// Volumes are m³. Withdrawal and discharge are both *measured* inputs;
+// consumption is deliberately NOT a column — under ISO 14046 it is definitionally
+// withdrawal minus discharge, and storing it too would let a facility submit a
+// triple that doesn't balance. It is derived in waterCalculation.service.ts,
+// which is also how BRSR Core's water disclosure already derives it.
+model WaterEntry {
+  id                       String       @id @default(cuid())
+  activityDataId           String
+  activityData             ActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  // Validated against WATER_SOURCE_LIBRARY (data/waterFactors.ts) at the
+  // app layer, exactly as FuelEntry.fuelType is against FUEL_LIBRARY —
+  // a String rather than an enum so adding a source is a code-only change.
+  sourceType               String
+  withdrawnM3              Float
+  dischargedM3             Float        @default(0)
+  // Per-line override of the source's freshwaterFactor, for the real case of
+  // a municipal supply that is itself partly reclaimed water.
+  freshwaterFactorOverride Float?
+  createdAt                DateTime     @default(now())
+
+  @@index([activityDataId])
+  @@map("water_entries")
 }
 
 model EmissionCalculationResult {

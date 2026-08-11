@@ -12,6 +12,7 @@ import { DisclosureCompletenessStrip } from "@/components/dashboard/esg/disclosu
 import { LivePositionPanel } from "@/components/dashboard/esg/live-position-panel";
 import { IssbSummaryCard } from "@/components/dashboard/esg/issb-summary-card";
 import { Scope3BreakdownChart } from "@/components/dashboard/esg/scope3-breakdown-chart";
+import { WaterFootprintCard } from "@/components/dashboard/esg/water-footprint-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
 import { EnergyCompositionChart } from "@/components/dashboard/brsr/energy-composition-chart";
@@ -135,6 +136,21 @@ function EsgOverviewContent() {
                     <BrsrFacilityComparisonChart data={overview.brsr.facilityComparison} />
                   </div>
                 )}
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Water footprint</h2>
+                <span className="text-xs text-muted-foreground">ISO 14046</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Withdrawal, consumption and discharge from the water inventory captured alongside your activity
+                data — same reporting periods and production quantities as your GHG figures.
+              </p>
+
+              <div className="mt-4">
+                <WaterFootprintCard water={overview.water} />
               </div>
             </section>
 

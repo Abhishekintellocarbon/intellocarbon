@@ -48,6 +48,12 @@ export interface Company {
   createdAt: string;
   updatedAt: string;
   _count?: { facilities: number };
+  /**
+   * Whether the company holds the ESG Disclosure Bundle. Returned by
+   * GET /api/company/me and used to decide whether to offer the optional
+   * water inventory section — the authoritative gate stays server-side.
+   */
+  esgBundleActive?: boolean;
 }
 
 export interface Facility {
@@ -229,6 +235,59 @@ export interface EmissionCalculationResult {
   calculatedAt: string;
 }
 
+/** One measured water source for a period — ISO 14046 inventory line. */
+export interface WaterEntry {
+  id: string;
+  sourceType: string;
+  withdrawnM3: number;
+  dischargedM3: number;
+  freshwaterFactorOverride: number | null;
+}
+
+export interface WaterSourceDefinition {
+  key: string;
+  label: string;
+  category: "FRESHWATER" | "RECLAIMED";
+  freshwaterFactor: number;
+  source: string;
+  description: string;
+}
+
+export interface WaterSourceBreakdownEntry {
+  sourceType: string;
+  label: string;
+  category: string;
+  withdrawnM3: number;
+  dischargedM3: number;
+  consumedM3: number;
+  freshwaterWithdrawnM3: number;
+  freshwaterFactorApplied: number;
+  pctOfWithdrawal: number;
+}
+
+/**
+ * Derived on read by the backend, never stored — see
+ * waterCalculation.service.ts. Consumption is withdrawal minus discharge.
+ */
+export interface WaterFootprint {
+  hasData: boolean;
+  unit: string;
+  totalWithdrawnM3: number;
+  totalDischargedM3: number;
+  totalConsumedM3: number;
+  freshwaterWithdrawnM3: number;
+  recycledSharePct: number;
+  waterIntensityM3PerTonne: number | null;
+  withdrawalIntensityM3PerTonne: number | null;
+  sources: WaterSourceBreakdownEntry[];
+  hasDischargeExceedingWithdrawal: boolean;
+}
+
+export interface WaterFootprintRollup extends WaterFootprint {
+  entriesWithWater: number;
+  facilitiesReporting: number;
+}
+
 export interface ActivityData {
   id: string;
   facilityId: string;
@@ -270,7 +329,10 @@ export interface ActivityData {
   fuelEntries: FuelEntry[];
   processMaterialEntries: ProcessMaterialEntry[];
   precursorEntries: PrecursorEntry[];
+  waterEntries: WaterEntry[];
   calculationResult: EmissionCalculationResult | null;
+  /** Present on the single-entry GET, which computes it from waterEntries. */
+  waterFootprint?: WaterFootprint;
   verificationRequest?: VerificationRequest | null;
   facility?: Facility;
   // Present wherever the backend computes it — a SUBMITTED entry with no
@@ -517,6 +579,7 @@ export interface EmissionFactorReference {
   defaultGridEmissionFactor: number;
   defaultSteamEmissionFactor: number;
   gwpTables: { ar2Bur3: GwpTable; ar5: GwpTable };
+  waterSources: WaterSourceDefinition[];
   enums: {
     sector: ReferenceOption[];
     facilityType: ReferenceOption[];
@@ -1118,6 +1181,8 @@ export interface EsgOverview {
   brsr: CompanyBrsrAnalytics;
   issb: EsgIssbSummary;
   scope3: EsgScope3Summary;
+  /** ISO 14046 water footprint rolled up from submitted ActivityData. */
+  water: WaterFootprintRollup;
   completeness: {
     brsr: EsgFrameworkCompleteness;
     issb: EsgFrameworkCompleteness;

@@ -14,6 +14,7 @@ import {
 } from "../data/esgDisclosureChecklist";
 import { getBrsrReportPeriodStatus, currentBrsrFyLabel } from "../data/complianceDeadlines";
 import { round } from "./dashboardShared.helpers";
+import { rollUpWaterFootprints, type WaterFootprintRollup } from "./waterCalculation.service";
 import {
   buildDeadlineItem,
   buildTrendItem,
@@ -408,6 +409,7 @@ export interface EsgOverview {
   brsr: CompanyBrsrAnalytics;
   issb: IssbOverviewSummary;
   scope3: Scope3OverviewSummary;
+  water: WaterFootprintRollup;
   completeness: {
     brsr: FrameworkCompleteness;
     issb: FrameworkCompleteness;
@@ -426,7 +428,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
   });
   const facilityIds = facilities.map((f) => f.id);
 
-  const [brsr, brsrRows, issbReports, scope3All, relevance] = await Promise.all([
+  const [brsr, brsrRows, issbReports, scope3All, relevance, waterRows] = await Promise.all([
     getCompanyBrsrAnalytics(facilities, company),
     facilityIds.length === 0
       ? Promise.resolve([])
@@ -446,6 +448,16 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
           where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
         }),
     resolveScope3Relevance(company),
+    // SUBMITTED only, matching every other framework here — a draft water
+    // inventory is not a disclosure. Reuses the ActivityData rows that already
+    // back the GHG numbers, so water and emissions can never describe
+    // different periods or production volumes.
+    facilityIds.length === 0
+      ? Promise.resolve([])
+      : prisma.activityData.findMany({
+          where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
+          select: { facilityId: true, productionQuantityT: true, waterEntries: true },
+        }),
   ]);
 
   const { summary: issbSummary, periodReports: issbPeriodReports, periodLabel: issbPeriod } = await buildIssbSummary(
@@ -496,6 +508,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     brsr,
     issb: issbSummary,
     scope3,
+    water: rollUpWaterFootprints(waterRows),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),
       issb: scoreCompleteness(issbPeriodReports, ISSB_PILLARS, issbPeriod),

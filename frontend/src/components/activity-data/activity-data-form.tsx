@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFieldArray, useForm, type UseFormRegisterReturn, type Path } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Flame, Loader2, Package, Plus, Recycle, Trash2, Zap } from "lucide-react";
+import { Droplets, Flame, Loader2, Package, Plus, Recycle, Trash2, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -42,6 +42,11 @@ export function ActivityDataForm({
   const [reference, setReference] = useState<EmissionFactorReference | null>(null);
   const [sector, setSector] = useState<Sector>(existingEntry?.sector ?? sectorOverride ?? "STEEL");
   const [serverError, setServerError] = useState<string | null>(null);
+  // Gates the optional ISO 14046 water inventory section — the water analytics
+  // it feeds live on the ESG Overview, which requires the ESG Disclosure
+  // Bundle. Server-side gating on that aggregate is the real boundary; this
+  // just avoids offering a section whose output the company can't open.
+  const [esgBundleActive, setEsgBundleActive] = useState(false);
   const savedDataId = useRef<string | undefined>(existingEntry?.id);
 
   useEffect(() => {
@@ -50,17 +55,23 @@ export function ActivityDataForm({
       .then(setReference)
       .catch(() => setServerError("Couldn't load emission factor reference data."));
 
-    if (existingEntry) return;
+    // The internal portal always passes sectorOverride, since the operator has
+    // no Company of their own — and therefore no ESG Bundle to check, which is
+    // why the water section stays hidden in that flow.
     if (sectorOverride) {
       setSector(sectorOverride);
       return;
     }
-    // Only the owner flow reaches here — the internal portal always passes
-    // sectorOverride, since the operator has no Company of their own.
+
+    // Owner flow. Fetched even when editing an existing entry (where the
+    // sector already came off the entry) because the water section's
+    // visibility depends on the subscription, not on the sector.
     companyApi
       .getMine()
       .then(({ company }) => {
-        if (company) setSector(company.sector);
+        if (!company) return;
+        setEsgBundleActive(Boolean(company.esgBundleActive));
+        if (!existingEntry) setSector(company.sector);
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -117,17 +128,24 @@ export function ActivityDataForm({
             quantityTonnes: String(p.quantityTonnes),
             sourceLabel: p.sourceLabel ?? "",
           })),
+          waterEntries: (existingEntry.waterEntries ?? []).map((w) => ({
+            sourceType: w.sourceType,
+            withdrawnM3: String(w.withdrawnM3),
+            dischargedM3: w.dischargedM3 ? String(w.dischargedM3) : "",
+          })),
         }
       : {
           fuelEntries: [],
           processMaterialEntries: [],
           precursorEntries: [],
+          waterEntries: [],
         },
   });
 
   const fuelArray = useFieldArray({ control, name: "fuelEntries" });
   const materialArray = useFieldArray({ control, name: "processMaterialEntries" });
   const precursorArray = useFieldArray({ control, name: "precursorEntries" });
+  const waterArray = useFieldArray({ control, name: "waterEntries" });
 
   const watchedFuels = watch("fuelEntries");
   const watchedHydrogenRoute = watch("hydrogenRoute");
@@ -177,6 +195,11 @@ export function ActivityDataForm({
       materialType: p.materialType || undefined,
       quantityTonnes: p.quantityTonnes || undefined,
       sourceLabel: p.sourceLabel || undefined,
+    })),
+    waterEntries: (data.waterEntries ?? []).map((w) => ({
+      sourceType: w.sourceType || undefined,
+      withdrawnM3: w.withdrawnM3 || undefined,
+      dischargedM3: w.dischargedM3 || undefined,
     })),
   });
 
@@ -271,6 +294,11 @@ export function ActivityDataForm({
           materialType: p.materialType,
           quantityTonnes: Number(p.quantityTonnes),
           sourceLabel: p.sourceLabel || undefined,
+        })),
+        waterEntries: data.waterEntries.map((w) => ({
+          sourceType: w.sourceType,
+          withdrawnM3: Number(w.withdrawnM3),
+          dischargedM3: w.dischargedM3 ? Number(w.dischargedM3) : 0,
         })),
       };
 
@@ -661,6 +689,85 @@ export function ActivityDataForm({
           ))}
         </div>
       </Card>
+
+      {esgBundleActive && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Droplets className="h-4 w-4 text-blue-400" />
+              <h2 className="font-medium">Water inventory (ISO 14046)</h2>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => waterArray.append({ sourceType: "", withdrawnM3: "", dischargedM3: "" })}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add water source
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Optional. Volumes in m³ for this same reporting period — consumption is derived as withdrawn minus
+            discharged, and intensity reuses the production quantity above. Recycled water counts towards total
+            withdrawal but is excluded from freshwater withdrawal.
+          </p>
+
+          <div className="mt-4 space-y-3">
+            {waterArray.fields.length === 0 && (
+              <p className="rounded-lg border border-dashed border-surface-border px-4 py-6 text-center text-sm text-muted">
+                No water sources added yet.
+              </p>
+            )}
+            {waterArray.fields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+                <div>
+                  <Select
+                    error={Boolean(errors.waterEntries?.[index]?.sourceType)}
+                    {...autosaveField(`waterEntries.${index}.sourceType`)}
+                  >
+                    <option value="">Select water source</option>
+                    {(reference?.waterSources ?? []).map((w) => (
+                      <option key={w.key} value={w.key}>
+                        {w.label}
+                      </option>
+                    ))}
+                  </Select>
+                  <FieldError message={errors.waterEntries?.[index]?.sourceType?.message} />
+                </div>
+                <div className="w-36">
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="Withdrawn m³"
+                    error={Boolean(errors.waterEntries?.[index]?.withdrawnM3)}
+                    {...autosaveField(`waterEntries.${index}.withdrawnM3`)}
+                  />
+                  <FieldError message={errors.waterEntries?.[index]?.withdrawnM3?.message} />
+                </div>
+                <div className="w-36">
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="Discharged m³"
+                    error={Boolean(errors.waterEntries?.[index]?.dischargedM3)}
+                    {...autosaveField(`waterEntries.${index}.dischargedM3`)}
+                  />
+                  <FieldError message={errors.waterEntries?.[index]?.dischargedM3?.message} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => waterArray.remove(index)}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-surface-border text-muted hover:border-danger/40 hover:text-danger"
+                  aria-label="Remove water source row"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-6">
         <div className="flex items-center gap-2">
