@@ -15,6 +15,7 @@ import {
 import { getBrsrReportPeriodStatus, currentBrsrFyLabel } from "../data/complianceDeadlines";
 import { round } from "./dashboardShared.helpers";
 import { rollUpWaterFootprints, type WaterFootprintRollup } from "./waterCalculation.service";
+import { summariseOffsets, type OffsetTotals } from "./voluntaryOffset.service";
 import {
   buildDeadlineItem,
   buildTrendItem,
@@ -257,6 +258,51 @@ const buildScope3Summary = (
 };
 
 // ---------------------------------------------------------------------------
+// Voluntary offsets
+// ---------------------------------------------------------------------------
+
+export interface OffsetsOverviewSummary extends OffsetTotals {
+  facilitiesReporting: number;
+  /**
+   * Gross emissions this offset tonnage sits against, and where that figure
+   * came from. Deliberately the ISSB total already computed above rather than
+   * a new calculation: this module tracks purchases, it does not compute
+   * emissions, and inventing a second company-wide total would give the page
+   * two footprints that could disagree.
+   *
+   * null when no ISSB disclosure has been submitted — in that case the card
+   * shows offsets alone rather than comparing against a number that isn't
+   * there.
+   */
+  grossEmissionsTco2e: number | null;
+  grossEmissionsSource: string;
+  /** Gross minus offsets. Plain arithmetic on the two numbers above. */
+  netAfterOffsetsTco2e: number | null;
+  /** Offsets as a share of gross, %. null when there is nothing to compare to. */
+  offsetCoveragePct: number | null;
+}
+
+export const buildOffsetsSummary = (
+  purchases: { facilityId: string; status: string }[],
+  totals: OffsetTotals,
+  issb: IssbOverviewSummary,
+): OffsetsOverviewSummary => {
+  const grossEmissionsTco2e = issb.hasReports ? issb.totalTco2e : null;
+
+  return {
+    ...totals,
+    facilitiesReporting: new Set(purchases.filter((p) => p.status === "SUBMITTED").map((p) => p.facilityId)).size,
+    grossEmissionsTco2e,
+    grossEmissionsSource: "ISSB IFRS S1/S2 disclosed Scope 1 + 2 + 3",
+    netAfterOffsetsTco2e: grossEmissionsTco2e != null ? round(grossEmissionsTco2e - totals.totalTonnage) : null,
+    offsetCoveragePct:
+      grossEmissionsTco2e != null && grossEmissionsTco2e > 0
+        ? round((totals.totalTonnage / grossEmissionsTco2e) * 100, 1)
+        : null,
+  };
+};
+
+// ---------------------------------------------------------------------------
 // Live position
 // ---------------------------------------------------------------------------
 
@@ -410,6 +456,7 @@ export interface EsgOverview {
   issb: IssbOverviewSummary;
   scope3: Scope3OverviewSummary;
   water: WaterFootprintRollup;
+  offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
     issb: FrameworkCompleteness;
@@ -428,7 +475,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
   });
   const facilityIds = facilities.map((f) => f.id);
 
-  const [brsr, brsrRows, issbReports, scope3All, relevance, waterRows] = await Promise.all([
+  const [brsr, brsrRows, issbReports, scope3All, relevance, waterRows, offsetPurchases] = await Promise.all([
     getCompanyBrsrAnalytics(facilities, company),
     facilityIds.length === 0
       ? Promise.resolve([])
@@ -458,6 +505,11 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
           where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
           select: { facilityId: true, productionQuantityT: true, waterEntries: true },
         }),
+    // Every purchase, draft included — summariseOffsets filters to SUBMITTED,
+    // so the same rule applies here as on the facility page.
+    facilityIds.length === 0
+      ? Promise.resolve([])
+      : prisma.voluntaryOffsetPurchase.findMany({ where: { facilityId: { in: facilityIds } } }),
   ]);
 
   const { summary: issbSummary, periodReports: issbPeriodReports, periodLabel: issbPeriod } = await buildIssbSummary(
@@ -509,6 +561,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     issb: issbSummary,
     scope3,
     water: rollUpWaterFootprints(waterRows),
+    offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),
       issb: scoreCompleteness(issbPeriodReports, ISSB_PILLARS, issbPeriod),

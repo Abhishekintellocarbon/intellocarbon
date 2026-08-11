@@ -12,6 +12,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { activityDataApi, brsrApi, facilityApi, ApiError } from "@/lib/api";
 import type { Facility, ActivityData, BrsrCoreReport } from "@/lib/types";
 import { FACILITY_TYPE_OPTIONS, PRODUCTION_ROUTE_OPTIONS } from "@/lib/constants";
+import { VoluntaryOffsetsSection } from "@/components/offsets/voluntary-offsets-section";
 
 const labelFor = (options: readonly { value: string; label: string }[], value: string) =>
   options.find((o) => o.value === value)?.label ?? value;
@@ -247,6 +248,9 @@ function FacilityDetailContent() {
             })}
           </div>
         )}
+
+        {/* Renders nothing for a company without the ESG Disclosure Bundle. */}
+        <VoluntaryOffsetsSection facilityId={facility.id} />
       </main>
     </div>
   );

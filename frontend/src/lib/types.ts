@@ -288,6 +288,49 @@ export interface WaterFootprintRollup extends WaterFootprint {
   facilitiesReporting: number;
 }
 
+export type OffsetRegistry = "VERRA" | "GOLD_STANDARD" | "ACR" | "CAR" | "ART" | "ICM" | "OTHER";
+export type OffsetCategory =
+  | "AVOIDANCE_NATURE"
+  | "AVOIDANCE_ENGINEERED"
+  | "REMOVAL_NATURE"
+  | "REMOVAL_ENGINEERED";
+
+/**
+ * A logged voluntary carbon credit purchase. Tracking only — every field is
+ * recorded as the purchaser entered it; nothing here is verified or rated.
+ */
+export interface VoluntaryOffsetPurchase {
+  id: string;
+  companyId: string;
+  facilityId: string;
+  registry: OffsetRegistry;
+  creditSerialNumber: string;
+  tonnageTco2e: number;
+  category: OffsetCategory;
+  vintageYear: number;
+  purchaseDate: string;
+  status: "DRAFT" | "SUBMITTED";
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OffsetTotals {
+  /** SUBMITTED purchases only. */
+  totalTonnage: number;
+  byCategory: Record<OffsetCategory, number>;
+  purchaseCount: number;
+}
+
+export interface OffsetsOverviewSummary extends OffsetTotals {
+  facilitiesReporting: number;
+  /** null when no ISSB disclosure exists to compare against. */
+  grossEmissionsTco2e: number | null;
+  grossEmissionsSource: string;
+  netAfterOffsetsTco2e: number | null;
+  offsetCoveragePct: number | null;
+}
+
 export interface ActivityData {
   id: string;
   facilityId: string;
@@ -1183,6 +1226,7 @@ export interface EsgOverview {
   scope3: EsgScope3Summary;
   /** ISO 14046 water footprint rolled up from submitted ActivityData. */
   water: WaterFootprintRollup;
+  offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;
     issb: EsgFrameworkCompleteness;

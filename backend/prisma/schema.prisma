@@ -168,6 +168,7 @@ model Company {
   brsrCoreReports      BrsrCoreReport[]
   issbS1S2Reports      IssbS1S2Report[]
   scope3Data           Scope3Data[]
+  voluntaryOffsets     VoluntaryOffsetPurchase[]
   auditLogs            AuditLog[]
   reports              Report[]
   documents            Document[]
@@ -655,6 +656,7 @@ model Facility {
   brsrCoreReports     BrsrCoreReport[]
   issbS1S2Reports     IssbS1S2Report[]
   scope3Data          Scope3Data[]
+  voluntaryOffsets    VoluntaryOffsetPurchase[]
   auditLogs           AuditLog[]
   reports             Report[]
   documents           Document[]
@@ -1160,6 +1162,79 @@ model Scope3Data {
   @@unique([facilityId, reportingPeriod, category])
   @@index([companyId])
   @@map("scope3_data")
+}
+
+// Carbon crediting programme a retired credit was issued by. An enum rather
+// than free text so the offsets summary can group by registry without
+// normalising "Verra" / "VCS" / "verra" by hand; OTHER is the escape hatch for
+// programmes not listed, with the specifics going in notes.
+enum OffsetRegistry {
+  VERRA
+  GOLD_STANDARD
+  ACR
+  CAR
+  ART
+  ICM
+  OTHER
+}
+
+// The avoidance/removal x nature/engineered split buyers are increasingly
+// asked to report against (SBTi, VCMI, ISO 14068 all draw the same
+// distinction). Recorded exactly as the purchaser states it — see the model
+// comment on why nothing here is checked.
+enum OffsetCategory {
+  AVOIDANCE_NATURE
+  AVOIDANCE_ENGINEERED
+  REMOVAL_NATURE
+  REMOVAL_ENGINEERED
+}
+
+// A voluntary carbon credit purchase logged against a facility.
+//
+// TRACKING ONLY. Intellocarbon does not verify, rate, endorse or issue
+// anything here: the registry, serial number, tonnage, category and vintage
+// are all recorded exactly as the purchaser enters them. There is deliberately
+// no uniqueness constraint on creditSerialNumber, no cross-check against a
+// registry API, and no quality scoring — a duplicate or mistyped serial is the
+// purchaser's record to correct, and silently rejecting one would imply an
+// authority over the credit that this platform does not have. Format checks
+// (tonnage > 0, vintage a plausible year) are the only validation.
+//
+// No unique key on (facility, period) either, unlike Scope3Data: a facility
+// buys many credits, and each purchase is its own row.
+model VoluntaryOffsetPurchase {
+  id         String   @id @default(cuid())
+  // Denormalised from the facility at write time, exactly as Scope3Data does,
+  // so the company-wide ESG rollup can aggregate without joining through
+  // facilities.
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  registry           OffsetRegistry
+  // Free text: serial formats differ per registry and change over time, so
+  // this is stored verbatim rather than parsed.
+  creditSerialNumber String
+  // tCO2e retired. Float to match every other tonnage on the platform
+  // (calculatedEmissionsTco2e, totalEmissionsCbamAr5, ...).
+  tonnageTco2e       Float
+  category           OffsetCategory
+  vintageYear        Int
+  purchaseDate       DateTime
+
+  // DRAFT -> SUBMITTED, same lifecycle as ActivityData / BrsrCoreReport /
+  // Scope3Data. Only SUBMITTED purchases count towards the ESG summary.
+  status DataEntryStatus @default(DRAFT)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([facilityId])
+  @@index([companyId])
+  @@map("voluntary_offset_purchases")
 }
 
 model RefreshToken {

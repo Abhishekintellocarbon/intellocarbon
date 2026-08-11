@@ -22,6 +22,8 @@ import type {
   Scope3Data,
   Scope3CategoryCatalogEntry,
   Scope3RelevanceResponse,
+  VoluntaryOffsetPurchase,
+  OffsetTotals,
   FacilityDashboard,
   ReportGenerationStatus,
   GeneratedReport,
@@ -604,6 +606,38 @@ export const issbApi = {
     link.remove();
     URL.revokeObjectURL(objectUrl);
   },
+};
+
+/**
+ * Voluntary carbon credit purchase log. Tracking only — the API stores what is
+ * entered and verifies nothing. Every call is gated server-side on the ESG
+ * Disclosure Bundle.
+ */
+export const voluntaryOffsetApi = {
+  list: (facilityId: string): Promise<{ purchases: VoluntaryOffsetPurchase[]; totals: OffsetTotals }> =>
+    apiFetch(`/api/offsets/facilities/${facilityId}/purchases`),
+
+  // One endpoint for both draft and submit saves (`submit` picks the stored
+  // status) — same convention as issbApi.save / scope3Api.save.
+  create: (facilityId: string, input: Record<string, unknown>, submit: boolean): Promise<{ purchase: VoluntaryOffsetPurchase }> =>
+    apiFetch(`/api/offsets/facilities/${facilityId}/purchases`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, submit }),
+    }),
+
+  update: (
+    facilityId: string,
+    purchaseId: string,
+    input: Record<string, unknown>,
+    submit: boolean,
+  ): Promise<{ purchase: VoluntaryOffsetPurchase }> =>
+    apiFetch(`/api/offsets/facilities/${facilityId}/purchases/${purchaseId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ ...input, submit }),
+    }),
+
+  remove: (facilityId: string, purchaseId: string): Promise<void> =>
+    apiFetch(`/api/offsets/facilities/${facilityId}/purchases/${purchaseId}`, { method: "DELETE" }),
 };
 
 export const scope3Api = {

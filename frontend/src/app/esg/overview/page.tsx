@@ -13,6 +13,7 @@ import { LivePositionPanel } from "@/components/dashboard/esg/live-position-pane
 import { IssbSummaryCard } from "@/components/dashboard/esg/issb-summary-card";
 import { Scope3BreakdownChart } from "@/components/dashboard/esg/scope3-breakdown-chart";
 import { WaterFootprintCard } from "@/components/dashboard/esg/water-footprint-card";
+import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
 import { EnergyCompositionChart } from "@/components/dashboard/brsr/energy-composition-chart";
@@ -168,6 +169,9 @@ function EsgOverviewContent() {
               <div className="mt-4 grid gap-5 lg:grid-cols-2">
                 <IssbSummaryCard issb={overview.issb} />
                 <Scope3BreakdownChart scope3={overview.scope3} />
+                <div className="lg:col-span-2">
+                  <OffsetsSummaryCard offsets={overview.offsets} />
+                </div>
               </div>
             </section>
           </div>
