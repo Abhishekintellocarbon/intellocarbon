@@ -720,9 +720,16 @@ export function ActivityDataForm({
               </p>
             )}
             {waterArray.fields.map((field, index) => (
+              // Every field carries its own label rather than relying on a
+              // placeholder: the two volume columns are indistinguishable once
+              // a value is typed and the placeholder disappears, which matters
+              // most when returning to edit a saved entry. Same per-row
+              // labelling the GHG Runner's Scope 1 rows use.
               <div key={field.id} className="grid grid-cols-1 items-start gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
                 <div>
+                  <Label htmlFor={`water-source-${index}`}>Water source</Label>
                   <Select
+                    id={`water-source-${index}`}
                     error={Boolean(errors.waterEntries?.[index]?.sourceType)}
                     {...autosaveField(`waterEntries.${index}.sourceType`)}
                   >
@@ -735,30 +742,36 @@ export function ActivityDataForm({
                   </Select>
                   <FieldError message={errors.waterEntries?.[index]?.sourceType?.message} />
                 </div>
-                <div className="w-36">
+                <div className="w-full sm:w-36">
+                  <Label htmlFor={`water-withdrawn-${index}`}>Withdrawn (m³)</Label>
                   <Input
+                    id={`water-withdrawn-${index}`}
                     type="number"
                     step="any"
-                    placeholder="Withdrawn m³"
+                    placeholder="26500"
                     error={Boolean(errors.waterEntries?.[index]?.withdrawnM3)}
                     {...autosaveField(`waterEntries.${index}.withdrawnM3`)}
                   />
                   <FieldError message={errors.waterEntries?.[index]?.withdrawnM3?.message} />
                 </div>
-                <div className="w-36">
+                <div className="w-full sm:w-36">
+                  <Label htmlFor={`water-discharged-${index}`}>Discharged (m³)</Label>
                   <Input
+                    id={`water-discharged-${index}`}
                     type="number"
                     step="any"
-                    placeholder="Discharged m³"
+                    placeholder="14200"
                     error={Boolean(errors.waterEntries?.[index]?.dischargedM3)}
                     {...autosaveField(`waterEntries.${index}.dischargedM3`)}
                   />
                   <FieldError message={errors.waterEntries?.[index]?.dischargedM3?.message} />
                 </div>
+                {/* Offset by one label's height (text-sm line box + mb-1.5) so
+                    the button still lines up with the inputs beside it. */}
                 <button
                   type="button"
                   onClick={() => waterArray.remove(index)}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-surface-border text-muted hover:border-danger/40 hover:text-danger"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-surface-border text-muted hover:border-danger/40 hover:text-danger sm:mt-[26px]"
                   aria-label="Remove water source row"
                 >
                   <Trash2 className="h-4 w-4" />
