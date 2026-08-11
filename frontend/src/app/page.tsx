@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
 import { HomeRedirectGate } from "@/components/marketing/home-redirect-gate";
+import { TestimonialsSection } from "@/components/marketing/testimonials-section";
 import { CookieSettingsLink } from "@/components/layout/cookie-settings-link";
 import { INSIGHTS } from "@/lib/insights";
 import type { ComplianceEvent } from "@/lib/compliance-deadlines";
@@ -400,6 +401,11 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* Social proof — renders a capability statement until real, permissioned
+          testimonials are added to lib/testimonials.ts, at which point it
+          becomes a carousel with no change here. */}
+      <TestimonialsSection />
 
       {/* Blog / insights */}
       <section id="insights" className="relative z-10 mx-auto max-w-6xl px-6 pb-20 text-center">
