@@ -34,13 +34,17 @@ const requireReportWindowOpen = (type: ReportType, now: Date = new Date()): void
   }
 };
 
-export const getReportContext = async (
-  userId: string,
-  facilityId: string,
-  activityDataId: string,
-  type: ReportType,
-) => {
-  requireReportWindowOpen(type);
+/**
+ * Loads and narrows the report context, without any reporting-window check.
+ *
+ * Split out of getReportContext so the CBAM executive summary can reuse the
+ * exact same query and narrowing: that summary is an internal board document,
+ * not a regulatory submission, so gating it on the CBAM filing window would
+ * make a management report unavailable for most of the year for no
+ * regulatory reason. Every other guard — ownership, SUBMITTED status, a
+ * completed facility, a present calculationResult — still applies.
+ */
+export const loadReportContext = async (userId: string, facilityId: string, activityDataId: string) => {
   await requireOwnedActivityData(userId, facilityId, activityDataId);
 
   const activityData = await prisma.activityData.findUniqueOrThrow({
@@ -80,6 +84,16 @@ export const getReportContext = async (
     };
     calculationResult: NonNullable<typeof activityData.calculationResult>;
   };
+};
+
+export const getReportContext = async (
+  userId: string,
+  facilityId: string,
+  activityDataId: string,
+  type: ReportType,
+) => {
+  requireReportWindowOpen(type);
+  return loadReportContext(userId, facilityId, activityDataId);
 };
 
 export type ReportContext = Awaited<ReturnType<typeof getReportContext>>;

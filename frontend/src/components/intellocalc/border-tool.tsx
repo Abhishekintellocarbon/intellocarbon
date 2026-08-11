@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { ResultsPanel, ResultLine } from "@/components/intellocalc/results-panel";
 import { LeadCaptureModal } from "@/components/intellocalc/lead-capture-modal";
 import { intellocalcApi } from "@/lib/api";
+import { trackLeadCaptured } from "@/lib/analytics";
 import { borderFormSchema, type BorderFormValues, type LeadContactValues } from "@/lib/validations/intellocalc";
 import { BORDER_SECTOR_OPTIONS, BORDER_PRODUCTION_ROUTE_OPTIONS, fmtEur, fmtInr, fmtNum } from "@/lib/intellocalc-constants";
 import type { BorderInputs, BorderResults } from "@/lib/intellocalc-types";
@@ -51,6 +52,9 @@ export function BorderTool() {
       { ...contact, phone: contact.phone || undefined },
       pendingInputs,
     );
+    // After the await, so the goal only counts leads that actually persisted —
+    // a rejected request throws above and is reported by the modal instead.
+    trackLeadCaptured("BORDER");
     setResults(results);
     setPendingInputs(null);
   };

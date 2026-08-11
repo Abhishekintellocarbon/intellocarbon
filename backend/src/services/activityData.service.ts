@@ -2,6 +2,7 @@ import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { requireAccessibleFacility } from "./facility.service";
 import { calculateEmissionsForActivityData } from "./emissionCalculation.service";
+import { buildWaterFootprint } from "./waterCalculation.service";
 import type { ActivityDataInput, ActivityDataDraftInput } from "../validators/activityData.validators";
 
 const cleanOptional = (value?: string) => (value ? value : undefined);
@@ -39,6 +40,20 @@ const draftPrecursorEntries = (input: ActivityDataDraftInput) =>
       quantityTonnes: e.quantityTonnes as number,
       embeddedEmissionFactorOverride: e.embeddedEmissionFactorOverride ?? undefined,
       sourceLabel: e.sourceLabel ?? undefined,
+    }));
+
+// Same drop-until-complete rule as the three above: a water row needs both a
+// source and a withdrawal volume before it can satisfy WaterEntry's NOT NULL
+// columns. Discharge defaults to 0 rather than being required, since a
+// once-through cooling line is often metered on intake only.
+const draftWaterEntries = (input: ActivityDataDraftInput) =>
+  (input.waterEntries ?? [])
+    .filter((e) => e.sourceType && e.withdrawnM3 != null)
+    .map((e) => ({
+      sourceType: e.sourceType as string,
+      withdrawnM3: e.withdrawnM3 as number,
+      dischargedM3: e.dischargedM3 ?? 0,
+      freshwaterFactorOverride: e.freshwaterFactorOverride ?? undefined,
     }));
 
 const requireOwnedActivityData = async (userId: string, facilityId: string, activityDataId: string) => {
@@ -129,6 +144,14 @@ export const createActivityData = async (
           sourceLabel: cleanOptional(entry.sourceLabel),
         })),
       },
+      waterEntries: {
+        create: input.waterEntries.map((entry) => ({
+          sourceType: entry.sourceType,
+          withdrawnM3: entry.withdrawnM3,
+          dischargedM3: entry.dischargedM3,
+          freshwaterFactorOverride: entry.freshwaterFactorOverride,
+        })),
+      },
     },
   });
 
@@ -140,6 +163,7 @@ export const createActivityData = async (
       fuelEntries: true,
       processMaterialEntries: true,
       precursorEntries: true,
+      waterEntries: true,
       calculationResult: true,
     },
   });
@@ -198,8 +222,9 @@ export const autosaveActivityData = async (
         fuelEntries: { create: draftFuelEntries(input) },
         processMaterialEntries: { create: draftProcessMaterialEntries(input) },
         precursorEntries: { create: draftPrecursorEntries(input) },
+        waterEntries: { create: draftWaterEntries(input) },
       },
-      include: { fuelEntries: true, processMaterialEntries: true, precursorEntries: true },
+      include: { fuelEntries: true, processMaterialEntries: true, precursorEntries: true, waterEntries: true },
     });
   }
 
@@ -218,8 +243,9 @@ export const autosaveActivityData = async (
       fuelEntries: { deleteMany: {}, create: draftFuelEntries(input) },
       processMaterialEntries: { deleteMany: {}, create: draftProcessMaterialEntries(input) },
       precursorEntries: { deleteMany: {}, create: draftPrecursorEntries(input) },
+      waterEntries: { deleteMany: {}, create: draftWaterEntries(input) },
     },
-    include: { fuelEntries: true, processMaterialEntries: true, precursorEntries: true },
+    include: { fuelEntries: true, processMaterialEntries: true, precursorEntries: true, waterEntries: true },
   });
 };
 
@@ -294,6 +320,15 @@ export const submitActivityData = async (
           sourceLabel: cleanOptional(entry.sourceLabel),
         })),
       },
+      waterEntries: {
+        deleteMany: {},
+        create: input.waterEntries.map((entry) => ({
+          sourceType: entry.sourceType,
+          withdrawnM3: entry.withdrawnM3,
+          dischargedM3: entry.dischargedM3,
+          freshwaterFactorOverride: entry.freshwaterFactorOverride,
+        })),
+      },
     },
   });
 
@@ -305,6 +340,7 @@ export const submitActivityData = async (
       fuelEntries: true,
       processMaterialEntries: true,
       precursorEntries: true,
+      waterEntries: true,
       calculationResult: true,
     },
   });
@@ -313,17 +349,28 @@ export const submitActivityData = async (
 export const getActivityData = async (userId: string, facilityId: string, activityDataId: string) => {
   await requireOwnedActivityData(userId, facilityId, activityDataId);
 
-  return prisma.activityData.findUniqueOrThrow({
+  const activityData = await prisma.activityData.findUniqueOrThrow({
     where: { id: activityDataId },
     include: {
       fuelEntries: true,
       processMaterialEntries: true,
       precursorEntries: true,
+      waterEntries: true,
       calculationResult: true,
       facility: true,
       verificationRequest: { include: { verifier: { select: { id: true, name: true } } } },
     },
   });
+
+  // Derived on read rather than stored — see waterCalculation.service.ts. Not
+  // gated here: this is the facility's own submitted data being handed back to
+  // whoever may already read the entry. The ESG Disclosure Bundle gates the
+  // water *analytics* surface (the ESG Overview aggregate), matching how BRSR
+  // and ISSB are gated at their aggregate, not at raw activity data.
+  return {
+    ...activityData,
+    waterFootprint: buildWaterFootprint(activityData.waterEntries, activityData.productionQuantityT),
+  };
 };
 
 export const deleteActivityData = async (userId: string, facilityId: string, activityDataId: string) => {

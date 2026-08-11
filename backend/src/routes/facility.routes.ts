@@ -4,6 +4,7 @@ import * as facilityDashboardController from "../controllers/facilityDashboard.c
 import * as facilityReportsController from "../controllers/facilityReports.controller";
 import * as evidenceDocumentController from "../controllers/evidenceDocument.controller";
 import * as facilityQueriesController from "../controllers/facilityQueries.controller";
+import * as cbamExecutiveSummaryController from "../controllers/cbamExecutiveSummary.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireApproved } from "../middleware/requireApproved";
 import { validate } from "../middleware/validate";
@@ -25,6 +26,9 @@ router.get("/:facilityId/reports/status", facilityReportsController.getReportGen
 router.post("/:facilityId/reports/generate", validate(generateReportSchema), facilityReportsController.generateReport);
 router.get("/:facilityId/reports", facilityReportsController.listReports);
 router.get("/:facilityId/reports/:reportId/pdf", facilityReportsController.downloadReportPdf);
+// Board-ready condensed summary. CBAM tier gate lives in the service
+// (requireOwnedFacilityForCbam), matching how the ESG modules gate.
+router.get("/:facilityId/cbam-executive-summary", cbamExecutiveSummaryController.downloadCbamExecutiveSummary);
 router.get("/:facilityId/documents", evidenceDocumentController.listFacilityDocuments);
 router.get("/:facilityId/documents/:documentId/download", evidenceDocumentController.downloadFacilityDocument);
 router.get("/:facilityId/queries", facilityQueriesController.listFacilityQueries);

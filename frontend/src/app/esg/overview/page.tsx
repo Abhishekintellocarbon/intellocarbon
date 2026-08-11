@@ -12,6 +12,8 @@ import { DisclosureCompletenessStrip } from "@/components/dashboard/esg/disclosu
 import { LivePositionPanel } from "@/components/dashboard/esg/live-position-panel";
 import { IssbSummaryCard } from "@/components/dashboard/esg/issb-summary-card";
 import { Scope3BreakdownChart } from "@/components/dashboard/esg/scope3-breakdown-chart";
+import { WaterFootprintCard } from "@/components/dashboard/esg/water-footprint-card";
+import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
 import { EnergyCompositionChart } from "@/components/dashboard/brsr/energy-composition-chart";
@@ -140,6 +142,21 @@ function EsgOverviewContent() {
 
             <section>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Water footprint</h2>
+                <span className="text-xs text-muted-foreground">ISO 14046</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Withdrawal, consumption and discharge from the water inventory captured alongside your activity
+                data — same reporting periods and production quantities as your GHG figures.
+              </p>
+
+              <div className="mt-4">
+                <WaterFootprintCard water={overview.water} />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="text-lg font-semibold">Climate-related disclosure</h2>
                 <Link href="/esg/issb" className="text-sm font-medium text-teal-500 hover:text-teal-400">
                   Open ISSB IFRS S1/S2
@@ -152,6 +169,9 @@ function EsgOverviewContent() {
               <div className="mt-4 grid gap-5 lg:grid-cols-2">
                 <IssbSummaryCard issb={overview.issb} />
                 <Scope3BreakdownChart scope3={overview.scope3} />
+                <div className="lg:col-span-2">
+                  <OffsetsSummaryCard offsets={overview.offsets} />
+                </div>
               </div>
             </section>
           </div>

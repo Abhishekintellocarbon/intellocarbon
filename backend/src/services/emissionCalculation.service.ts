@@ -26,6 +26,14 @@ interface FuelLineResult {
   ch4Kg: number;
   n2oKg: number;
   co2eAr5: number;
+  /**
+   * CCTS basis (IPCC AR2/BUR3). The key keeps its original `co2eAr4` spelling —
+   * unlike the DB columns, which were renamed behind an @map — because this
+   * object is serialised into the `breakdown` Json column. Renaming it would
+   * read back as undefined on every row written before the rename, silently
+   * turning historical CCTS/CBAM report figures into NaN. Rename only together
+   * with a backfill that rewrites the stored JSON.
+   */
   co2eAr4: number;
 }
 
@@ -116,7 +124,7 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
   });
 
   const directCombustionCo2eAr5 = fuelLines.reduce((sum, l) => sum + l.co2eAr5, 0);
-  const directCombustionCo2eAr4 = fuelLines.reduce((sum, l) => sum + l.co2eAr4, 0);
+  const directCombustionCo2eAr2Bur3 = fuelLines.reduce((sum, l) => sum + l.co2eAr4, 0);
 
   // --- Process emissions (calcination, anode oxidation, etc.), CO2-only, same under both GWP tables ---
   const processLines: ProcessMaterialLineResult[] = activityData.processMaterialEntries.map((entry) => {
@@ -175,13 +183,13 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
   const cf4Tonnes = activityData.cf4EmissionsTonnes ?? 0;
   const c2f6Tonnes = activityData.c2f6EmissionsTonnes ?? 0;
   const directPfcCo2eAr5 = cf4Tonnes * (GWP_AR5.cf4 ?? 0) + c2f6Tonnes * (GWP_AR5.c2f6 ?? 0);
-  const directPfcCo2eAr4 = cf4Tonnes * (GWP_AR2_BUR3.cf4 ?? 0) + c2f6Tonnes * (GWP_AR2_BUR3.c2f6 ?? 0);
+  const directPfcCo2eAr2Bur3 = cf4Tonnes * (GWP_AR2_BUR3.cf4 ?? 0) + c2f6Tonnes * (GWP_AR2_BUR3.c2f6 ?? 0);
 
   // --- Fertilizer N2O process emissions (nitric acid, Ostwald process) — dual GWP, net of abatement ---
   const n2oAbatementFraction = (activityData.n2oAbatementFactorPct ?? 0) / 100;
   const netN2oTonnes = (activityData.n2oProcessEmissionsTonnes ?? 0) * (1 - n2oAbatementFraction);
   const directN2oProcessCo2eAr5 = netN2oTonnes * GWP_AR5.n2o;
-  const directN2oProcessCo2eAr4 = netN2oTonnes * GWP_AR2_BUR3.n2o;
+  const directN2oProcessCo2eAr2Bur3 = netN2oTonnes * GWP_AR2_BUR3.n2o;
 
   // --- Indirect emissions (Scope 2): electricity + imported steam ---
   const gridEmissionFactorUsed = activityData.gridEmissionFactorOverride ?? getGridEmissionFactor();
@@ -192,15 +200,16 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
 
   // --- Totals ---
   const totalDirectCo2eAr5 = directCombustionCo2eAr5 + directProcessCo2e + directPfcCo2eAr5 + directN2oProcessCo2eAr5;
-  const totalDirectCo2eAr4 = directCombustionCo2eAr4 + directProcessCo2e + directPfcCo2eAr4 + directN2oProcessCo2eAr4;
+  const totalDirectCo2eAr2Bur3 =
+    directCombustionCo2eAr2Bur3 + directProcessCo2e + directPfcCo2eAr2Bur3 + directN2oProcessCo2eAr2Bur3;
 
   const totalEmissionsCbamAr5 =
     totalDirectCo2eAr5 + indirectElectricityCo2e + indirectSteamCo2e + directPrecursorCo2e;
-  const totalEmissionsCctsAr4 =
-    totalDirectCo2eAr4 + indirectElectricityCo2e + indirectSteamCo2e + directPrecursorCo2e;
+  const totalEmissionsCctsAr2Bur3 =
+    totalDirectCo2eAr2Bur3 + indirectElectricityCo2e + indirectSteamCo2e + directPrecursorCo2e;
 
   const specificEmbeddedEmissionsCbam = totalEmissionsCbamAr5 / denominator;
-  const ghgIntensityCcts = totalEmissionsCctsAr4 / denominator;
+  const ghgIntensityCcts = totalEmissionsCctsAr2Bur3 / denominator;
 
   const breakdown = {
     sector: activityData.sector,
@@ -245,7 +254,7 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
             c2f6Tonnes,
             anodeEffectMinutes: activityData.anodeEffectMinutes,
             co2eAr5: round(directPfcCo2eAr5),
-            co2eAr4: round(directPfcCo2eAr4),
+            co2eAr4: round(directPfcCo2eAr2Bur3),
             gwpAr5: { cf4: GWP_AR5.cf4, c2f6: GWP_AR5.c2f6 },
             gwpAr4: { cf4: GWP_AR2_BUR3.cf4, c2f6: GWP_AR2_BUR3.c2f6 },
           }
@@ -257,7 +266,7 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
             abatementFactorPct: activityData.n2oAbatementFactorPct ?? 0,
             netN2oTonnes: round(netN2oTonnes),
             co2eAr5: round(directN2oProcessCo2eAr5),
-            co2eAr4: round(directN2oProcessCo2eAr4),
+            co2eAr4: round(directN2oProcessCo2eAr2Bur3),
           }
         : undefined,
     hydrogen:
@@ -277,24 +286,28 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
           lineLossMwh: activityData.lineLossMwh,
         }
       : undefined,
+    // `ar4` here, and every co2eAr4/gwpAr4 above, is a stored key inside the
+    // `breakdown` Json column, not a column name — see FuelLineResult.co2eAr4
+    // for why these keep the old spelling while the columns did not. The table
+    // itself has always been AR2/BUR3; only the key is misnamed.
     gwpTables: { ar4: GWP_AR2_BUR3, ar5: GWP_AR5 },
   };
 
   const data = {
     directCombustionCo2eAr5: round(directCombustionCo2eAr5),
-    directCombustionCo2eAr4: round(directCombustionCo2eAr4),
+    directCombustionCo2eAr2Bur3: round(directCombustionCo2eAr2Bur3),
     directProcessCo2e: round(directProcessCo2e),
     directPrecursorCo2e: round(directPrecursorCo2e),
     directPfcCo2eAr5: round(directPfcCo2eAr5),
-    directPfcCo2eAr4: round(directPfcCo2eAr4),
+    directPfcCo2eAr2Bur3: round(directPfcCo2eAr2Bur3),
     directN2oProcessCo2eAr5: round(directN2oProcessCo2eAr5),
-    directN2oProcessCo2eAr4: round(directN2oProcessCo2eAr4),
+    directN2oProcessCo2eAr2Bur3: round(directN2oProcessCo2eAr2Bur3),
     indirectElectricityCo2e: round(indirectElectricityCo2e),
     indirectSteamCo2e: round(indirectSteamCo2e),
     totalDirectCo2eAr5: round(totalDirectCo2eAr5),
-    totalDirectCo2eAr4: round(totalDirectCo2eAr4),
+    totalDirectCo2eAr2Bur3: round(totalDirectCo2eAr2Bur3),
     totalEmissionsCbamAr5: round(totalEmissionsCbamAr5),
-    totalEmissionsCctsAr4: round(totalEmissionsCctsAr4),
+    totalEmissionsCctsAr2Bur3: round(totalEmissionsCctsAr2Bur3),
     specificEmbeddedEmissionsCbam: round(specificEmbeddedEmissionsCbam),
     ghgIntensityCcts: round(ghgIntensityCcts),
     gridEmissionFactorUsed,

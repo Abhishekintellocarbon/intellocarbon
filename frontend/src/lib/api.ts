@@ -22,6 +22,8 @@ import type {
   Scope3Data,
   Scope3CategoryCatalogEntry,
   Scope3RelevanceResponse,
+  VoluntaryOffsetPurchase,
+  OffsetTotals,
   FacilityDashboard,
   ReportGenerationStatus,
   GeneratedReport,
@@ -604,6 +606,82 @@ export const issbApi = {
     link.remove();
     URL.revokeObjectURL(objectUrl);
   },
+};
+
+/**
+ * Voluntary carbon credit purchase log. Tracking only — the API stores what is
+ * entered and verifies nothing. Every call is gated server-side on the ESG
+ * Disclosure Bundle.
+ */
+/**
+ * CBAM executive summary — a condensed board PDF built from the same
+ * calculation as the full Communication Package. Streams straight from the
+ * server (nothing is stored), so this mirrors brsrApi.downloadPdf rather than
+ * going through apiFetch, which expects JSON.
+ */
+export const cbamExecutiveSummaryApi = {
+  download: async (facilityId: string, facilityName: string): Promise<void> => {
+    const url = `${API_URL}/api/facilities/${facilityId}/cbam-executive-summary`;
+    const fetchPdf = () =>
+      fetch(url, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchPdf();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchPdf();
+    }
+    if (!res.ok) {
+      // Surface the server's own message where there is one — "submit activity
+      // data first" and "subscribe to a CBAM plan" are both actionable, and a
+      // generic failure string would hide them.
+      const data = await res.json().catch(() => null);
+      throw new ApiError(
+        data?.error?.message ?? "Couldn't generate the executive summary. Please try again.",
+        res.status,
+        data?.error?.code,
+      );
+    }
+
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `cbam-executive-summary-${facilityName.replace(/\s+/g, "-").toLowerCase()}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+};
+
+export const voluntaryOffsetApi = {
+  list: (facilityId: string): Promise<{ purchases: VoluntaryOffsetPurchase[]; totals: OffsetTotals }> =>
+    apiFetch(`/api/offsets/facilities/${facilityId}/purchases`),
+
+  // One endpoint for both draft and submit saves (`submit` picks the stored
+  // status) — same convention as issbApi.save / scope3Api.save.
+  create: (facilityId: string, input: Record<string, unknown>, submit: boolean): Promise<{ purchase: VoluntaryOffsetPurchase }> =>
+    apiFetch(`/api/offsets/facilities/${facilityId}/purchases`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, submit }),
+    }),
+
+  update: (
+    facilityId: string,
+    purchaseId: string,
+    input: Record<string, unknown>,
+    submit: boolean,
+  ): Promise<{ purchase: VoluntaryOffsetPurchase }> =>
+    apiFetch(`/api/offsets/facilities/${facilityId}/purchases/${purchaseId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ ...input, submit }),
+    }),
+
+  remove: (facilityId: string, purchaseId: string): Promise<void> =>
+    apiFetch(`/api/offsets/facilities/${facilityId}/purchases/${purchaseId}`, { method: "DELETE" }),
 };
 
 export const scope3Api = {

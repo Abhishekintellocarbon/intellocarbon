@@ -168,6 +168,7 @@ model Company {
   brsrCoreReports      BrsrCoreReport[]
   issbS1S2Reports      IssbS1S2Report[]
   scope3Data           Scope3Data[]
+  voluntaryOffsets     VoluntaryOffsetPurchase[]
   auditLogs            AuditLog[]
   reports              Report[]
   documents            Document[]
@@ -655,6 +656,7 @@ model Facility {
   brsrCoreReports     BrsrCoreReport[]
   issbS1S2Reports     IssbS1S2Report[]
   scope3Data          Scope3Data[]
+  voluntaryOffsets    VoluntaryOffsetPurchase[]
   auditLogs           AuditLog[]
   reports             Report[]
   documents           Document[]
@@ -753,6 +755,12 @@ model ActivityData {
   fuelEntries            FuelEntry[]
   processMaterialEntries ProcessMaterialEntry[]
   precursorEntries       PrecursorEntry[]
+  // Optional ISO 14046 water inventory for the same period. Deliberately a
+  // child of ActivityData rather than its own facility-period table: water is
+  // measured over the same period and divided by the same production quantity
+  // as the GHG figures, so a separate table would duplicate periodStart /
+  // periodEnd / productionQuantityT and let the two drift apart.
+  waterEntries           WaterEntry[]
   calculationResult      EmissionCalculationResult?
   verificationRequest    VerificationRequest?
   // Supporting evidence (bills/invoices) backing this submission — an empty
@@ -806,32 +814,67 @@ model PrecursorEntry {
   @@map("precursor_entries")
 }
 
+// One measured water source for a reporting period — the ISO 14046 inventory
+// line item, mirroring FuelEntry's shape (typed key validated against a code
+// library, quantity, optional factor override).
+//
+// Volumes are m³. Withdrawal and discharge are both *measured* inputs;
+// consumption is deliberately NOT a column — under ISO 14046 it is definitionally
+// withdrawal minus discharge, and storing it too would let a facility submit a
+// triple that doesn't balance. It is derived in waterCalculation.service.ts,
+// which is also how BRSR Core's water disclosure already derives it.
+model WaterEntry {
+  id                       String       @id @default(cuid())
+  activityDataId           String
+  activityData             ActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
+  // Validated against WATER_SOURCE_LIBRARY (data/waterFactors.ts) at the
+  // app layer, exactly as FuelEntry.fuelType is against FUEL_LIBRARY —
+  // a String rather than an enum so adding a source is a code-only change.
+  sourceType               String
+  withdrawnM3              Float
+  dischargedM3             Float        @default(0)
+  // Per-line override of the source's freshwaterFactor, for the real case of
+  // a municipal supply that is itself partly reclaimed water.
+  freshwaterFactorOverride Float?
+  createdAt                DateTime     @default(now())
+
+  @@index([activityDataId])
+  @@map("water_entries")
+}
+
 model EmissionCalculationResult {
   id             String       @id @default(cuid())
   activityDataId String       @unique
   activityData   ActivityData @relation(fields: [activityDataId], references: [id], onDelete: Cascade)
 
-  directCombustionCo2eAr5 Float
-  directCombustionCo2eAr4 Float
-  directProcessCo2e       Float
-  directPrecursorCo2e     Float
+  // The CCTS-basis fields are named Ar2Bur3 after the GWP table they actually
+  // apply (IPCC AR2, as gazetted under S.O. 2825(E) / BUR3 — never AR4). They
+  // were originally misnamed Ar4, which is why every one of them carries an
+  // @map back to its original physical column: the rename is a code-level
+  // correction only, so no migration runs and no existing row is rewritten.
+  // Rename the columns for real only alongside a data-preserving
+  // ALTER TABLE ... RENAME COLUMN migration.
+  directCombustionCo2eAr5     Float
+  directCombustionCo2eAr2Bur3 Float @map("directCombustionCo2eAr4")
+  directProcessCo2e           Float
+  directPrecursorCo2e         Float
 
   // PFC (aluminium) and process N2O (fertilizer nitric acid) need dual-GWP
   // treatment like combustion CH4/N2O, so — unlike calcination/feedstock
   // carbon, which are CO2-only and fold into directProcessCo2e — they get
   // their own AR5/AR2-BUR3 columns.
-  directPfcCo2eAr5        Float @default(0)
-  directPfcCo2eAr4        Float @default(0)
-  directN2oProcessCo2eAr5 Float @default(0)
-  directN2oProcessCo2eAr4 Float @default(0)
+  directPfcCo2eAr5            Float @default(0)
+  directPfcCo2eAr2Bur3        Float @default(0) @map("directPfcCo2eAr4")
+  directN2oProcessCo2eAr5     Float @default(0)
+  directN2oProcessCo2eAr2Bur3 Float @default(0) @map("directN2oProcessCo2eAr4")
 
   indirectElectricityCo2e Float
   indirectSteamCo2e       Float
 
-  totalDirectCo2eAr5    Float
-  totalDirectCo2eAr4    Float
-  totalEmissionsCbamAr5 Float
-  totalEmissionsCctsAr4 Float
+  totalDirectCo2eAr5        Float
+  totalDirectCo2eAr2Bur3    Float @map("totalDirectCo2eAr4")
+  totalEmissionsCbamAr5     Float
+  totalEmissionsCctsAr2Bur3 Float @map("totalEmissionsCctsAr4")
 
   specificEmbeddedEmissionsCbam Float
   ghgIntensityCcts              Float
@@ -1119,6 +1162,79 @@ model Scope3Data {
   @@unique([facilityId, reportingPeriod, category])
   @@index([companyId])
   @@map("scope3_data")
+}
+
+// Carbon crediting programme a retired credit was issued by. An enum rather
+// than free text so the offsets summary can group by registry without
+// normalising "Verra" / "VCS" / "verra" by hand; OTHER is the escape hatch for
+// programmes not listed, with the specifics going in notes.
+enum OffsetRegistry {
+  VERRA
+  GOLD_STANDARD
+  ACR
+  CAR
+  ART
+  ICM
+  OTHER
+}
+
+// The avoidance/removal x nature/engineered split buyers are increasingly
+// asked to report against (SBTi, VCMI, ISO 14068 all draw the same
+// distinction). Recorded exactly as the purchaser states it — see the model
+// comment on why nothing here is checked.
+enum OffsetCategory {
+  AVOIDANCE_NATURE
+  AVOIDANCE_ENGINEERED
+  REMOVAL_NATURE
+  REMOVAL_ENGINEERED
+}
+
+// A voluntary carbon credit purchase logged against a facility.
+//
+// TRACKING ONLY. Intellocarbon does not verify, rate, endorse or issue
+// anything here: the registry, serial number, tonnage, category and vintage
+// are all recorded exactly as the purchaser enters them. There is deliberately
+// no uniqueness constraint on creditSerialNumber, no cross-check against a
+// registry API, and no quality scoring — a duplicate or mistyped serial is the
+// purchaser's record to correct, and silently rejecting one would imply an
+// authority over the credit that this platform does not have. Format checks
+// (tonnage > 0, vintage a plausible year) are the only validation.
+//
+// No unique key on (facility, period) either, unlike Scope3Data: a facility
+// buys many credits, and each purchase is its own row.
+model VoluntaryOffsetPurchase {
+  id         String   @id @default(cuid())
+  // Denormalised from the facility at write time, exactly as Scope3Data does,
+  // so the company-wide ESG rollup can aggregate without joining through
+  // facilities.
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  registry           OffsetRegistry
+  // Free text: serial formats differ per registry and change over time, so
+  // this is stored verbatim rather than parsed.
+  creditSerialNumber String
+  // tCO2e retired. Float to match every other tonnage on the platform
+  // (calculatedEmissionsTco2e, totalEmissionsCbamAr5, ...).
+  tonnageTco2e       Float
+  category           OffsetCategory
+  vintageYear        Int
+  purchaseDate       DateTime
+
+  // DRAFT -> SUBMITTED, same lifecycle as ActivityData / BrsrCoreReport /
+  // Scope3Data. Only SUBMITTED purchases count towards the ESG summary.
+  status DataEntryStatus @default(DRAFT)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([facilityId])
+  @@index([companyId])
+  @@map("voluntary_offset_purchases")
 }
 
 model RefreshToken {
