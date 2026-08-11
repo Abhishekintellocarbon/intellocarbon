@@ -24,7 +24,16 @@ export interface CbamCertificatePriceReference {
  * "Q2 2026" price was published 6 Jul 2026 (calendar Q3). So the label is the
  * calendar quarter of `date` minus one, not the calendar quarter itself.
  */
-const quarterLabelFor = (date: Date): string => {
+/**
+ * `name` of the EmissionFactor row holding the certificate price. The row is
+ * superseded (never overwritten) on each quarterly update, so selecting on
+ * this name returns the full price history — see
+ * certificatePriceHistory.service.ts. Shared so the writer and the history
+ * reader can't drift apart on the string.
+ */
+export const CBAM_CERTIFICATE_PRICE_FACTOR_NAME = "CBAM Certificate Price";
+
+export const quarterLabelFor = (date: Date): string => {
   const calendarQuarter = Math.floor(date.getUTCMonth() / 3) + 1;
   const quarter = calendarQuarter === 1 ? 4 : calendarQuarter - 1;
   const year = calendarQuarter === 1 ? date.getUTCFullYear() - 1 : date.getUTCFullYear();

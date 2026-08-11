@@ -11,6 +11,9 @@ import { DeadlineCountdown } from "@/components/facilities/dashboard/deadline-co
 import { EmissionsBreakdownChart } from "@/components/facilities/dashboard/emissions-breakdown-chart";
 import { LiabilityTrendChart } from "@/components/facilities/dashboard/liability-trend-chart";
 import { IntensityTrendChart } from "@/components/facilities/dashboard/intensity-trend-chart";
+import { SeeBenchmarkStrip } from "@/components/facilities/dashboard/see-benchmark-strip";
+import { CertificatePriceTrendChart } from "@/components/facilities/dashboard/certificate-price-trend-chart";
+import { ExecutiveSummaryButton } from "@/components/facilities/dashboard/executive-summary-button";
 import { RecentActivityFeed } from "@/components/facilities/dashboard/recent-activity-feed";
 import { GenerateReportButton } from "@/components/facilities/dashboard/generate-report-button";
 import { EvidencePendingBanner } from "@/components/facilities/dashboard/evidence-pending-banner";
@@ -113,6 +116,19 @@ function FacilityDashboardContent() {
           <DeadlineCountdown dashboard={dashboard} access={access} />
           <EmissionsBreakdownChart dashboard={dashboard} facilityId={facility.id} />
           <LiabilityTrendChart dashboard={dashboard} facilityId={facility.id} />
+
+          {/* CBAM-only additions. access.hasCbam already accounts for
+              CBAM_PLUS_CCTS bundling CBAM — the server enforces the same tier
+              list on the summary endpoint. */}
+          {access.hasCbam && (
+            <>
+              <div className="grid gap-8 lg:grid-cols-2">
+                <SeeBenchmarkStrip dashboard={dashboard} />
+                <CertificatePriceTrendChart dashboard={dashboard} />
+              </div>
+              <ExecutiveSummaryButton facilityId={facility.id} facilityName={facility.name} />
+            </>
+          )}
           <IntensityTrendChart dashboard={dashboard} facilityId={facility.id} />
           <RecentActivityFeed dashboard={dashboard} />
         </div>

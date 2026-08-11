@@ -959,6 +959,19 @@ export type CrossCheckEntry = ActivityData & { documents: CrossCheckDocument[] }
 
 export type CctsTone = "SURPLUS" | "ON_TRACK" | "DEFICIT" | "NO_TARGET";
 
+/**
+ * One published CBAM certificate reference price, read back from the
+ * Emission Factor Manager's supersession chain — not a separate data source.
+ */
+export interface CertificatePricePoint {
+  quarterLabel: string;
+  pricePerTonneEur: number;
+  validFrom: string;
+  source: string;
+  /** The single row still in force — the price the liability was computed at. */
+  isCurrent: boolean;
+}
+
 export interface FacilityDashboardCbam {
   hasData: boolean;
   actualSee?: number;
@@ -1026,6 +1039,7 @@ export interface FacilityActivityFeedItem {
 export interface FacilityDashboard {
   facility: { id: string; name: string; sector: Sector; productionRoute: string | null };
   cbam: FacilityDashboardCbam;
+  certificatePriceTrend: CertificatePricePoint[];
   ccts: FacilityDashboardCcts;
   brsr: FacilityDashboardBrsr;
   deadlines: {
