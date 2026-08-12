@@ -223,6 +223,11 @@ export interface EmissionCalculationResult {
   totalEmissionsCbamAr5: number;
   totalEmissionsCctsAr4: number;
   specificEmbeddedEmissionsCbam: number;
+  // UK CBAM counts a narrower boundary than the EU — Scope 1 + select
+  // precursors, with indirect emissions deferred to 2029 — so these are
+  // separate figures, always <= their EU counterparts for the same entry.
+  totalEmissionsUkCbamAr5: number;
+  specificEmbeddedEmissionsUkCbam: number;
   ghgIntensityCcts: number;
   gridEmissionFactorUsed: number;
   breakdown: EmissionBreakdown;

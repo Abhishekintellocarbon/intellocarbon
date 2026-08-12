@@ -763,6 +763,12 @@ model ActivityData {
   // CBAM Article 9 deduction input — carbon price effectively paid in the
   // country of origin, expressed directly in EUR/tCO2e.
   carbonPricePaidEurPerTonne Float?
+  // The same input for UK CBAM, in GBP/tCO2e. A separate field rather than a
+  // converted view of the EUR one: there is no FX rate in this system, and
+  // inventing one to cross-currency a regulatory deduction would breach the
+  // platform's no-assumed-values rule. Null means no overseas carbon price
+  // is being claimed against the UK liability.
+  carbonPricePaidGbpPerTonne Float?
   // BEE-notified CCTS GHG emission intensity target for this sub-sector/cycle,
   // tCO2e per tonne product — left null until BEE actually notifies one.
   cctsTargetIntensity        Float?
@@ -858,6 +864,16 @@ model EmissionCalculationResult {
 
   specificEmbeddedEmissionsCbam Float
   ghgIntensityCcts              Float
+
+  // UK CBAM totals. Separate columns rather than a reuse of the EU ones
+  // because the two regimes count different emissions: the UK's boundary at
+  // its 1 Jan 2027 launch is Scope 1 + select precursors, with indirect
+  // (electricity and imported steam) emissions deferred to 2029 — see
+  // data/ukCbamReferenceData.ts. Computed for every entry, like the CCTS
+  // columns beside them, so the number exists whether or not the company is
+  // currently in UK scope; whether it *applies* is decided per report.
+  totalEmissionsUkCbamAr5         Float @default(0)
+  specificEmbeddedEmissionsUkCbam Float @default(0)
 
   gridEmissionFactorUsed Float
   breakdown              Json
