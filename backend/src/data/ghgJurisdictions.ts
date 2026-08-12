@@ -35,7 +35,16 @@ export interface JurisdictionConfig {
   gwpSource: string;
 }
 
-const AR6_FOSSIL_GWP: JurisdictionGwpSet = { scheme: "AR6", co2: 1, ch4: 27.9, n2o: 273 };
+/**
+ * AR6 Table 7.15 gives two methane GWP-100 values, both inclusive of the
+ * indirect forcing from CH4 oxidising to CO2: 29.8 fossil, 27.0 non-fossil /
+ * biogenic. Scope 1 here is fuel combustion, so fossil (29.8) is the correct
+ * one. Do not substitute 27.9 — that is AR6's methane GWP *excluding* the
+ * oxidation contribution, an intermediate quantity that appears in neither
+ * column of Table 7.15 and is not what GHG Protocol's August 2024 GWP guidance
+ * (the basis for SB 253 and ASRS filings) instructs preparers to use.
+ */
+const AR6_FOSSIL_GWP: JurisdictionGwpSet = { scheme: "AR6", co2: 1, ch4: 29.8, n2o: 273 };
 const AR5_FOSSIL_GWP: JurisdictionGwpSet = { scheme: "AR5", co2: 1, ch4: 28, n2o: 265 };
 
 const AR6_SOURCE =

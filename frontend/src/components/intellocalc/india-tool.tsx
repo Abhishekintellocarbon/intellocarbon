@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { ResultsPanel, ResultLine } from "@/components/intellocalc/results-panel";
 import { LeadCaptureModal } from "@/components/intellocalc/lead-capture-modal";
 import { intellocalcApi } from "@/lib/api";
+import { trackLeadCaptured } from "@/lib/analytics";
 import { indiaFormSchema, type IndiaFormValues, type LeadContactValues } from "@/lib/validations/intellocalc";
 import { INDIA_SECTOR_OPTIONS, FUEL_TYPE_MIX_OPTIONS, fmtNum } from "@/lib/intellocalc-constants";
 import type { IndiaInputs, IndiaResults } from "@/lib/intellocalc-types";
@@ -72,6 +73,9 @@ export function IndiaTool() {
       { ...contact, phone: contact.phone || undefined },
       pendingInputs,
     );
+    // After the await, so the goal only counts leads that actually persisted —
+    // a rejected request throws above and is reported by the modal instead.
+    trackLeadCaptured("INDIA");
     setResults(results);
     setPendingInputs(null);
   };

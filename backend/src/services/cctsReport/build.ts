@@ -37,6 +37,13 @@ const UNIT_LABELS: Record<string, string> = {
   GJ: "GJ",
 };
 
+/**
+ * Shape of the persisted `breakdown` Json column. The `co2eAr4` keys are
+ * stored data written by emissionCalculation.service.ts, so they keep that
+ * spelling even though the values are AR2/BUR3 and the equivalent DB columns
+ * were renamed to Ar2Bur3. Changing them here would misread every historical
+ * row. See FuelLineResult in emissionCalculation.service.ts.
+ */
 interface SectorBreakdown {
   calcination?: { limestoneInputTonnes: number; emissionFactorUsed: number; clinkerConversionFraction: number; co2Tonnes: number };
   fertilizerFeedstock?: { naturalGasFeedstockNm3: number; emissionFactorUsed: number; co2Tonnes: number };
@@ -142,7 +149,7 @@ function buildExecutiveSummary(pb: PageBuilder, ctx: ReportContext, financials: 
       ["GHG Emission Intensity (actual)", `${fmt(result.ghgIntensityCcts)} ${unit}`],
       ["Notified target intensity", pos.pending ? "Pending BEE notification" : `${fmt(pos.targetIntensity)} ${unit}`],
       ["Surplus / deficit position", cctsPositionLabel(financials)],
-      ["Total GHG emissions (AR2/BUR3)", `${fmt(result.totalEmissionsCctsAr4, 2)} tCO2e`],
+      ["Total GHG emissions (AR2/BUR3)", `${fmt(result.totalEmissionsCctsAr2Bur3, 2)} tCO2e`],
       ["Verification status", verificationStatusLabel(ctx)],
     ],
     { tone: "teal" },
@@ -251,7 +258,7 @@ function buildIntensityResults(pb: PageBuilder, ctx: ReportContext, financials: 
     unit: "tCO2e",
     centerLabel: "Total (AR2/BUR3)",
     segments: [
-      { label: "Combustion", value: result.directCombustionCo2eAr4, color: TEAL },
+      { label: "Combustion", value: result.directCombustionCo2eAr2Bur3, color: TEAL },
       { label: "Process", value: result.directProcessCo2e, color: CHART_BLUE },
       { label: "Indirect", value: result.indirectElectricityCo2e + result.indirectSteamCo2e, color: CHART_AMBER },
       { label: "Precursors", value: result.directPrecursorCo2e, color: CHART_SLATE },
@@ -261,13 +268,13 @@ function buildIntensityResults(pb: PageBuilder, ctx: ReportContext, financials: 
   pb.formulaBlock(
     "GHG Emission Intensity",
     [
-      ["Direct emissions (Scope 1, AR2/BUR3)", `${fmt(result.totalDirectCo2eAr4, 2)} tCO2e`],
+      ["Direct emissions (Scope 1, AR2/BUR3)", `${fmt(result.totalDirectCo2eAr2Bur3, 2)} tCO2e`],
       ["Indirect emissions (Scope 2)", `${fmt(result.indirectElectricityCo2e + result.indirectSteamCo2e, 2)} tCO2e`],
       ["Precursor embedded emissions", `${fmt(result.directPrecursorCo2e, 2)} tCO2e`],
       ["Production quantity", `${fmtInt(production)} ${ctx.sector === "ELECTRICITY" ? "MWh" : "t"}`],
     ],
     "GHG Intensity",
-    `${fmt(result.totalEmissionsCctsAr4, 2)} tCO2e ÷ ${fmtInt(production)} ${ctx.sector === "ELECTRICITY" ? "MWh" : "t"} = ${fmt(result.ghgIntensityCcts)} ${unit}`,
+    `${fmt(result.totalEmissionsCctsAr2Bur3, 2)} tCO2e ÷ ${fmtInt(production)} ${ctx.sector === "ELECTRICITY" ? "MWh" : "t"} = ${fmt(result.ghgIntensityCcts)} ${unit}`,
   );
 
   if (!pos.pending) {
@@ -302,9 +309,9 @@ function buildCombustion(pb: PageBuilder, ctx: ReportContext) {
     const co2Tonnes = entry.quantity * efCo2;
     const ch4Kg = entry.quantity * def.efCh4PerUnit;
     const n2oKg = entry.quantity * def.efN2oPerUnit;
-    const co2eAr4 = co2Tonnes + (ch4Kg / 1000) * GWP_AR2_BUR3.ch4 + (n2oKg / 1000) * GWP_AR2_BUR3.n2o;
-    subtotal += co2eAr4;
-    return { label: def.label, quantity: entry.quantity, unit: entry.unit, efCo2, co2eAr4 };
+    const co2eAr2Bur3 = co2Tonnes + (ch4Kg / 1000) * GWP_AR2_BUR3.ch4 + (n2oKg / 1000) * GWP_AR2_BUR3.n2o;
+    subtotal += co2eAr2Bur3;
+    return { label: def.label, quantity: entry.quantity, unit: entry.unit, efCo2, co2eAr2Bur3 };
   });
 
   const rows: (string | number)[][] = fuelBreakdown.map((f) => [
@@ -312,7 +319,7 @@ function buildCombustion(pb: PageBuilder, ctx: ReportContext) {
     fmt(f.quantity, 2),
     UNIT_LABELS[f.unit] ?? f.unit,
     `${fmt(f.efCo2, 3)} t/unit^1`,
-    fmt(f.co2eAr4, 2),
+    fmt(f.co2eAr2Bur3, 2),
   ]);
   rows.push(["Subtotal — Combustion (AR2/BUR3)", "", "", "", fmt(subtotal, 2)]);
 
@@ -340,7 +347,7 @@ function buildCombustion(pb: PageBuilder, ctx: ReportContext) {
     width: CONTENT_WIDTH,
     height: 150,
     unit: "tCO2e",
-    data: fuelBreakdown.map((f) => ({ label: f.label, value: f.co2eAr4 })),
+    data: fuelBreakdown.map((f) => ({ label: f.label, value: f.co2eAr2Bur3 })),
   });
 }
 

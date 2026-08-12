@@ -21,10 +21,10 @@ export const SERVICE_LINKS = [
     blurb: "Check if your company is on BEE's notified list",
   },
   {
-    href: "/products/esg-brsr",
+    href: "/esg",
     icon: Leaf,
-    name: "BRSR Core / ESG Reporting",
-    blurb: "SEBI Business Responsibility & Sustainability Reporting",
+    name: "ESG Disclosure",
+    blurb: "BRSR Core, ISSB IFRS S1/S2 and Scope 3 in one bundle",
   },
   {
     href: "/intellocalc",

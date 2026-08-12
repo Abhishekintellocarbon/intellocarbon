@@ -1,8 +1,8 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { setGridEmissionFactor } from "../data/emissionFactors";
-import { setCbamCertificatePrice } from "../data/cbamReferenceData";
-import { setUkCbamRate } from "../data/ukCbamReferenceData";
+import { setCbamCertificatePrice, CBAM_CERTIFICATE_PRICE_FACTOR_NAME } from "../data/cbamReferenceData";
+import { setUkCbamRate, UK_CBAM_RATE_FACTOR_NAME } from "../data/ukCbamReferenceData";
 import type {
   CreateEmissionFactorInput,
   UpdateEmissionFactorInput,
@@ -149,7 +149,7 @@ const supersedeOrCreateByName = async (
 
 export const updateCbamCertificatePrice = async (input: QuickUpdateValueInput) => {
   const factor = await supersedeOrCreateByName(
-    "CBAM Certificate Price",
+    CBAM_CERTIFICATE_PRICE_FACTOR_NAME,
     { fuelType: "CBAM_CERTIFICATE_PRICE", unit: "EUR/tCO2e", sectorApplicability: "ALL" },
     input,
   );
@@ -166,7 +166,7 @@ export const updateCbamCertificatePrice = async (input: QuickUpdateValueInput) =
  */
 export const updateUkCbamRate = async (input: QuickUpdateValueInput) => {
   const factor = await supersedeOrCreateByName(
-    "UK CBAM Rate",
+    UK_CBAM_RATE_FACTOR_NAME,
     { fuelType: "UK_CBAM_RATE", unit: "GBP/tCO2e", sectorApplicability: "ALL" },
     input,
   );
@@ -195,9 +195,9 @@ export const updateCeaGridFactor = async (input: QuickUpdateValueInput) => {
  */
 export const hydrateEmissionFactorCache = async (): Promise<void> => {
   const [certPrice, gridFactor, ukCbamRate] = await Promise.all([
-    prisma.emissionFactor.findFirst({ where: { name: "CBAM Certificate Price", isCurrent: true } }),
+    prisma.emissionFactor.findFirst({ where: { name: CBAM_CERTIFICATE_PRICE_FACTOR_NAME, isCurrent: true } }),
     prisma.emissionFactor.findFirst({ where: { name: "CEA Grid Emission Factor", isCurrent: true } }),
-    prisma.emissionFactor.findFirst({ where: { name: "UK CBAM Rate", isCurrent: true } }),
+    prisma.emissionFactor.findFirst({ where: { name: UK_CBAM_RATE_FACTOR_NAME, isCurrent: true } }),
   ]);
   if (certPrice) setCbamCertificatePrice(certPrice.value, certPrice.source, certPrice.validFrom);
   if (gridFactor) setGridEmissionFactor(gridFactor.value, gridFactor.source);

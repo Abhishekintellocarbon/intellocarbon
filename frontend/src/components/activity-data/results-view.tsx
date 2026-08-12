@@ -165,7 +165,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
               title="GHG Intensity"
               value={result.ghgIntensityCcts}
               unit={`${result.breakdown.seeUnit ?? "tCO2e/t"} product`}
-              total={result.totalEmissionsCctsAr4}
+              total={result.totalEmissionsCctsAr2Bur3}
               gwp="IPCC AR2/BUR3"
               accent="blue"
             />
@@ -197,19 +197,19 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
               <CategoryBar
                 label="Direct combustion (fuels)"
                 valueAr5={result.directCombustionCo2eAr5}
-                valueAr4={result.directCombustionCo2eAr4}
+                valueAr2Bur3={result.directCombustionCo2eAr2Bur3}
                 max={result.totalEmissionsCbamAr5}
               />
-              <CategoryBar label="Process emissions (calcination / feedstock)" valueAr5={result.directProcessCo2e} valueAr4={result.directProcessCo2e} max={result.totalEmissionsCbamAr5} single />
+              <CategoryBar label="Process emissions (calcination / feedstock)" valueAr5={result.directProcessCo2e} valueAr2Bur3={result.directProcessCo2e} max={result.totalEmissionsCbamAr5} single />
               {result.directPfcCo2eAr5 > 0 && (
-                <CategoryBar label="PFC emissions (aluminium anode effects)" valueAr5={result.directPfcCo2eAr5} valueAr4={result.directPfcCo2eAr4} max={result.totalEmissionsCbamAr5} />
+                <CategoryBar label="PFC emissions (aluminium anode effects)" valueAr5={result.directPfcCo2eAr5} valueAr2Bur3={result.directPfcCo2eAr2Bur3} max={result.totalEmissionsCbamAr5} />
               )}
               {result.directN2oProcessCo2eAr5 > 0 && (
-                <CategoryBar label="N2O process emissions (nitric acid)" valueAr5={result.directN2oProcessCo2eAr5} valueAr4={result.directN2oProcessCo2eAr4} max={result.totalEmissionsCbamAr5} />
+                <CategoryBar label="N2O process emissions (nitric acid)" valueAr5={result.directN2oProcessCo2eAr5} valueAr2Bur3={result.directN2oProcessCo2eAr2Bur3} max={result.totalEmissionsCbamAr5} />
               )}
-              <CategoryBar label="Precursor materials (embedded)" valueAr5={result.directPrecursorCo2e} valueAr4={result.directPrecursorCo2e} max={result.totalEmissionsCbamAr5} single />
-              <CategoryBar label="Electricity (indirect)" valueAr5={result.indirectElectricityCo2e} valueAr4={result.indirectElectricityCo2e} max={result.totalEmissionsCbamAr5} single />
-              <CategoryBar label="Steam (indirect)" valueAr5={result.indirectSteamCo2e} valueAr4={result.indirectSteamCo2e} max={result.totalEmissionsCbamAr5} single />
+              <CategoryBar label="Precursor materials (embedded)" valueAr5={result.directPrecursorCo2e} valueAr2Bur3={result.directPrecursorCo2e} max={result.totalEmissionsCbamAr5} single />
+              <CategoryBar label="Electricity (indirect)" valueAr5={result.indirectElectricityCo2e} valueAr2Bur3={result.indirectElectricityCo2e} max={result.totalEmissionsCbamAr5} single />
+              <CategoryBar label="Steam (indirect)" valueAr5={result.indirectSteamCo2e} valueAr2Bur3={result.indirectSteamCo2e} max={result.totalEmissionsCbamAr5} single />
             </div>
             <div className="mt-5 flex items-center gap-4 border-t border-surface-border pt-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
@@ -517,25 +517,25 @@ function ScoreCard({
 function CategoryBar({
   label,
   valueAr5,
-  valueAr4,
+  valueAr2Bur3,
   max,
   single,
 }: {
   label: string;
   valueAr5: number;
-  valueAr4: number;
+  valueAr2Bur3: number;
   max: number;
   single?: boolean;
 }) {
   const pct5 = max > 0 ? Math.min(100, (valueAr5 / max) * 100) : 0;
-  const pct4 = max > 0 ? Math.min(100, (valueAr4 / max) * 100) : 0;
+  const pctAr2Bur3 = max > 0 ? Math.min(100, (valueAr2Bur3 / max) * 100) : 0;
 
   return (
     <div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>{label}</span>
         <span>
-          {single ? fmtInt(valueAr5) : `${fmtInt(valueAr5)} / ${fmtInt(valueAr4)}`} tCO2e
+          {single ? fmtInt(valueAr5) : `${fmtInt(valueAr5)} / ${fmtInt(valueAr2Bur3)}`} tCO2e
         </span>
       </div>
       <div className="mt-1.5 space-y-1">
@@ -544,7 +544,7 @@ function CategoryBar({
         </div>
         {!single && (
           <div className="h-2 w-full overflow-hidden rounded-full bg-surface-raised">
-            <div className="h-full rounded-full bg-blue-400" style={{ width: `${pct4}%` }} />
+            <div className="h-full rounded-full bg-blue-400" style={{ width: `${pctAr2Bur3}%` }} />
           </div>
         )}
       </div>

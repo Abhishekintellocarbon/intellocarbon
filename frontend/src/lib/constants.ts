@@ -1,4 +1,4 @@
-import type { Sector } from "./types";
+import type { OffsetCategory, OffsetRegistry, Sector } from "./types";
 
 export const SECTOR_OPTIONS = [
   { value: "STEEL", label: "Iron & Steel" },
@@ -44,6 +44,28 @@ export const BUSINESS_MODEL_OPTIONS = [
   { value: "FINANCIAL_INSTITUTION", label: "Financial institution" },
   { value: "DISTRIBUTOR", label: "Distributor" },
 ] as const;
+
+// Voluntary carbon credit registries. Display labels only — the platform makes
+// no statement about any registry's standards; OTHER exists so a programme not
+// listed can still be logged, with the specifics going in the purchase notes.
+export const OFFSET_REGISTRY_LABELS: Record<OffsetRegistry, string> = {
+  VERRA: "Verra (VCS)",
+  GOLD_STANDARD: "Gold Standard",
+  ACR: "American Carbon Registry (ACR)",
+  CAR: "Climate Action Reserve (CAR)",
+  ART: "Architecture for REDD+ Transactions (ART)",
+  ICM: "Isometric Carbon Markets (ICM)",
+  OTHER: "Other",
+};
+
+// The avoidance/removal x nature/engineered split. Recorded as the purchaser
+// classifies it — Intellocarbon does not reclassify or rate credits.
+export const OFFSET_CATEGORY_LABELS: Record<OffsetCategory, string> = {
+  AVOIDANCE_NATURE: "Avoidance — nature-based",
+  AVOIDANCE_ENGINEERED: "Avoidance — engineered",
+  REMOVAL_NATURE: "Removal — nature-based",
+  REMOVAL_ENGINEERED: "Removal — engineered",
+};
 
 export const FACILITY_TYPE_OPTIONS = [
   { value: "INTEGRATED_STEEL_PLANT", label: "Integrated steel plant (BF-BOF)" },

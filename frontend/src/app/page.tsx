@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
 import { HomeRedirectGate } from "@/components/marketing/home-redirect-gate";
+import { TestimonialsSection } from "@/components/marketing/testimonials-section";
 import { CookieSettingsLink } from "@/components/layout/cookie-settings-link";
 import { INSIGHTS } from "@/lib/insights";
 import type { ComplianceEvent } from "@/lib/compliance-deadlines";
@@ -23,6 +25,15 @@ import {
 // utility; revalidate hourly so a statically rendered homepage never serves a
 // date that has already passed.
 export const revalidate = 3600;
+
+// Three pillars in the copy — CBAM, CCTS, ESG — but the framework names stay
+// in the description: "BRSR software" is a term people search for directly,
+// so it has to remain indexable even though BRSR isn't presented as a pillar.
+export const metadata: Metadata = {
+  title: "Intellocarbon — CBAM, CCTS & ESG Compliance for Indian Industry",
+  description:
+    "One platform for CBAM, CCTS and ESG disclosure. BRSR Core (SEBI BRSR software), ISSB IFRS S1/S2 and Scope 3 reporting generated from a single emissions data entry.",
+};
 
 function buildStats(nextDeadline: ComplianceEvent) {
   return [
@@ -49,12 +60,16 @@ const PILLARS = [
   },
   {
     icon: FileBarChart,
-    title: "BRSR & ESG Reporting",
+    title: "ESG Disclosure",
     description:
-      "SEBI BRSR Core disclosures generated from the same emissions data. Reasonable assurance ready. GRI, ISSB, CSRD and CDP on the roadmap.",
-    cta: "Start BRSR",
+      "One bundle covering the disclosure frameworks your investors and regulators ask for: SEBI BRSR Core, ISSB IFRS S1/S2, and Scope 3 value-chain emissions — all generated from the same emissions data. Reasonable assurance ready. GRI, CSRD and CDP on the roadmap.",
+    cta: "Start ESG",
   },
 ];
+
+// Named frameworks inside the ESG pillar — kept visible (and searchable) as
+// sub-items rather than promoted to a fourth pillar alongside CBAM/CCTS/ESG.
+const ESG_FRAMEWORKS = ["BRSR Core (SEBI)", "ISSB IFRS S1/S2", "Scope 3 value chain"];
 
 const STANDARDS = [
   { label: "EU CBAM Regulation 2023/956", dot: "#00D4AA" },
@@ -76,9 +91,9 @@ const OFFERINGS = [
       "Nine obligated sectors. BEE format reports. Forms 1A 1B 1C 1D A B C D. Carbon credit surplus tracking.",
   },
   {
-    title: "BRSR Core",
+    title: "ESG Disclosure Bundle",
     description:
-      "Nine SEBI attributes. Reasonable assurance ready. Value-chain disclosure. Reuses your existing emissions data.",
+      "BRSR Core — nine SEBI attributes, reasonable assurance ready. ISSB IFRS S1/S2. Scope 3 value-chain disclosure. All three reuse your existing emissions data.",
   },
   {
     title: "IntelloCalc Free Tools",
@@ -97,10 +112,15 @@ const FOOTER_LINKS = {
     { label: "FAQ", href: "/faq" },
     { label: "Pricing", href: "/billing" },
   ],
+  // Three pillars — CBAM, CCTS, ESG. BRSR Core sits *under* ESG as a named
+  // sub-item (`sub: true` indents it) rather than as a fourth peer: people
+  // search for "BRSR software" directly, so the term stays visible and
+  // linkable without being presented as its own pillar.
   platform: [
     { label: "CBAM", href: "/products/cbam-compliance" },
     { label: "CCTS", href: "/products/ccts-carbon-markets" },
-    { label: "BRSR", href: "/products/esg-brsr" },
+    { label: "ESG", href: "/esg" },
+    { label: "BRSR Core", href: "/products/esg-brsr", sub: true },
     { label: "IntelloCalc", href: "/intellocalc" },
     { label: "CCTS Obligated Entities", href: "/ccts-obligated-entities" },
   ],
@@ -137,7 +157,7 @@ export default function Home() {
           <div>
             <span className="inline-flex items-center gap-2.5 rounded-full border border-surface-border bg-surface px-5 py-2.5 text-sm font-medium text-muted-foreground">
               <span className="h-2 w-2 shrink-0 rounded-full bg-teal-500" />
-              CBAM &middot; CCTS &middot; BRSR &middot; ESG &mdash; one platform
+              CBAM &middot; CCTS &middot; ESG &mdash; one platform
             </span>
 
             <h1 className="mt-6 text-[40px] font-semibold leading-tight text-balance sm:text-[56px]">
@@ -234,6 +254,18 @@ export default function Home() {
               </span>
               <h3 className="mt-4 font-medium">{pillar.title}</h3>
               <p className="mt-1.5 flex-1 text-sm text-muted-foreground">{pillar.description}</p>
+              {pillar.title === "ESG Disclosure" && (
+                <ul className="mt-3 flex flex-wrap gap-1.5">
+                  {ESG_FRAMEWORKS.map((framework) => (
+                    <li
+                      key={framework}
+                      className="rounded-full border border-surface-border bg-surface-raised px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+                    >
+                      {framework}
+                    </li>
+                  ))}
+                </ul>
+              )}
               <Link
                 href="/signup"
                 className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-teal-500 hover:text-teal-400"
@@ -370,6 +402,11 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Social proof — renders a capability statement until real, permissioned
+          testimonials are added to lib/testimonials.ts, at which point it
+          becomes a carousel with no change here. */}
+      <TestimonialsSection />
+
       {/* Blog / insights */}
       <section id="insights" className="relative z-10 mx-auto max-w-6xl px-6 pb-20 text-center">
         <h2 className="text-[28px] font-semibold sm:text-[32px]">Insights and regulatory updates</h2>
@@ -405,8 +442,8 @@ export default function Home() {
               Intellocarbon
             </span>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              Compliance infrastructure for Indian industry — CBAM, CCTS and BRSR from one
-              platform.
+              Compliance infrastructure for Indian industry — CBAM, CCTS and ESG (BRSR Core, ISSB
+              IFRS S1/S2, Scope 3) from one platform.
             </p>
             <p className="mt-4 text-xs text-muted">
               &copy; {new Date().getFullYear()} Intellocarbon Solutions. All rights reserved.
@@ -430,7 +467,7 @@ export default function Home() {
             <p className="text-sm font-semibold text-foreground">Platform</p>
             <ul className="mt-3 space-y-2.5">
               {FOOTER_LINKS.platform.map((link) => (
-                <li key={link.label}>
+                <li key={link.label} className={"sub" in link && link.sub ? "pl-3" : undefined}>
                   <Link href={link.href} className="text-sm text-muted-foreground hover:text-teal-500">
                     {link.label}
                   </Link>

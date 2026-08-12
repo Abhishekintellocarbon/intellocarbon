@@ -7,9 +7,9 @@
  * citation on every value, and no invented placeholders where HMRC has not
  * published yet (the rate, in particular, stays null until configured).
  *
- * Data model and constants only at this stage — nothing here is wired into
- * the calculation engine or the report builders, and the EU CBAM path is
- * untouched.
+ * Consumed by the UK calculation engine (emissionCalculation.service.ts,
+ * ukCbamFinancialImpact.service.ts) and the UK return builder. The EU CBAM
+ * path reads none of it.
  */
 
 import type { Sector } from "@prisma/client";
@@ -84,8 +84,8 @@ export const ukCbamEmissionScopesFor = (accountingPeriodYear: number): UkCbamEmi
 /**
  * Emissions in scope at launch: Scope 1 + select precursors only.
  *
- * NOTE for the calculation layer, which is not built yet: nothing may compute
- * Scope 2 / indirect electricity-related emissions for UK CBAM before 2029,
+ * NOTE for the calculation layer: nothing may compute Scope 2 / indirect
+ * electricity-related emissions for UK CBAM before 2029,
  * even though the EU CBAM engine already can — the two regimes' boundaries
  * differ and must not be shared. Anything reasoning about a period other than
  * the launch year should call ukCbamEmissionScopesFor(year) rather than
@@ -123,6 +123,9 @@ export const UK_CBAM_DEFERRED_EMISSIONS: UkCbamDeferredEmissions = {
  */
 export const ukCbamIncludesIndirectEmissions = (accountingPeriodYear: number): boolean =>
   isUkCbamEmissionScopeInScope("SCOPE_2", accountingPeriodYear);
+
+/** The Emission Factor Manager row this rate is stored in — one constant, matching CBAM_CERTIFICATE_PRICE_FACTOR_NAME, so the name is never re-typed at a lookup site. */
+export const UK_CBAM_RATE_FACTOR_NAME = "UK CBAM Rate";
 
 export interface UkCbamRateReference {
   ratePerTonneGbp: number;

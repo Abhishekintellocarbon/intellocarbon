@@ -189,7 +189,7 @@ export default function CbamCompliancePage() {
       demoSubject="Demo request — CBAM compliance"
       crossLinks={[
         { label: "See CCTS", href: "/products/ccts-carbon-markets" },
-        { label: "See BRSR / ESG", href: "/products/esg-brsr" },
+        { label: "See ESG", href: "/esg" },
       ]}
     />
   );

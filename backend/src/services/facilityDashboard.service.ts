@@ -2,6 +2,7 @@ import { prisma } from "../config/prisma";
 import { requireOwnedFacility } from "./facility.service";
 import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
 import { computeUkCbamFinancialImpact } from "./ukCbamFinancialImpact.service";
+import { listCbamCertificatePriceHistory } from "./certificatePriceHistory.service";
 import type { ReportContext } from "./report.service";
 import { DISCLOSED_ATTRIBUTE_COUNT } from "./brsrReport/build";
 import { round, quarterLabel, periodLabel, seeUnitFor, cctsTone, type CctsTone } from "./dashboardShared.helpers";
@@ -300,10 +301,17 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
     matched: crossCheckableEntries.filter((e) => e.documents.every((d) => d.crossCheckReview?.status === "MATCHED")).length,
   };
 
+  // ---- CBAM certificate price history — the Emission Factor Manager's
+  // supersession chain, not a new data source. Company-independent (the
+  // Commission publishes one price), so it is read here rather than derived
+  // per facility, and the frontend shows it only under the CBAM tier.
+  const certificatePriceTrend = await listCbamCertificatePriceHistory();
+
   return {
     facility: { id: facility.id, name: facility.name, sector: facility.company.sector, productionRoute: facility.productionRoute },
     cbam,
     ukCbam,
+    certificatePriceTrend,
     ccts,
     brsr,
     deadlines,

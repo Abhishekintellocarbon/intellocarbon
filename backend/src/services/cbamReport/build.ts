@@ -458,6 +458,11 @@ function buildScope1Combustion(pb: PageBuilder, ctx: ReportContext) {
 // Section 07 — Direct Emissions: Scope 1 Process (page 9)
 // ---------------------------------------------------------------------------
 
+/**
+ * Shape of the persisted `breakdown` Json column — the `co2eAr4` keys are
+ * stored data and keep that spelling for the same reason as in
+ * cctsReport/build.ts, despite carrying AR2/BUR3 values.
+ */
 interface SectorBreakdown {
   calcination?: { limestoneInputTonnes: number; emissionFactorUsed: number; clinkerConversionFraction: number; co2Tonnes: number };
   fertilizerFeedstock?: { naturalGasFeedstockNm3: number; emissionFactorUsed: number; co2Tonnes: number };

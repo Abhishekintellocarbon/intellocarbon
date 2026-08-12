@@ -55,6 +55,12 @@ export interface Company {
   createdAt: string;
   updatedAt: string;
   _count?: { facilities: number };
+  /**
+   * Whether the company holds the ESG Disclosure Bundle. Returned by
+   * GET /api/company/me and used to decide whether to offer the optional
+   * water inventory section — the authoritative gate stays server-side.
+   */
+  esgBundleActive?: boolean;
 }
 
 export interface Facility {
@@ -202,6 +208,13 @@ export interface EmissionBreakdown {
   };
   sector: Sector;
   seeUnit: string;
+  /**
+   * `ar4` is a stored key inside the persisted `breakdown` Json column, not a
+   * live API field — it keeps the old spelling (the table it holds has always
+   * been AR2/BUR3) so historical rows still parse. Same for every co2eAr4 /
+   * gwpAr4 above. The DB-column-backed fields on EmissionCalculationResult
+   * below were renamed to Ar2Bur3; these deliberately were not.
+   */
   gwpTables: { ar4: GwpTable; ar5: GwpTable };
 }
 
@@ -209,19 +222,19 @@ export interface EmissionCalculationResult {
   id: string;
   activityDataId: string;
   directCombustionCo2eAr5: number;
-  directCombustionCo2eAr4: number;
+  directCombustionCo2eAr2Bur3: number;
   directProcessCo2e: number;
   directPrecursorCo2e: number;
   directPfcCo2eAr5: number;
-  directPfcCo2eAr4: number;
+  directPfcCo2eAr2Bur3: number;
   directN2oProcessCo2eAr5: number;
-  directN2oProcessCo2eAr4: number;
+  directN2oProcessCo2eAr2Bur3: number;
   indirectElectricityCo2e: number;
   indirectSteamCo2e: number;
   totalDirectCo2eAr5: number;
-  totalDirectCo2eAr4: number;
+  totalDirectCo2eAr2Bur3: number;
   totalEmissionsCbamAr5: number;
-  totalEmissionsCctsAr4: number;
+  totalEmissionsCctsAr2Bur3: number;
   specificEmbeddedEmissionsCbam: number;
   // UK CBAM counts a narrower boundary than the EU — Scope 1 + select
   // precursors, with indirect emissions deferred to 2029 — so these are
@@ -232,6 +245,102 @@ export interface EmissionCalculationResult {
   gridEmissionFactorUsed: number;
   breakdown: EmissionBreakdown;
   calculatedAt: string;
+}
+
+/** One measured water source for a period — ISO 14046 inventory line. */
+export interface WaterEntry {
+  id: string;
+  sourceType: string;
+  withdrawnM3: number;
+  dischargedM3: number;
+  freshwaterFactorOverride: number | null;
+}
+
+export interface WaterSourceDefinition {
+  key: string;
+  label: string;
+  category: "FRESHWATER" | "RECLAIMED";
+  freshwaterFactor: number;
+  source: string;
+  description: string;
+}
+
+export interface WaterSourceBreakdownEntry {
+  sourceType: string;
+  label: string;
+  category: string;
+  withdrawnM3: number;
+  dischargedM3: number;
+  consumedM3: number;
+  freshwaterWithdrawnM3: number;
+  freshwaterFactorApplied: number;
+  pctOfWithdrawal: number;
+}
+
+/**
+ * Derived on read by the backend, never stored — see
+ * waterCalculation.service.ts. Consumption is withdrawal minus discharge.
+ */
+export interface WaterFootprint {
+  hasData: boolean;
+  unit: string;
+  totalWithdrawnM3: number;
+  totalDischargedM3: number;
+  totalConsumedM3: number;
+  freshwaterWithdrawnM3: number;
+  recycledSharePct: number;
+  waterIntensityM3PerTonne: number | null;
+  withdrawalIntensityM3PerTonne: number | null;
+  sources: WaterSourceBreakdownEntry[];
+  hasDischargeExceedingWithdrawal: boolean;
+}
+
+export interface WaterFootprintRollup extends WaterFootprint {
+  entriesWithWater: number;
+  facilitiesReporting: number;
+}
+
+export type OffsetRegistry = "VERRA" | "GOLD_STANDARD" | "ACR" | "CAR" | "ART" | "ICM" | "OTHER";
+export type OffsetCategory =
+  | "AVOIDANCE_NATURE"
+  | "AVOIDANCE_ENGINEERED"
+  | "REMOVAL_NATURE"
+  | "REMOVAL_ENGINEERED";
+
+/**
+ * A logged voluntary carbon credit purchase. Tracking only — every field is
+ * recorded as the purchaser entered it; nothing here is verified or rated.
+ */
+export interface VoluntaryOffsetPurchase {
+  id: string;
+  companyId: string;
+  facilityId: string;
+  registry: OffsetRegistry;
+  creditSerialNumber: string;
+  tonnageTco2e: number;
+  category: OffsetCategory;
+  vintageYear: number;
+  purchaseDate: string;
+  status: "DRAFT" | "SUBMITTED";
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OffsetTotals {
+  /** SUBMITTED purchases only. */
+  totalTonnage: number;
+  byCategory: Record<OffsetCategory, number>;
+  purchaseCount: number;
+}
+
+export interface OffsetsOverviewSummary extends OffsetTotals {
+  facilitiesReporting: number;
+  /** null when no ISSB disclosure exists to compare against. */
+  grossEmissionsTco2e: number | null;
+  grossEmissionsSource: string;
+  netAfterOffsetsTco2e: number | null;
+  offsetCoveragePct: number | null;
 }
 
 export interface ActivityData {
@@ -275,7 +384,10 @@ export interface ActivityData {
   fuelEntries: FuelEntry[];
   processMaterialEntries: ProcessMaterialEntry[];
   precursorEntries: PrecursorEntry[];
+  waterEntries: WaterEntry[];
   calculationResult: EmissionCalculationResult | null;
+  /** Present on the single-entry GET, which computes it from waterEntries. */
+  waterFootprint?: WaterFootprint;
   verificationRequest?: VerificationRequest | null;
   facility?: Facility;
   // Present wherever the backend computes it — a SUBMITTED entry with no
@@ -521,7 +633,8 @@ export interface EmissionFactorReference {
   precursors: PrecursorDefinition[];
   defaultGridEmissionFactor: number;
   defaultSteamEmissionFactor: number;
-  gwpTables: { ar4: GwpTable; ar5: GwpTable };
+  gwpTables: { ar2Bur3: GwpTable; ar5: GwpTable };
+  waterSources: WaterSourceDefinition[];
   enums: {
     sector: ReferenceOption[];
     facilityType: ReferenceOption[];
@@ -882,6 +995,19 @@ export type CrossCheckEntry = ActivityData & { documents: CrossCheckDocument[] }
 
 export type CctsTone = "SURPLUS" | "ON_TRACK" | "DEFICIT" | "NO_TARGET";
 
+/**
+ * One published CBAM certificate reference price, read back from the
+ * Emission Factor Manager's supersession chain — not a separate data source.
+ */
+export interface CertificatePricePoint {
+  quarterLabel: string;
+  pricePerTonneEur: number;
+  validFrom: string;
+  source: string;
+  /** The single row still in force — the price the liability was computed at. */
+  isCurrent: boolean;
+}
+
 export interface FacilityDashboardCbam {
   hasData: boolean;
   actualSee?: number;
@@ -994,6 +1120,7 @@ export interface FacilityDashboard {
   facility: { id: string; name: string; sector: Sector; productionRoute: string | null };
   cbam: FacilityDashboardCbam;
   ukCbam: FacilityDashboardUkCbam;
+  certificatePriceTrend: CertificatePricePoint[];
   ccts: FacilityDashboardCcts;
   brsr: FacilityDashboardBrsr;
   deadlines: {
@@ -1122,8 +1249,25 @@ export type CompanyUkCbamAnalytics =
       liabilityTrend: { quarterLabel: string; emissionsTco2e: number; liabilityGbp: number | null }[];
     };
 
+/**
+ * "Live position" strip item — mirrors backend/src/services/livePosition.helpers.ts.
+ * Every item is computed from real data; the backend omits anything it can't
+ * compute, so the frontend never has to render a placeholder.
+ */
+export interface LivePositionItem {
+  id: string;
+  kind: "DATA_UPDATE" | "DEADLINE" | "TREND" | "PRICE";
+  label: string;
+  detail: string;
+  timestamp: string | null;
+  deltaPct?: number;
+  lowerIsBetter?: boolean;
+  href?: string;
+}
+
 export interface CompanyDashboardAnalytics {
   facilityCount: number;
+  livePosition: LivePositionItem[];
   emissionsTrend: CompanyEmissionsTrendPoint[];
   liabilityTrend: CompanyLiabilityTrendPoint[];
   currentCertificatePrice: { pricePerTonneEur: number; quarterLabel: string };
@@ -1134,6 +1278,67 @@ export interface CompanyDashboardAnalytics {
   yearOverYear: CompanyYearOverYear;
   // null when the company has no active BRSR Core subscription.
   brsr: CompanyBrsrAnalytics | null;
+}
+
+// --- Unified ESG Overview (/esg) ---
+// Mirrors backend/src/services/esgOverview.service.ts.
+
+export interface EsgFrameworkCompleteness {
+  periodLabel: string | null;
+  complete: number;
+  total: number;
+  requirements: { key: string; label: string; complete: boolean }[];
+}
+
+export interface EsgIssbSummary {
+  hasReports: boolean;
+  periodLabel: string | null;
+  facilitiesReporting: number;
+  scope1Tco2e: number;
+  scope2Tco2e: number;
+  scope3Tco2e: number | null;
+  totalTco2e: number;
+  nearestTargetYear: number | null;
+  baselineYear: number | null;
+  baselineEmissionsTco2e: number | null;
+  changeFromBaselinePct: number | null;
+}
+
+export interface EsgScope3CategoryBreakdownEntry {
+  category: number;
+  name: string;
+  prismaCategory: string;
+  relevance: Scope3Relevance;
+  tco2e: number;
+  pct: number;
+  entryCount: number;
+}
+
+export interface EsgScope3Summary {
+  hasData: boolean;
+  periodLabel: string | null;
+  totalTco2e: number;
+  categories: EsgScope3CategoryBreakdownEntry[];
+  mandatoryCalculableCount: number;
+  mandatoryCalculableDisclosed: number;
+}
+
+export interface EsgOverview {
+  companyName: string;
+  facilityCount: number;
+  currentFyLabel: string;
+  brsr: CompanyBrsrAnalytics;
+  issb: EsgIssbSummary;
+  scope3: EsgScope3Summary;
+  /** ISO 14046 water footprint rolled up from submitted ActivityData. */
+  water: WaterFootprintRollup;
+  offsets: OffsetsOverviewSummary;
+  completeness: {
+    brsr: EsgFrameworkCompleteness;
+    issb: EsgFrameworkCompleteness;
+    scope3: EsgFrameworkCompleteness;
+  };
+  livePosition: LivePositionItem[];
 }
 
 export interface FacilityDocument {

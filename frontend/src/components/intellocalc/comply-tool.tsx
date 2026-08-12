@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { ComplyProgress } from "@/components/intellocalc/comply-progress";
 import { LeadCaptureModal } from "@/components/intellocalc/lead-capture-modal";
 import { intellocalcApi } from "@/lib/api";
+import { trackLeadCaptured } from "@/lib/analytics";
 import { CBAM_GOOD_OPTIONS, EU_EXPORT_VOLUME_OPTIONS, CCTS_STATUS_OPTIONS, EPR_PRODUCT_OPTIONS } from "@/lib/intellocalc-constants";
 import type { LeadContactValues } from "@/lib/validations/intellocalc";
 import type { CbamGood, ComplyInputs, ComplyResults, EprProduct } from "@/lib/intellocalc-types";
@@ -92,6 +93,9 @@ export function ComplyTool() {
       { ...contact, phone: contact.phone || undefined },
       inputs,
     );
+    // After the await, so the goal only counts leads that actually persisted —
+    // a rejected request throws above and is reported by the modal instead.
+    trackLeadCaptured("COMPLY");
     setResults(results);
     setLeadId(leadId ?? null);
     setModalOpen(false);

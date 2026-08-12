@@ -13,10 +13,14 @@ import { cn } from "@/lib/utils";
 const COMPANY_NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/facilities", label: "Facilities" },
-  // Straight to the functional flow (not the public /esg marketing hub) —
-  // a logged-in user clicking this from inside the app wants to use BRSR
-  // Core, not read about frameworks they're already a customer of.
-  { href: "/esg/brsr", label: "ESG" },
+  // Straight to the functional flow (not the public /esg marketing hub) — a
+  // logged-in user clicking this from inside the app wants their own numbers,
+  // not a page about frameworks they're already a customer of. The unified
+  // overview is the landing view; the per-framework pages (/esg/brsr,
+  // /esg/issb) are drill-downs from its completeness cards.
+  // activeFor keeps the tab lit on the drill-downs too, which sit under /esg
+  // rather than under the overview's own path.
+  { href: "/esg/overview", label: "ESG", activeFor: "/esg" },
   { href: "/billing", label: "Billing" },
   { href: "/company/settings", label: "Company" },
 ];
@@ -57,7 +61,8 @@ export function AppHeader() {
           </Link>
           <nav className="hidden items-center gap-1 sm:flex">
             {allNavLinks.map((link) => {
-              const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+              const activePrefix = ("activeFor" in link && link.activeFor) || link.href;
+              const active = pathname === activePrefix || pathname.startsWith(`${activePrefix}/`);
               return (
                 <Link
                   key={link.href}

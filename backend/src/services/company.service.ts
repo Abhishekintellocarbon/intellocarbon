@@ -7,9 +7,26 @@ const cleanOptional = (value?: string) => (value ? value : undefined);
 export const getMyCompany = async (userId: string) => {
   const company = await prisma.company.findUnique({
     where: { ownerId: userId },
-    include: { _count: { select: { facilities: true } } },
+    include: {
+      _count: { select: { facilities: true } },
+      // Drives `esgBundleActive` below. Fetched through the same query rather
+      // than a second round trip, for the reason spelled out in
+      // requireOwnedFacilityForEsgBundle.
+      subscriptions: {
+        where: { status: "ACTIVE", tier: "BRSR_CORE_REPORTING" },
+        select: { id: true },
+      },
+    },
   });
-  return company;
+  if (!company) return null;
+
+  // Whether the company holds the ESG Disclosure Bundle. Exposed here because
+  // the activity-data form already calls this endpoint and uses it to decide
+  // whether to offer the optional ISO 14046 water inventory section — the
+  // authoritative gate is still server-side on the ESG Overview aggregate;
+  // this only avoids showing a section the company can't use.
+  const { subscriptions, ...rest } = company;
+  return { ...rest, esgBundleActive: subscriptions.length > 0 };
 };
 
 export const requireMyCompany = async (userId: string) => {

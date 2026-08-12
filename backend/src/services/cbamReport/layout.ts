@@ -134,6 +134,16 @@ export class PageBuilder {
     return this.doc.bufferedPageRange().count - 1;
   }
 
+  /**
+   * For documents with no cover page, so the first page gets the branded
+   * header band like every other page. Without this, page index 0 is assumed
+   * to be a cover and skipped in finalize(), leaving page 1 unbranded. The
+   * two full reports both have covers and are unaffected.
+   */
+  noCoverPage() {
+    this.coverPageIndex = -1;
+  }
+
   /** Call once, immediately, for the auto-created first page (the cover). */
   startCover() {
     this.coverPageIndex = this.currentPageIndex();

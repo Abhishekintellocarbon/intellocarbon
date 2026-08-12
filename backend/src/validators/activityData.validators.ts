@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { HydrogenRoute } from "@prisma/client";
 import { FUEL_LIBRARY, PRECURSOR_LIBRARY, PROCESS_MATERIAL_LIBRARY } from "../data/emissionFactors";
+import { WATER_SOURCE_LIBRARY } from "../data/waterFactors";
 import { draftString, draftNumber, draftNativeEnum, draftDate } from "./draft";
 
 const fuelEntrySchema = z.object({
@@ -15,6 +16,23 @@ const processMaterialEntrySchema = z.object({
   quantityTonnes: z.coerce.number().nonnegative(),
   emissionFactorOverride: z.coerce.number().nonnegative().optional(),
 });
+
+// ISO 14046 water inventory line. Discharge is validated against withdrawal
+// per line: returning more water than was taken is a metering/boundary error,
+// and rejecting it at submit time is cheaper than explaining a negative
+// consumption figure on a report later. The rollup surfaces the same condition
+// for already-stored rows (see hasDischargeExceedingWithdrawal).
+const waterEntrySchema = z
+  .object({
+    sourceType: z.string().refine((v) => v in WATER_SOURCE_LIBRARY, "Select a valid water source"),
+    withdrawnM3: z.coerce.number().nonnegative(),
+    dischargedM3: z.coerce.number().nonnegative().default(0),
+    freshwaterFactorOverride: z.coerce.number().min(0).max(1).optional(),
+  })
+  .refine((entry) => entry.dischargedM3 <= entry.withdrawnM3, {
+    message: "Discharged water cannot exceed water withdrawn from the same source",
+    path: ["dischargedM3"],
+  });
 
 const precursorEntrySchema = z.object({
   materialType: z.string().refine((v) => v in PRECURSOR_LIBRARY, "Select a valid precursor material"),
@@ -76,6 +94,9 @@ export const activityDataSchema = z
     fuelEntries: z.array(fuelEntrySchema).default([]),
     processMaterialEntries: z.array(processMaterialEntrySchema).default([]),
     precursorEntries: z.array(precursorEntrySchema).default([]),
+    // Optional — an entry with no water inventory is a complete, submittable
+    // GHG entry, exactly as it was before this module existed.
+    waterEntries: z.array(waterEntrySchema).default([]),
   })
   .refine((data) => data.periodEnd >= data.periodStart, {
     message: "Period end must be on or after period start",
@@ -104,6 +125,13 @@ const draftProcessMaterialEntrySchema = z.object({
   materialType: draftString(100),
   quantityTonnes: draftNumber(),
   emissionFactorOverride: draftNumber(),
+});
+
+const draftWaterEntrySchema = z.object({
+  sourceType: draftString(100),
+  withdrawnM3: draftNumber(),
+  dischargedM3: draftNumber(),
+  freshwaterFactorOverride: draftNumber(),
 });
 
 const draftPrecursorEntrySchema = z.object({
@@ -157,6 +185,7 @@ export const activityDataDraftSchema = z.object({
   fuelEntries: z.array(draftFuelEntrySchema).optional(),
   processMaterialEntries: z.array(draftProcessMaterialEntrySchema).optional(),
   precursorEntries: z.array(draftPrecursorEntrySchema).optional(),
+  waterEntries: z.array(draftWaterEntrySchema).optional(),
 });
 
 export type ActivityDataDraftInput = z.infer<typeof activityDataDraftSchema>;

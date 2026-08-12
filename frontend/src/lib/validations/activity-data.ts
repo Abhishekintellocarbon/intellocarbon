@@ -30,6 +30,21 @@ export const precursorRowSchema = z.object({
   sourceLabel: z.string().trim().max(150).optional().or(z.literal("")),
 });
 
+// ISO 14046 water inventory row. Discharge is optional (a once-through line is
+// often metered on intake only) but, when given, must not exceed withdrawal —
+// mirrors the server-side rule in activityData.validators.ts so the user sees
+// the error inline rather than as a 400.
+export const waterRowSchema = z
+  .object({
+    sourceType: z.string().min(1, "Select a water source"),
+    withdrawnM3: numericString("Enter a volume"),
+    dischargedM3: optionalNumericString,
+  })
+  .refine((row) => !row.dischargedM3 || Number(row.dischargedM3) <= Number(row.withdrawnM3), {
+    message: "Discharged cannot exceed withdrawn",
+    path: ["dischargedM3"],
+  });
+
 export const activityDataSchema = z
   .object({
     periodStart: z.string().min(1, "Select a start date"),
@@ -82,6 +97,9 @@ export const activityDataSchema = z
     fuelEntries: z.array(fuelRowSchema),
     processMaterialEntries: z.array(processMaterialRowSchema),
     precursorEntries: z.array(precursorRowSchema),
+    // Optional throughout — an entry with no water rows stays a valid,
+    // submittable GHG entry.
+    waterEntries: z.array(waterRowSchema),
   })
   .refine((data) => data.periodEnd >= data.periodStart, {
     message: "Period end must be on or after period start",
