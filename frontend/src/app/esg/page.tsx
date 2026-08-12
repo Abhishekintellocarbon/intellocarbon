@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Check, Clock, FileBarChart, Globe2, Landmark, Network, ScrollText } from "lucide-react";
+import { ArrowRight, BadgeCheck, Check, Clock, Droplets, FileBarChart, Globe2, Landmark, Leaf, Network, ScrollText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
@@ -29,6 +29,8 @@ const BUNDLE_ITEMS: BundleItem[] = [
   { icon: FileBarChart, name: "BRSR Core", status: "live" },
   { icon: BadgeCheck, name: "ISSB IFRS S1/S2", status: "live" },
   { icon: Network, name: "Scope 3 Value Chain", status: "live" },
+  { icon: Droplets, name: "Water Footprint (ISO 14046)", status: "live" },
+  { icon: Leaf, name: "Voluntary Offsets Tracking", status: "live" },
   { icon: Globe2, name: "GRI", status: "soon", waitlistTool: "ESG_GRI" },
   { icon: Landmark, name: "CSRD", status: "soon", waitlistTool: "ESG_CSRD" },
   { icon: ScrollText, name: "CDP", status: "soon", waitlistTool: "ESG_CDP" },

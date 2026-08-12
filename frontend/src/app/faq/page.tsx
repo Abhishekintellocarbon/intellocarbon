@@ -79,6 +79,11 @@ const CBAM_FAQS = [
       "Three differences matter in practice. The UK mechanism starts on 1 January 2027, a year after the EU's. It covers a narrower set of goods — aluminium, cement, fertilisers, hydrogen and iron & steel — and excludes electricity, which the EU mechanism covers. And in its opening years it prices a narrower set of emissions than the EU does: the electricity-related emissions of your goods, which already count towards your EU position, are deferred in the UK until 2029 at the earliest. The same shipment can therefore carry a different liability in each market.",
   },
   {
+    question: "What does the CBAM dashboard actually show between reporting windows?",
+    answer:
+      "Your current position, kept live rather than reconstructed at deadline. The certificate reference price is charted quarter by quarter as the European Commission publishes it, so you can see the direction of travel rather than only today's figure. Your facility's Specific Embedded Emissions are shown against the EU default value that would otherwise be applied to your goods, with the gap quantified. And a board-ready summary of the current position — emissions, liability and the price it was calculated at — exports as a PDF in one click, without waiting for a reporting window to open.",
+  },
+  {
     question: "When do I need to start UK CBAM compliance?",
     answer:
       "The mechanism takes effect on 1 January 2027. The first accounting period runs that full calendar year, with the return due by 31 May 2028; reporting moves to a quarterly rhythm from 2028. In practice the work starts earlier — the return is built from a full year of production data, so the figures need to be accumulating from January 2027 rather than reconstructed in 2028.",
@@ -95,6 +100,16 @@ const ESG_FAQS = [
     question: "Is BRSR mandatory for my company?",
     answer:
       "Only the top 1,000 listed companies by market capitalisation are directly mandated to file BRSR. However, MSME suppliers to those companies increasingly receive BRSR data requests from their buyers under SEBI's value-chain disclosure rules — so even if you're not directly mandated, you may need this data to keep a large customer.",
+  },
+  {
+    question: "Do you track water footprint?",
+    answer:
+      "Yes — water is part of the ESG Disclosure Bundle, inventoried to ISO 14046. You record withdrawal and discharge per source, and consumption follows as the difference between them; freshwater abstraction is separated from water you have already reclaimed on site. It runs off the same facility-level data entry you already use for emissions, so a reporting period gives you both without keeping a second set of records.",
+  },
+  {
+    question: "Can I track voluntary carbon credits I have purchased?",
+    answer:
+      "Yes, as a record of purchases made elsewhere. You log each credit against the facility it relates to — registry, serial number, tonnage, vintage year, and whether it is an avoidance or removal credit — and the platform shows those retirements against the emissions that remain after your reduction work. Intellocarbon does not issue, verify, rate or endorse carbon credits, and buying them through us is not possible: this is a tracking tool for credits you have sourced yourself, so that the claim and the footprint it refers to are recorded in one place.",
   },
   {
     question: "When will GRI/ISSB/CSRD/CDP be available?",

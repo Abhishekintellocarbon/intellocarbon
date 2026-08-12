@@ -187,6 +187,11 @@ export default function EsgBrsrPage() {
             "Every disclosed figure carries its calculation basis and supporting evidence, structured for SEBI's phased reasonable-assurance timeline.",
         },
         {
+          title: "Beyond carbon",
+          description:
+            "Water is inventoried to ISO 14046 — withdrawal, discharge and the consumption between them, source by source — from the same facility records that produce your emissions figures. Voluntary carbon credits bought elsewhere are logged against the residual position they are meant to offset, so the claim and the footprint sit in one place.",
+        },
+        {
           title: "The most comprehensive tier",
           description:
             "The widest scope the platform offers, spanning full value-chain emissions alongside the governance and social disclosures investors and buyers now require.",

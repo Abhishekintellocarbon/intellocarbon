@@ -226,6 +226,11 @@ export default function CbamCompliancePage() {
             "For exporters also facing EU carbon obligations, our engine identifies where domestic carbon costs already reduce international exposure — calculated with a precision built specifically for dual-framework compliance.",
         },
         {
+          title: "A dashboard that holds the position",
+          description:
+            "The certificate price is charted quarter by quarter as the Commission publishes it, your facility's embedded emissions are shown against the EU default that would otherwise apply, and a board-ready summary of the current position exports in one click.",
+        },
+        {
           title: "Verifier portal, built in",
           description:
             "An accredited verifier works inside the platform against the Annex VI checklist, with the evidence trail attached to each figure rather than exchanged over email.",
