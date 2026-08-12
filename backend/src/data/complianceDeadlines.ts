@@ -34,6 +34,30 @@ export const CBAM_QUARTERS: CbamQuarter[] = [
 export const CBAM_ANNUAL_DECLARATION_DEADLINE: MonthDay = { month: 5, day: 31 };
 export const CBAM_FIRST_ANNUAL_DECLARATION_YEAR = 2027;
 
+// --- UK CBAM ---
+// A separate regime from EU CBAM with its own calendar, so it gets its own
+// constants rather than reusing the EU ones — see data/ukCbamReferenceData.ts
+// for the rest of the UK-specific rules (sectors, threshold, emissions scope).
+//
+// The first accounting period is a single full year, 1 Jan - 31 Dec 2027,
+// with one annual return due 31 May 2028. From 2028 onward reporting moves to
+// a quarterly cadence, on the same Jan 1 / Apr 1 / Jul 1 / Oct 1 pattern as EU
+// CBAM's quarters — so UK_CBAM_QUARTERS is CBAM_QUARTERS, aliased rather than
+// copied, and kept as its own export so the two can diverge if HMRC's filing
+// dates end up differing from the Commission's.
+//
+// Source: HMRC — UK CBAM accounting periods and return deadlines.
+export const UK_CBAM_FIRST_ACCOUNTING_PERIOD_YEAR = 2027;
+export const UK_CBAM_FIRST_ACCOUNTING_PERIOD_START = new Date(Date.UTC(2027, 0, 1, 0, 0, 0));
+export const UK_CBAM_FIRST_ACCOUNTING_PERIOD_END = new Date(Date.UTC(2027, 11, 31, 23, 59, 59));
+export const UK_CBAM_ANNUAL_RETURN_DEADLINE: MonthDay = { month: 5, day: 31 };
+export const UK_CBAM_FIRST_ANNUAL_RETURN_YEAR = 2028;
+
+/** First accounting period that reports quarterly instead of as one annual return. */
+export const UK_CBAM_QUARTERLY_FROM_YEAR = 2028;
+
+export const UK_CBAM_QUARTERS: CbamQuarter[] = CBAM_QUARTERS;
+
 const dateFor = (year: number, md: MonthDay): Date => new Date(Date.UTC(year, md.month - 1, md.day, 23, 59, 59));
 
 const daysBetween = (from: Date, to: Date): number =>
@@ -105,6 +129,35 @@ export const nextCbamAnnualDeclarationDeadline = (now: Date): Date => {
   return candidate.getUTCFullYear() < CBAM_FIRST_ANNUAL_DECLARATION_YEAR
     ? dateFor(CBAM_FIRST_ANNUAL_DECLARATION_YEAR, CBAM_ANNUAL_DECLARATION_DEADLINE)
     : candidate;
+};
+
+export type UkCbamReportingCadence = "ANNUAL" | "QUARTERLY";
+
+/**
+ * How a given UK CBAM accounting period is reported: the first period (2027)
+ * as one annual return, every period from 2028 quarterly.
+ */
+export const ukCbamReportingCadence = (accountingPeriodYear: number): UkCbamReportingCadence =>
+  accountingPeriodYear >= UK_CBAM_QUARTERLY_FROM_YEAR ? "QUARTERLY" : "ANNUAL";
+
+/**
+ * Next upcoming UK CBAM filing deadline on/after `now`.
+ *
+ * Until the first annual return falls due (31 May 2028, covering the 2027
+ * accounting period) there is exactly one UK CBAM deadline, so any earlier
+ * date returns it. After that the regime is quarterly and this walks
+ * UK_CBAM_QUARTERS the same way nextCbamDeadline does for the EU.
+ */
+export const nextUkCbamDeadline = (now: Date): Date => {
+  const firstReturn = dateFor(UK_CBAM_FIRST_ANNUAL_RETURN_YEAR, UK_CBAM_ANNUAL_RETURN_DEADLINE);
+  if (now <= firstReturn) return firstReturn;
+
+  const year = now.getUTCFullYear();
+  for (const q of UK_CBAM_QUARTERS) {
+    const deadline = dateFor(year, q.deadline);
+    if (now <= deadline) return deadline;
+  }
+  return dateFor(year + 1, UK_CBAM_QUARTERS[0].deadline);
 };
 
 /**

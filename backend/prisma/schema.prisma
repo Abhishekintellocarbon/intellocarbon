@@ -105,6 +105,18 @@ enum Sector {
   OTHER
 }
 
+// Which border-carbon-adjustment regime a company is in scope for. The two
+// are independent obligations with different scopes, calendars and pricing —
+// a company exporting to both blocs holds both — so this is carried as a set
+// on Company (see `cbamFrameworks`) rather than as a single-value field.
+// UK CBAM's own applicability rules (sector list, £50,000 rolling-12-month
+// registration threshold, included emission scopes) live in
+// data/ukCbamReferenceData.ts; the EU's stay where they already are.
+enum CbamFramework {
+  EU_CBAM
+  UK_CBAM
+}
+
 model Company {
   id                      String    @id @default(cuid())
   ownerId                 String    @unique
@@ -126,6 +138,17 @@ model Company {
   appliesCcts             Boolean   @default(false)
   isPatDesignatedConsumer Boolean   @default(false)
   onboardingCompletedAt   DateTime?
+
+  // Which CBAM regimes this company is in scope for. A set rather than a
+  // single value or a second boolean: EU and UK CBAM are independent
+  // obligations a company can hold either, both, or neither of, and a third
+  // regime (several are drafting one) should not need another column.
+  // `appliesCbam` above stays the master on/off switch for the CBAM module —
+  // this only says *which* regimes apply once it is on, so nothing that
+  // currently reads `appliesCbam` changes behaviour. Existing CBAM companies
+  // are backfilled to [EU_CBAM] by the migration; the default is empty so a
+  // new non-CBAM company isn't silently marked as an EU declarant.
+  cbamFrameworks CbamFramework[] @default([])
 
   // One-time compliance onboarding fee. Company-level, not per-subscription:
   // it is charged once for the company, so holding a second tier must not

@@ -4,6 +4,13 @@ import {
   CBAM_FIRST_ANNUAL_DECLARATION_YEAR,
   nextCbamAnnualDeclarationDeadline,
   daysUntil,
+  UK_CBAM_ANNUAL_RETURN_DEADLINE,
+  UK_CBAM_FIRST_ACCOUNTING_PERIOD_END,
+  UK_CBAM_FIRST_ACCOUNTING_PERIOD_START,
+  UK_CBAM_FIRST_ACCOUNTING_PERIOD_YEAR,
+  UK_CBAM_FIRST_ANNUAL_RETURN_YEAR,
+  nextUkCbamDeadline,
+  ukCbamReportingCadence,
 } from "../complianceDeadlines";
 
 /**
@@ -66,5 +73,43 @@ describe("CBAM annual declaration deadline", () => {
 
     expect(daysUntil(at("2027-05-01T23:59:59Z"), deadline)).toBe(30);
     expect(daysUntil(at("2027-05-24T23:59:59Z"), deadline)).toBe(7);
+  });
+});
+
+/**
+ * UK CBAM is a separate regime with a separate calendar — one annual return
+ * for the 2027 accounting period, quarterly from 2028. These pin the dates
+ * and the annual->quarterly switchover before any calculation or dashboard
+ * code is built on top of them.
+ */
+describe("UK CBAM calendar", () => {
+  const at = (iso: string) => new Date(iso);
+
+  it("runs its first accounting period over calendar 2027", () => {
+    expect(UK_CBAM_FIRST_ACCOUNTING_PERIOD_YEAR).toBe(2027);
+    expect(UK_CBAM_FIRST_ACCOUNTING_PERIOD_START.toISOString()).toBe("2027-01-01T00:00:00.000Z");
+    expect(UK_CBAM_FIRST_ACCOUNTING_PERIOD_END.toISOString()).toBe("2027-12-31T23:59:59.000Z");
+  });
+
+  it("falls due 31 May 2028 for that first period", () => {
+    expect(UK_CBAM_ANNUAL_RETURN_DEADLINE).toEqual({ month: 5, day: 31 });
+    expect(UK_CBAM_FIRST_ANNUAL_RETURN_YEAR).toBe(2028);
+  });
+
+  it("reports annually for 2027 and quarterly from 2028", () => {
+    expect(ukCbamReportingCadence(2027)).toBe("ANNUAL");
+    expect(ukCbamReportingCadence(2028)).toBe("QUARTERLY");
+    expect(ukCbamReportingCadence(2029)).toBe("QUARTERLY");
+  });
+
+  it("returns the 31 May 2028 return for every date before it", () => {
+    expect(nextUkCbamDeadline(at("2026-08-12T12:00:00Z")).toISOString()).toBe("2028-05-31T23:59:59.000Z");
+    expect(nextUkCbamDeadline(at("2027-12-31T23:00:00Z")).toISOString()).toBe("2028-05-31T23:59:59.000Z");
+    expect(nextUkCbamDeadline(at("2028-05-31T10:00:00Z")).toISOString()).toBe("2028-05-31T23:59:59.000Z");
+  });
+
+  it("switches to the EU-style quarter-end deadlines once the first return has passed", () => {
+    expect(nextUkCbamDeadline(at("2028-06-01T00:00:00Z")).toISOString()).toBe("2028-07-31T23:59:59.000Z");
+    expect(nextUkCbamDeadline(at("2028-11-01T00:00:00Z")).toISOString()).toBe("2029-01-31T23:59:59.000Z");
   });
 });
