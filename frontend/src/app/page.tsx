@@ -48,7 +48,7 @@ const PILLARS = [
     icon: ShieldCheck,
     title: "CBAM Compliance",
     description:
-      "Calculate and report Specific Embedded Emissions for EU Carbon Border Adjustment Mechanism. Quarterly reports. Annual declaration. Carbon price already paid in India accounted for automatically.",
+      "Calculate and report Specific Embedded Emissions for the EU Carbon Border Adjustment Mechanism, and for the UK's own mechanism from 2027. Quarterly reports. Annual declaration. Carbon price already paid in India accounted for automatically.",
     cta: "Start CBAM",
   },
   {
@@ -81,9 +81,9 @@ const STANDARDS = [
 
 const OFFERINGS = [
   {
-    title: "EU CBAM",
+    title: "EU & UK CBAM",
     description:
-      "Six sectors. Quarterly reporting. Annual certificate surrender. Verified communication package for EU importer.",
+      "Six sectors. Quarterly reporting. Annual certificate surrender. Verified communication package for your EU importer — and the UK mechanism, which starts January 2027, on the same plan.",
   },
   {
     title: "India CCTS",
@@ -157,7 +157,7 @@ export default function Home() {
           <div>
             <span className="inline-flex items-center gap-2.5 rounded-full border border-surface-border bg-surface px-5 py-2.5 text-sm font-medium text-muted-foreground">
               <span className="h-2 w-2 shrink-0 rounded-full bg-teal-500" />
-              CBAM &middot; CCTS &middot; ESG &mdash; one platform
+              EU &amp; UK CBAM &middot; CCTS &middot; ESG &mdash; one platform
             </span>
 
             <h1 className="mt-6 text-[40px] font-semibold leading-tight text-balance sm:text-[56px]">

@@ -28,7 +28,7 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
   CCTS_COMPLIANCE: {
     tier: "CCTS_COMPLIANCE",
     name: "CCTS Compliance",
-    forWhom: "Indian companies with a domestic CCTS obligation only — not exporting to the EU.",
+    forWhom: "Indian companies with a domestic CCTS obligation only — not exporting to the EU or the UK.",
     facilityLimit: null,
     priceInr: 14999,
     priceLabel: "₹14,999/facility/mo",
@@ -47,12 +47,16 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
   CBAM_COMPLIANCE: {
     tier: "CBAM_COMPLIANCE",
     name: "CBAM Compliance",
-    forWhom: "Indian companies exporting to the EU.",
+    forWhom: "Indian companies exporting to the EU or the UK.",
     facilityLimit: null,
     priceInr: 19999,
     priceLabel: "₹19,999/facility/mo",
     description: "EU Carbon Border Adjustment Mechanism — Communication Package reporting and financial impact.",
     features: [
+      // UK CBAM is included in this tier rather than sold separately — see
+      // TIER_GRANTS in reportGeneration.service.ts, which grants the UK return
+      // on exactly the same tiers as the EU package. Change both together.
+      "EU & UK CBAM coverage",
       "CBAM Communication Package (14-page PDF)",
       "Specific Embedded Emissions calculation",
       "CBAM certificates required",
@@ -70,7 +74,7 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
   CBAM_PLUS_CCTS: {
     tier: "CBAM_PLUS_CCTS",
     name: "CBAM + CCTS",
-    forWhom: "Indian companies that both export to the EU and have a domestic CCTS obligation.",
+    forWhom: "Indian companies that export to the EU or the UK and also have a domestic CCTS obligation.",
     facilityLimit: null,
     priceInr: 29999,
     priceLabel: "₹29,999/facility/mo",
