@@ -22,7 +22,7 @@ const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 // -----------------------------------------------------------------------
-// Quick-update card — CBAM certificate price / CEA grid emission factor
+// Quick-update card — CBAM certificate price / UK CBAM rate / CEA grid factor
 // -----------------------------------------------------------------------
 
 function QuickUpdateCard({
@@ -32,6 +32,7 @@ function QuickUpdateCard({
   current,
   linkHref,
   linkLabel,
+  unsetNote,
   onSave,
 }: {
   title: string;
@@ -40,15 +41,25 @@ function QuickUpdateCard({
   current: EmissionFactor | undefined;
   linkHref?: string;
   linkLabel?: string;
+  /** Shown in place of "Last updated" while the value is unset — say why, and what has to happen before it can be entered. */
+  unsetNote?: string;
   onSave: (value: number, source: string) => Promise<void>;
 }) {
-  const [value, setValue] = useState(current ? String(current.value) : "");
+  // A row seeded at 0 means "not yet published", not a price of zero — see
+  // the UK CBAM rate seed in the add_uk_cbam_framework migration. The
+  // endpoint only accepts a positive value, so 0 can never be a real saved
+  // figure and this reads the same way for any future pending value.
+  const displayValue =
+    current && current.value > 0
+      ? `${valuePrefix ?? ""}${current.value.toLocaleString("en-IN", { maximumFractionDigits: 3 })}`
+      : null;
+  const [value, setValue] = useState(current && current.value > 0 ? String(current.value) : "");
   const [source, setSource] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setValue(current ? String(current.value) : "");
+    setValue(current && current.value > 0 ? String(current.value) : "");
   }, [current]);
 
   const handleSave = async () => {
@@ -79,11 +90,11 @@ function QuickUpdateCard({
     <Card className="p-5">
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       <p className="mt-2 text-2xl font-semibold text-foreground">
-        {current ? `${valuePrefix ?? ""}${current.value.toLocaleString("en-IN", { maximumFractionDigits: 3 })}` : "—"}
+        {displayValue ?? <span className="text-muted-foreground">Not set</span>}
         <span className="ml-1.5 text-sm font-normal text-muted-foreground">{unit}</span>
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Last updated {fmtDate(current?.validFrom ?? null)}
+        {!displayValue && unsetNote ? unsetNote : `Last updated ${fmtDate(current?.validFrom ?? null)}`}
         {linkHref && (
           <>
             {" · "}
@@ -379,6 +390,7 @@ function EmissionFactorsContent() {
   useEffect(load, []);
 
   const cbamCertificatePrice = factors?.find((f) => f.name === "CBAM Certificate Price" && f.isCurrent);
+  const ukCbamRate = factors?.find((f) => f.name === "UK CBAM Rate" && f.isCurrent);
   const ceaGridFactor = factors?.find((f) => f.name === "CEA Grid Emission Factor" && f.isCurrent);
 
   const filteredFactors = useMemo(() => {
@@ -397,7 +409,7 @@ function EmissionFactorsContent() {
           history rather than overwriting it.
         </p>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <QuickUpdateCard
             title="CBAM Certificate Price"
             unit="EUR/tCO2e"
@@ -407,6 +419,17 @@ function EmissionFactorsContent() {
             linkLabel="EU CBAM certificate price page"
             onSave={async (value, source) => {
               const { factor } = await adminApi.updateCbamCertificatePrice({ value, source });
+              setFactors((prev) => (prev ? replaceCurrentByName(prev, factor) : prev));
+            }}
+          />
+          <QuickUpdateCard
+            title="UK CBAM Rate"
+            unit="GBP/tCO2e"
+            valuePrefix="£"
+            current={ukCbamRate}
+            unsetNote="Not yet published — HMRC sets this quarterly from the UK ETS auction price plus Carbon Price Support, ahead of the 1 Jan 2027 accounting period."
+            onSave={async (value, source) => {
+              const { factor } = await adminApi.updateUkCbamRate({ value, source });
               setFactors((prev) => (prev ? replaceCurrentByName(prev, factor) : prev));
             }}
           />

@@ -12,5 +12,7 @@ export const CHART_COLORS = {
 export const EMISSIONS_SEGMENT_COLORS = [CHART_COLORS.teal, CHART_COLORS.blue, CHART_COLORS.amber, CHART_COLORS.red];
 
 export const fmtEur = (n: number) => `€${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+/** UK CBAM figures are GBP — same shape as fmtEur so the two regimes read alike apart from the symbol. */
+export const fmtGbp = (n: number) => `£${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 export const fmtTco2e = (n: number, digits = 1) => `${n.toLocaleString("en-IN", { maximumFractionDigits: digits })} tCO2e`;
 export const fmtIntensity = (n: number) => n.toLocaleString("en-IN", { maximumFractionDigits: 3 });

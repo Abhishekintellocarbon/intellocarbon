@@ -59,6 +59,7 @@ export const activityDataSchema = z
     steamEmissionFactorOverride: z.coerce.number().nonnegative().optional(),
 
     carbonPricePaidEurPerTonne: z.coerce.number().nonnegative().optional(),
+    carbonPricePaidGbpPerTonne: z.coerce.number().nonnegative().optional(),
     cctsTargetIntensity: z.coerce.number().nonnegative().optional(),
 
     // --- Cement ---
@@ -154,6 +155,7 @@ export const activityDataDraftSchema = z.object({
   steamEmissionFactorOverride: draftNumber(),
 
   carbonPricePaidEurPerTonne: draftNumber(),
+  carbonPricePaidGbpPerTonne: draftNumber(),
   cctsTargetIntensity: draftNumber(),
 
   limestoneInputTonnes: draftNumber(),

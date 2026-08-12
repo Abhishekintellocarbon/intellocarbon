@@ -11,6 +11,7 @@ import {
   PROCESS_MATERIAL_LIBRARY,
 } from "../data/emissionFactors";
 import { GWP_AR2_BUR3, GWP_AR5 } from "../data/gwpTables";
+import { UK_CBAM_INCLUDED_EMISSION_SCOPES } from "../data/ukCbamReferenceData";
 
 const round = (value: number, decimals = 4) => {
   const factor = 10 ** decimals;
@@ -54,6 +55,46 @@ interface PrecursorLineResult {
   isOverride: boolean;
   co2eTonnes: number;
 }
+
+export interface UkCbamEmissionsInput {
+  /** Scope 1 total on the AR5 basis — combustion + process + PFC + process N2O. */
+  totalDirectCo2eAr5: number;
+  /** Embedded emissions of precursor materials, already CO2e. */
+  directPrecursorCo2e: number;
+  /** Tonnes of product; the UK regime has no per-MWh case because electricity is out of scope. */
+  productionTonnes: number;
+}
+
+export interface UkCbamEmissions {
+  totalEmissionsUkCbamAr5: number;
+  specificEmbeddedEmissionsUkCbam: number;
+}
+
+/**
+ * UK CBAM emissions for one activity data entry.
+ *
+ * Deliberately not a variant of the EU total: the UK's boundary at its 1 Jan
+ * 2027 launch is Scope 1 + select precursors, and indirect emissions —
+ * grid electricity and imported steam alike — are deferred to 2029 (see
+ * UK_CBAM_DEFERRED_EMISSIONS). Reusing the EU figure and subtracting would
+ * invert that relationship: the UK number would silently follow whatever the
+ * EU boundary becomes, when the whole point is that they differ. So this adds
+ * up only what the UK counts.
+ *
+ * AR5 throughout, like the EU path — AR2/BUR3 is a CCTS-specific requirement
+ * and has no bearing on either border mechanism.
+ */
+export const computeUkCbamEmissions = ({
+  totalDirectCo2eAr5,
+  directPrecursorCo2e,
+  productionTonnes,
+}: UkCbamEmissionsInput): UkCbamEmissions => {
+  const totalEmissionsUkCbamAr5 = totalDirectCo2eAr5 + directPrecursorCo2e;
+  return {
+    totalEmissionsUkCbamAr5,
+    specificEmbeddedEmissionsUkCbam: productionTonnes > 0 ? totalEmissionsUkCbamAr5 / productionTonnes : 0,
+  };
+};
 
 export const calculateEmissionsForActivityData = async (activityDataId: string) => {
   const activityData = await prisma.activityData.findUnique({
@@ -211,6 +252,17 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
   const specificEmbeddedEmissionsCbam = totalEmissionsCbamAr5 / denominator;
   const ghgIntensityCcts = totalEmissionsCctsAr2Bur3 / denominator;
 
+  // Computed for every entry, like the CCTS figures above, so the number is
+  // there whether or not this company is in UK scope today. The electricity
+  // sector is out of scope for UK CBAM entirely, so it has no per-MWh case:
+  // production tonnes is the only denominator, and an electricity entry
+  // (which has none) lands at 0 rather than borrowing the EU denominator.
+  const { totalEmissionsUkCbamAr5, specificEmbeddedEmissionsUkCbam } = computeUkCbamEmissions({
+    totalDirectCo2eAr5,
+    directPrecursorCo2e,
+    productionTonnes: activityData.productionQuantityT ?? 0,
+  });
+
   const breakdown = {
     sector: activityData.sector,
     seeUnit: isElectricitySector ? "tCO2e/MWh" : "tCO2e/t",
@@ -291,6 +343,19 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
     // for why these keep the old spelling while the columns did not. The table
     // itself has always been AR2/BUR3; only the key is misnamed.
     gwpTables: { ar4: GWP_AR2_BUR3, ar5: GWP_AR5 },
+    // Spelled out rather than left implicit in the totals: a reader of a
+    // stored breakdown has to be able to see *why* the UK number is lower
+    // than the EU one for the same entry.
+    ukCbam: {
+      includedScopes: UK_CBAM_INCLUDED_EMISSION_SCOPES,
+      directCo2eAr5: round(totalDirectCo2eAr5),
+      precursorCo2e: round(directPrecursorCo2e),
+      totalCo2eAr5: round(totalEmissionsUkCbamAr5),
+      specificEmbeddedEmissions: round(specificEmbeddedEmissionsUkCbam),
+      excludedIndirectCo2e: round(indirectElectricityCo2e + indirectSteamCo2e),
+      exclusionNote:
+        "Indirect emissions (grid electricity and imported steam) are excluded from the UK CBAM total — deferred to 2029 at the earliest. They remain in the EU CBAM total above.",
+    },
   };
 
   const data = {
@@ -310,6 +375,8 @@ export const calculateEmissionsForActivityData = async (activityDataId: string) 
     totalEmissionsCctsAr2Bur3: round(totalEmissionsCctsAr2Bur3),
     specificEmbeddedEmissionsCbam: round(specificEmbeddedEmissionsCbam),
     ghgIntensityCcts: round(ghgIntensityCcts),
+    totalEmissionsUkCbamAr5: round(totalEmissionsUkCbamAr5),
+    specificEmbeddedEmissionsUkCbam: round(specificEmbeddedEmissionsUkCbam),
     gridEmissionFactorUsed,
     breakdown: breakdown as unknown as Prisma.InputJsonValue,
   };

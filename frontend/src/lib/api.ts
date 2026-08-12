@@ -890,6 +890,12 @@ export const adminApi = {
   updateCbamCertificatePrice: (input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
     apiFetch("/api/admin/cbam-certificate-price", { method: "PUT", body: JSON.stringify(input) }),
 
+  // Seeded at 0 to mean "not yet published" — HMRC has published no UK CBAM
+  // rate yet. Saving a real figure here is what first makes it available to
+  // the platform; the endpoint only accepts a positive value.
+  updateUkCbamRate: (input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
+    apiFetch("/api/admin/uk-cbam-rate", { method: "PUT", body: JSON.stringify(input) }),
+
   updateCeaGridFactor: (input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
     apiFetch("/api/admin/cea-grid-factor", { method: "PUT", body: JSON.stringify(input) }),
 

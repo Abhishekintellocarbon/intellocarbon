@@ -69,6 +69,20 @@ export function DeadlineCountdown({ dashboard, access }: { dashboard: FacilityDa
       ) : (
         <LockedDeadlineCard label="CBAM annual declaration" />
       )}
+      {/* Appended, not slotted between the EU cards, so an existing company's
+          deadline grid keeps the order it has always had. Gated on UK scope
+          rather than subscription: UK CBAM is included in the CBAM tiers, so
+          access.hasCbam already covers the paid side. */}
+      {dashboard.ukCbam.applicable &&
+        (access.hasCbam ? (
+          <DeadlineCard
+            label="UK CBAM return"
+            deadline={dashboard.deadlines.ukCbam.deadline}
+            daysRemaining={dashboard.deadlines.ukCbam.daysRemaining}
+          />
+        ) : (
+          <LockedDeadlineCard label="UK CBAM return" />
+        ))}
       {access.hasCcts ? (
         <DeadlineCard label="CCTS annual compliance" deadline={dashboard.deadlines.ccts.deadline} daysRemaining={dashboard.deadlines.ccts.daysRemaining} />
       ) : (

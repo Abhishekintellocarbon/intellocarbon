@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
 import { adminApi, ApiError } from "@/lib/api";
 import type { AdminCompanyDetail, AdminVerifierSummary, ManualPayment, Subscription } from "@/lib/types";
+import { cbamFrameworksOf, CBAM_FRAMEWORK_LABELS } from "@/lib/validations/company";
 
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -261,7 +262,14 @@ function AdminCompanyDetailContent() {
               <Field label="Annual Turnover (INR)" value={company.annualTurnoverInr?.toLocaleString("en-IN")} />
               <Field label="Employee Count" value={company.employeeCount} />
               <Field label="Reporting FY Start Month" value={company.reportingFyStartMonth} />
-              <Field label="Applies CBAM" value={company.appliesCbam ? "Yes" : "No"} />
+              <Field
+                label="Applies CBAM"
+                value={
+                  cbamFrameworksOf(company)
+                    .map((framework) => CBAM_FRAMEWORK_LABELS[framework])
+                    .join(", ") || "No"
+                }
+              />
               <Field label="Applies CCTS" value={company.appliesCcts ? "Yes" : "No"} />
               <Field label="PAT Designated Consumer" value={company.isPatDesignatedConsumer ? "Yes" : "No"} />
               <Field label="Onboarding Completed" value={fmtDate(company.onboardingCompletedAt)} />

@@ -105,6 +105,18 @@ enum Sector {
   OTHER
 }
 
+// Which border-carbon-adjustment regime a company is in scope for. The two
+// are independent obligations with different scopes, calendars and pricing —
+// a company exporting to both blocs holds both — so this is carried as a set
+// on Company (see `cbamFrameworks`) rather than as a single-value field.
+// UK CBAM's own applicability rules (sector list, £50,000 rolling-12-month
+// registration threshold, included emission scopes) live in
+// data/ukCbamReferenceData.ts; the EU's stay where they already are.
+enum CbamFramework {
+  EU_CBAM
+  UK_CBAM
+}
+
 model Company {
   id                      String    @id @default(cuid())
   ownerId                 String    @unique
@@ -126,6 +138,17 @@ model Company {
   appliesCcts             Boolean   @default(false)
   isPatDesignatedConsumer Boolean   @default(false)
   onboardingCompletedAt   DateTime?
+
+  // Which CBAM regimes this company is in scope for. A set rather than a
+  // single value or a second boolean: EU and UK CBAM are independent
+  // obligations a company can hold either, both, or neither of, and a third
+  // regime (several are drafting one) should not need another column.
+  // `appliesCbam` above stays the master on/off switch for the CBAM module —
+  // this only says *which* regimes apply once it is on, so nothing that
+  // currently reads `appliesCbam` changes behaviour. Existing CBAM companies
+  // are backfilled to [EU_CBAM] by the migration; the default is empty so a
+  // new non-CBAM company isn't silently marked as an EU declarant.
+  cbamFrameworks CbamFramework[] @default([])
 
   // One-time compliance onboarding fee. Company-level, not per-subscription:
   // it is charged once for the company, so holding a second tier must not
@@ -496,6 +519,11 @@ enum ReportType {
   CBAM
   CCTS
   BRSR
+  // The UK CBAM return. A distinct type rather than a variant of CBAM: it is
+  // a different regime with its own accounting period, deadline and
+  // liability basis, and a facility can owe both in the same period — which
+  // the (facility, reportType, period) uniqueness would otherwise collide on.
+  UK_CBAM
 }
 
 enum ReportStatus {
@@ -742,6 +770,12 @@ model ActivityData {
   // CBAM Article 9 deduction input — carbon price effectively paid in the
   // country of origin, expressed directly in EUR/tCO2e.
   carbonPricePaidEurPerTonne Float?
+  // The same input for UK CBAM, in GBP/tCO2e. A separate field rather than a
+  // converted view of the EUR one: there is no FX rate in this system, and
+  // inventing one to cross-currency a regulatory deduction would breach the
+  // platform's no-assumed-values rule. Null means no overseas carbon price
+  // is being claimed against the UK liability.
+  carbonPricePaidGbpPerTonne Float?
   // BEE-notified CCTS GHG emission intensity target for this sub-sector/cycle,
   // tCO2e per tonne product — left null until BEE actually notifies one.
   cctsTargetIntensity        Float?
@@ -878,6 +912,16 @@ model EmissionCalculationResult {
 
   specificEmbeddedEmissionsCbam Float
   ghgIntensityCcts              Float
+
+  // UK CBAM totals. Separate columns rather than a reuse of the EU ones
+  // because the two regimes count different emissions: the UK's boundary at
+  // its 1 Jan 2027 launch is Scope 1 + select precursors, with indirect
+  // (electricity and imported steam) emissions deferred to 2029 — see
+  // data/ukCbamReferenceData.ts. Computed for every entry, like the CCTS
+  // columns beside them, so the number exists whether or not the company is
+  // currently in UK scope; whether it *applies* is decided per report.
+  totalEmissionsUkCbamAr5         Float @default(0)
+  specificEmbeddedEmissionsUkCbam Float @default(0)
 
   gridEmissionFactorUsed Float
   breakdown              Json

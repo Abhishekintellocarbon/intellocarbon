@@ -2,6 +2,7 @@ import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { setGridEmissionFactor } from "../data/emissionFactors";
 import { setCbamCertificatePrice, CBAM_CERTIFICATE_PRICE_FACTOR_NAME } from "../data/cbamReferenceData";
+import { setUkCbamRate, UK_CBAM_RATE_FACTOR_NAME } from "../data/ukCbamReferenceData";
 import type {
   CreateEmissionFactorInput,
   UpdateEmissionFactorInput,
@@ -156,6 +157,23 @@ export const updateCbamCertificatePrice = async (input: QuickUpdateValueInput) =
   return factor;
 };
 
+/**
+ * UK CBAM rate — pegged to the UK ETS auction price plus Carbon Price
+ * Support, set quarterly by HMRC. Same quick-update shape as the EU
+ * certificate price above; the migration seeds the row with a value of 0 and
+ * a "not yet published" source, so until a Super Admin supersedes it with a
+ * real HMRC figure getUkCbamRate() keeps returning null.
+ */
+export const updateUkCbamRate = async (input: QuickUpdateValueInput) => {
+  const factor = await supersedeOrCreateByName(
+    UK_CBAM_RATE_FACTOR_NAME,
+    { fuelType: "UK_CBAM_RATE", unit: "GBP/tCO2e", sectorApplicability: "ALL" },
+    input,
+  );
+  setUkCbamRate(factor.value, factor.source, factor.validFrom);
+  return factor;
+};
+
 export const updateCeaGridFactor = async (input: QuickUpdateValueInput) => {
   const factor = await supersedeOrCreateByName(
     "CEA Grid Emission Factor",
@@ -167,17 +185,21 @@ export const updateCeaGridFactor = async (input: QuickUpdateValueInput) => {
 };
 
 /**
- * Loads the two live-wired values from the DB into the in-memory cache the
+ * Loads the live-wired values from the DB into the in-memory cache the
  * calculation engine and PDF report builders read — called once at server
  * startup (see server.ts). Falls back silently to the code defaults in
  * emissionFactors.ts/cbamReferenceData.ts if a row is missing, e.g. on a
- * fresh DB before this migration's seed has run.
+ * fresh DB before this migration's seed has run. The UK CBAM rate has no
+ * code default to fall back to — it stays null until HMRC publishes one and
+ * a Super Admin enters it.
  */
 export const hydrateEmissionFactorCache = async (): Promise<void> => {
-  const [certPrice, gridFactor] = await Promise.all([
+  const [certPrice, gridFactor, ukCbamRate] = await Promise.all([
     prisma.emissionFactor.findFirst({ where: { name: CBAM_CERTIFICATE_PRICE_FACTOR_NAME, isCurrent: true } }),
     prisma.emissionFactor.findFirst({ where: { name: "CEA Grid Emission Factor", isCurrent: true } }),
+    prisma.emissionFactor.findFirst({ where: { name: UK_CBAM_RATE_FACTOR_NAME, isCurrent: true } }),
   ]);
   if (certPrice) setCbamCertificatePrice(certPrice.value, certPrice.source, certPrice.validFrom);
   if (gridFactor) setGridEmissionFactor(gridFactor.value, gridFactor.source);
+  if (ukCbamRate) setUkCbamRate(ukCbamRate.value, ukCbamRate.source, ukCbamRate.validFrom);
 };

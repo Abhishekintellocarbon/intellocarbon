@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { CbamFramework } from "@/lib/types";
 
 const optionalString = (max: number) => z.string().trim().max(max).optional().or(z.literal(""));
 const optionalNumericString = z
@@ -42,7 +43,12 @@ export const companyStep2Schema = z.object({
 
 export const companyStep3Schema = z.object({
   reportingFyStartMonth: z.string().min(1),
-  appliesCbam: z.boolean(),
+  // One switch per CBAM regime rather than a single "EU CBAM" toggle: the two
+  // are independent obligations. The API's appliesCbam/cbamFrameworks pair is
+  // derived from these at submit — see cbamFieldsFromForm below, the only
+  // place that mapping is written.
+  appliesEuCbam: z.boolean(),
+  appliesUkCbam: z.boolean(),
   appliesCcts: z.boolean(),
   isPatDesignatedConsumer: z.boolean(),
 });
@@ -53,7 +59,49 @@ export type CompanyWizardValues = z.infer<typeof companyWizardSchema>;
 export const companyStepFields: Record<number, (keyof CompanyWizardValues)[]> = {
   1: ["name", "registrationNumber", "address", "city", "state", "pincode"],
   2: ["sector", "subSector", "annualTurnoverInr", "employeeCount"],
-  3: ["reportingFyStartMonth", "appliesCbam", "appliesCcts", "isPatDesignatedConsumer"],
+  3: ["reportingFyStartMonth", "appliesEuCbam", "appliesUkCbam", "appliesCcts", "isPatDesignatedConsumer"],
+};
+
+export const CBAM_FRAMEWORK_LABELS: Record<CbamFramework, string> = {
+  EU_CBAM: "EU CBAM",
+  UK_CBAM: "UK CBAM",
+};
+
+/**
+ * The two CBAM switches -> the API's appliesCbam + cbamFrameworks pair.
+ * appliesCbam is derived, never its own control, so the master switch and the
+ * regime list can't disagree; the API applies the same rule server-side.
+ */
+export const cbamFieldsFromForm = (values: { appliesEuCbam: boolean; appliesUkCbam: boolean }) => {
+  const cbamFrameworks: CbamFramework[] = [
+    ...(values.appliesEuCbam ? (["EU_CBAM"] as const) : []),
+    ...(values.appliesUkCbam ? (["UK_CBAM"] as const) : []),
+  ];
+  return { appliesCbam: cbamFrameworks.length > 0, cbamFrameworks };
+};
+
+/**
+ * The regimes a saved company is in scope for — the read-side counterpart of
+ * cbamFieldsFromForm, and what every display surface should call rather than
+ * reading cbamFrameworks directly. A row with appliesCbam but no frameworks
+ * predates UK CBAM and reads as EU CBAM, the same resolution the API makes
+ * for a legacy payload.
+ */
+export const cbamFrameworksOf = (company: {
+  appliesCbam: boolean;
+  cbamFrameworks?: CbamFramework[];
+}): CbamFramework[] => {
+  if (company.cbamFrameworks?.length) return company.cbamFrameworks;
+  return company.appliesCbam ? ["EU_CBAM"] : [];
+};
+
+/** A saved company -> the two switches. */
+export const cbamFormFromCompany = (company: { appliesCbam: boolean; cbamFrameworks?: CbamFramework[] }) => {
+  const frameworks = cbamFrameworksOf(company);
+  return {
+    appliesEuCbam: frameworks.includes("EU_CBAM"),
+    appliesUkCbam: frameworks.includes("UK_CBAM"),
+  };
 };
 
 // EU declarant / importer of record — used on the CBAM report's Installation

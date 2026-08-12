@@ -44,6 +44,12 @@ export const fmtEur = (n: number, digits = 2) => {
   return n < 0 ? `-€${abs}` : `€${abs}`;
 };
 
+/** UK CBAM figures are GBP — same shape as fmtEur so the two reports format money identically apart from the symbol. */
+export const fmtGbp = (n: number, digits = 2) => {
+  const abs = Math.abs(n).toLocaleString("en-IN", { maximumFractionDigits: digits, minimumFractionDigits: digits });
+  return n < 0 ? `-£${abs}` : `£${abs}`;
+};
+
 export const fmtSigned = (n: number, digits = 3) => (n >= 0 ? `+${fmt(n, digits)}` : fmt(n, digits));
 
 export const fmtDate = (d: Date) =>

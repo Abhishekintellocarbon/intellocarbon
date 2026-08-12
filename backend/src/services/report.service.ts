@@ -3,6 +3,8 @@ import { prisma } from "../config/prisma";
 import { requireOwnedActivityData } from "./activityData.service";
 import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
 import { buildCbamCommunicationPackage } from "./cbamReport/build";
+import { computeUkCbamFinancialImpact } from "./ukCbamFinancialImpact.service";
+import { buildUkCbamReturn } from "./ukCbamReport/build";
 import { buildCctsGhgIntensityReport } from "./cctsReport/build";
 import { AppError } from "../utils/AppError";
 import {
@@ -10,9 +12,10 @@ import {
   isCctsReportWindowOpen,
   nextCbamUnlockDate,
   nextCctsUnlockDate,
+  getUkCbamReportPeriodStatus,
 } from "../data/complianceDeadlines";
 
-export type ReportType = "CBAM" | "CCTS";
+export type ReportType = "CBAM" | "CCTS" | "UK_CBAM";
 
 const fmtUnlockDate = (d: Date) => d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -31,6 +34,19 @@ const requireReportWindowOpen = (type: ReportType, now: Date = new Date()): void
       `Report generation opens on ${fmtUnlockDate(nextCctsUnlockDate(now))}`,
       "REPORT_WINDOW_CLOSED",
     );
+  }
+  // The UK's window isn't a recurring calendar rule like the EU's — the first
+  // accounting period has a one-off window and quarterly filing only starts
+  // in 2028 — so the period status owns the question rather than a separate
+  // predicate that would have to repeat that shape.
+  if (type === "UK_CBAM") {
+    const period = getUkCbamReportPeriodStatus(now);
+    if (!period.isOpen) {
+      throw AppError.forbidden(
+        `Report generation opens on ${fmtUnlockDate(period.windowStart)}`,
+        "REPORT_WINDOW_CLOSED",
+      );
+    }
   }
 };
 
@@ -107,6 +123,10 @@ export const buildCctsReportPdf = async (doc: PDFKit.PDFDocument, ctx: ReportCon
   await buildCctsGhgIntensityReport(doc, ctx);
 };
 
+export const buildUkCbamReportPdf = async (doc: PDFKit.PDFDocument, ctx: ReportContext) => {
+  await buildUkCbamReturn(doc, ctx, computeUkCbamFinancialImpact(ctx));
+};
+
 export const generateReportPdf = async (ctx: ReportContext, type: ReportType): Promise<PDFKit.PDFDocument> => {
   const doc = new PDFDocument({
     size: "A4",
@@ -115,6 +135,8 @@ export const generateReportPdf = async (ctx: ReportContext, type: ReportType): P
   });
   if (type === "CBAM") {
     await buildCbamReportPdf(doc, ctx);
+  } else if (type === "UK_CBAM") {
+    await buildUkCbamReportPdf(doc, ctx);
   } else {
     await buildCctsReportPdf(doc, ctx);
   }

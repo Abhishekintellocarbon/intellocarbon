@@ -14,7 +14,13 @@ import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { WizardProgress } from "./wizard-progress";
-import { companyWizardSchema, companyStepFields, type CompanyWizardValues } from "@/lib/validations/company";
+import {
+  companyWizardSchema,
+  companyStepFields,
+  cbamFieldsFromForm,
+  CBAM_FRAMEWORK_LABELS,
+  type CompanyWizardValues,
+} from "@/lib/validations/company";
 import { SECTOR_OPTIONS, FY_START_MONTH_OPTIONS } from "@/lib/constants";
 import { companyApi, ApiError } from "@/lib/api";
 
@@ -36,7 +42,8 @@ export function CompanyWizard() {
     resolver: zodResolver(companyWizardSchema),
     defaultValues: {
       reportingFyStartMonth: "4",
-      appliesCbam: false,
+      appliesEuCbam: false,
+      appliesUkCbam: false,
       appliesCcts: false,
       isPatDesignatedConsumer: false,
     },
@@ -67,6 +74,7 @@ export function CompanyWizard() {
         annualTurnoverInr: data.annualTurnoverInr ? Number(data.annualTurnoverInr) : undefined,
         employeeCount: data.employeeCount ? Number(data.employeeCount) : undefined,
         reportingFyStartMonth: Number(data.reportingFyStartMonth),
+        ...cbamFieldsFromForm(data),
       });
       router.push("/billing?onboarding=1");
     } catch (err) {
@@ -199,7 +207,12 @@ export function CompanyWizard() {
               <Switch
                 label="EU CBAM"
                 description="You export CBAM goods (e.g. iron & steel) into the EU"
-                {...register("appliesCbam")}
+                {...register("appliesEuCbam")}
+              />
+              <Switch
+                label="UK CBAM"
+                description="You export CBAM goods into the UK — a separate regime, in force from 1 January 2027"
+                {...register("appliesUkCbam")}
               />
               <Switch
                 label="India CCTS"
@@ -229,7 +242,10 @@ export function CompanyWizard() {
               )}
               <ReviewRow label="Reporting FY">{fyLabel}</ReviewRow>
               <ReviewRow label="Applicable schemes">
-                {[values.appliesCbam && "EU CBAM", values.appliesCcts && "India CCTS"]
+                {[
+                  ...cbamFieldsFromForm(values).cbamFrameworks.map((f) => CBAM_FRAMEWORK_LABELS[f]),
+                  values.appliesCcts && "India CCTS",
+                ]
                   .filter(Boolean)
                   .join(", ") || "None selected"}
               </ReviewRow>

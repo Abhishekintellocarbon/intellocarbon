@@ -26,6 +26,11 @@ export const updateCbamCertificatePrice = asyncHandler(async (req, res) => {
   res.status(200).json({ factor });
 });
 
+export const updateUkCbamRate = asyncHandler(async (req, res) => {
+  const factor = await emissionFactorService.updateUkCbamRate(req.body);
+  res.status(200).json({ factor });
+});
+
 export const updateCeaGridFactor = asyncHandler(async (req, res) => {
   const factor = await emissionFactorService.updateCeaGridFactor(req.body);
   res.status(200).json({ factor });

@@ -92,6 +92,7 @@ router.put(
   validate(quickUpdateValueSchema),
   adminEmissionFactorsController.updateCbamCertificatePrice,
 );
+router.put("/uk-cbam-rate", validate(quickUpdateValueSchema), adminEmissionFactorsController.updateUkCbamRate);
 router.put("/cea-grid-factor", validate(quickUpdateValueSchema), adminEmissionFactorsController.updateCeaGridFactor);
 
 router.get("/ccts-obligated-entities", adminCctsObligatedEntitiesController.listEntities);

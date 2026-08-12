@@ -2,6 +2,8 @@ import type { BrsrCoreReport, Company, Facility } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { requireMyCompany } from "./company.service";
 import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
+import { computeUkCbamFinancialImpact } from "./ukCbamFinancialImpact.service";
+import { getUkCbamRate } from "../data/ukCbamReferenceData";
 import { buildBrsrCoreMetrics, type BrsrCoreMetrics } from "./brsrCalculation.service";
 import type { ReportContext } from "./report.service";
 import { getCbamCertificatePrice } from "../data/cbamReferenceData";
@@ -381,6 +383,45 @@ export const getCompanyAnalytics = async (userId: string) => {
         }
       : { hasData: false as const };
 
+  // ---- 7. UK CBAM — company-wide, only when the company carries UK_CBAM ----
+  // A parallel liability trend rather than extra series on the EU chart: the
+  // two regimes are different obligations in different currencies, and
+  // stacking GBP next to EUR on one axis would produce a total that means
+  // nothing. Entries whose sector is out of UK scope (electricity) are
+  // dropped rather than counted as zero.
+  const ukCbam = (() => {
+    if (!company.cbamFrameworks.includes("UK_CBAM")) return { applicable: false as const };
+
+    const inScope = financials
+      .map(({ ctx }) => ({ ctx, impact: computeUkCbamFinancialImpact(ctx) }))
+      .filter((f) => f.impact.status !== "OUT_OF_SCOPE");
+
+    const byQuarter = new Map<string, { emissions: number; liability: number; sortKey: number }>();
+    for (const { ctx, impact } of inScope) {
+      if (impact.status === "OUT_OF_SCOPE") continue;
+      const label = quarterLabel(ctx.periodEnd);
+      const bucket = byQuarter.get(label) ?? { emissions: 0, liability: 0, sortKey: quarterSortKey(ctx.periodEnd) };
+      bucket.emissions += impact.emissionsTco2e;
+      if (impact.status === "CALCULATED") bucket.liability += impact.netLiabilityGbp;
+      byQuarter.set(label, bucket);
+    }
+
+    const rate = getUkCbamRate();
+    return {
+      applicable: true as const,
+      // Null, never 0, while no rate is published — the frontend renders the
+      // "rate not configured" state off this rather than off a zero total.
+      currentRate: rate ? { ratePerTonneGbp: rate.ratePerTonneGbp, quarterLabel: rate.quarterLabel } : null,
+      liabilityTrend: Array.from(byQuarter.entries())
+        .sort((a, b) => a[1].sortKey - b[1].sortKey)
+        .map(([label, v]) => ({
+          quarterLabel: label,
+          emissionsTco2e: round(v.emissions),
+          liabilityGbp: rate ? round(v.liability) : null,
+        })),
+    };
+  })();
+
   // ---- BRSR Core section — only queried at all when the company holds an
   // active BRSR Core subscription, so a company that never bought the
   // module never shows an empty ESG section (and never pays for the query).
@@ -466,6 +507,7 @@ export const getCompanyAnalytics = async (userId: string) => {
     currentCertificatePrice: { pricePerTonneEur: currentCertPrice.pricePerTonneEur, quarterLabel: currentCertPrice.quarterLabel },
     emissionsComposition,
     cctsIntensity,
+    ukCbam,
     facilityComparison,
     yearOverYear,
     // null when there's no active BRSR Core subscription — the frontend

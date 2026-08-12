@@ -16,6 +16,7 @@ import type { ActivityData, FacilityDocument, GeneratedReport, GeneratedReportTy
 
 const REPORT_TYPE_LABEL: Record<GeneratedReportType, string> = {
   CBAM: "CBAM Communication Package",
+  UK_CBAM: "UK CBAM Return",
   CCTS: "CCTS GHG Intensity Report",
   BRSR: "BRSR Core Report",
 };
