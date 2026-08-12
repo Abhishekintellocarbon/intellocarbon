@@ -17,7 +17,14 @@ import { Alert } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
-import { companySettingsSchema, type CompanySettingsValues } from "@/lib/validations/company";
+import {
+  companySettingsSchema,
+  cbamFieldsFromForm,
+  cbamFormFromCompany,
+  CBAM_FRAMEWORK_LABELS,
+  type CompanySettingsValues,
+} from "@/lib/validations/company";
+import type { CbamFramework } from "@/lib/types";
 import { SECTOR_OPTIONS, FY_START_MONTH_OPTIONS, OWNERSHIP_MODEL_OPTIONS, BUSINESS_MODEL_OPTIONS } from "@/lib/constants";
 import { authApi, companyApi, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -27,14 +34,14 @@ function DeclarantPreviewCard({
   registrationNumber,
   gstin,
   sectorLabel,
-  appliesCbam,
+  cbamFrameworks,
   appliesCcts,
 }: {
   name?: string;
   registrationNumber?: string;
   gstin?: string;
   sectorLabel: string;
-  appliesCbam?: boolean;
+  cbamFrameworks: CbamFramework[];
   appliesCcts?: boolean;
 }) {
   return (
@@ -62,16 +69,22 @@ function DeclarantPreviewCard({
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Compliance modules</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <span
-              className={cn(
-                "rounded-full border px-2.5 py-1 text-xs font-semibold",
-                appliesCbam
-                  ? "border-teal-500/40 bg-teal-500/10 text-teal-500"
-                  : "border-surface-border text-muted-foreground/50",
-              )}
-            >
-              CBAM
-            </span>
+            {/* One chip per CBAM regime rather than a single "CBAM" chip —
+                which regimes a company is in scope for is the thing the
+                declarant profile has to be unambiguous about. */}
+            {(["EU_CBAM", "UK_CBAM"] as CbamFramework[]).map((framework) => (
+              <span
+                key={framework}
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-xs font-semibold",
+                  cbamFrameworks.includes(framework)
+                    ? "border-teal-500/40 bg-teal-500/10 text-teal-500"
+                    : "border-surface-border text-muted-foreground/50",
+                )}
+              >
+                {CBAM_FRAMEWORK_LABELS[framework]}
+              </span>
+            ))}
             <span
               className={cn(
                 "rounded-full border px-2.5 py-1 text-xs font-semibold",
@@ -205,7 +218,8 @@ function CompanySettingsContent() {
   const watchedRegistrationNumber = watch("registrationNumber");
   const watchedGstin = watch("gstin");
   const watchedSector = watch("sector");
-  const watchedAppliesCbam = watch("appliesCbam");
+  const watchedAppliesEuCbam = watch("appliesEuCbam");
+  const watchedAppliesUkCbam = watch("appliesUkCbam");
   const watchedAppliesCcts = watch("appliesCcts");
   const watchedSectorLabel = SECTOR_OPTIONS.find((s) => s.value === watchedSector)?.label ?? "—";
 
@@ -230,7 +244,7 @@ function CompanySettingsContent() {
           annualTurnoverInr: company.annualTurnoverInr ? String(company.annualTurnoverInr) : "",
           employeeCount: company.employeeCount ? String(company.employeeCount) : "",
           reportingFyStartMonth: String(company.reportingFyStartMonth),
-          appliesCbam: company.appliesCbam,
+          ...cbamFormFromCompany(company),
           appliesCcts: company.appliesCcts,
           isPatDesignatedConsumer: company.isPatDesignatedConsumer,
           ownershipModel: company.ownershipModel ?? "OWNED",
@@ -262,6 +276,7 @@ function CompanySettingsContent() {
         annualTurnoverInr: data.annualTurnoverInr ? Number(data.annualTurnoverInr) : undefined,
         employeeCount: data.employeeCount ? Number(data.employeeCount) : undefined,
         reportingFyStartMonth: Number(data.reportingFyStartMonth),
+        ...cbamFieldsFromForm(data),
         euImporterName: data.euImporterName || undefined,
         euImporterEori: data.euImporterEori || undefined,
         euImporterCountry: data.euImporterCountry || undefined,
@@ -437,7 +452,12 @@ function CompanySettingsContent() {
             <Switch
               label="EU CBAM"
               description="You export CBAM goods (e.g. iron & steel) into the EU"
-              {...register("appliesCbam")}
+              {...register("appliesEuCbam")}
+            />
+            <Switch
+              label="UK CBAM"
+              description="You export CBAM goods into the UK — a separate regime, in force from 1 January 2027"
+              {...register("appliesUkCbam")}
             />
             <Switch
               label="India CCTS"
@@ -509,7 +529,12 @@ function CompanySettingsContent() {
           registrationNumber={watchedRegistrationNumber}
           gstin={watchedGstin}
           sectorLabel={watchedSectorLabel}
-          appliesCbam={watchedAppliesCbam}
+          cbamFrameworks={
+            cbamFieldsFromForm({
+              appliesEuCbam: Boolean(watchedAppliesEuCbam),
+              appliesUkCbam: Boolean(watchedAppliesUkCbam),
+            }).cbamFrameworks
+          }
           appliesCcts={watchedAppliesCcts}
         />
       </div>

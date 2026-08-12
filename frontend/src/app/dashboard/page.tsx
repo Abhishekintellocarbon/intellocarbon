@@ -16,6 +16,7 @@ import { useAuth } from "@/context/auth-context";
 import { billingApi, companyApi, facilityApi } from "@/lib/api";
 import type { Company, Facility, Subscription } from "@/lib/types";
 import { FACILITY_TYPE_OPTIONS, SECTOR_OPTIONS } from "@/lib/constants";
+import { cbamFrameworksOf, CBAM_FRAMEWORK_LABELS } from "@/lib/validations/company";
 
 const labelFor = (options: readonly { value: string; label: string }[], value: string) =>
   options.find((o) => o.value === value)?.label ?? value;
@@ -113,7 +114,11 @@ function DashboardContent() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  {company.appliesCbam && <SchemeBadge label="EU CBAM" />}
+                  {/* One badge per regime — see cbamFrameworksOf for how a
+                      company saved before UK CBAM existed is read. */}
+                  {cbamFrameworksOf(company).map((framework) => (
+                    <SchemeBadge key={framework} label={CBAM_FRAMEWORK_LABELS[framework]} />
+                  ))}
                   {company.appliesCcts && <SchemeBadge label="India CCTS" />}
                   {/* PAT badge removed from UI — out of current product scope. */}
                 </div>

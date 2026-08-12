@@ -1,6 +1,11 @@
 import type { LeadCapture } from "./intellocalc-types";
 
 export type Sector = "STEEL" | "CEMENT" | "ALUMINIUM" | "FERTILIZER" | "HYDROGEN" | "ELECTRICITY" | "OTHER";
+
+// Which border-carbon-adjustment regime applies. EU and UK CBAM are
+// independent obligations — a company can be in scope for either, both, or
+// neither — so Company carries a set, gated by appliesCbam.
+export type CbamFramework = "EU_CBAM" | "UK_CBAM";
 export type FacilityType =
   | "INTEGRATED_STEEL_PLANT"
   | "EAF_MINI_MILL"
@@ -34,6 +39,8 @@ export interface Company {
   employeeCount: number | null;
   reportingFyStartMonth: number;
   appliesCbam: boolean;
+  // Empty whenever appliesCbam is false; the API guarantees the two agree.
+  cbamFrameworks: CbamFramework[];
   appliesCcts: boolean;
   isPatDesignatedConsumer: boolean;
   // Scope 3 relevance drivers — see Scope3RelevanceResponse.
