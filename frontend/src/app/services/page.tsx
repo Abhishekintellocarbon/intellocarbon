@@ -16,7 +16,7 @@ const SERVICES = [
     icon: Globe2,
     title: "CBAM Compliance",
     description:
-      "Calculate Specific Embedded Emissions, generate CBAM Communication Packages, and account for carbon price already paid in India — for every EU export shipment, every quarter.",
+      "Calculate Specific Embedded Emissions, generate CBAM Communication Packages, and account for carbon price already paid in India — for every EU export shipment, every quarter. The UK's own mechanism, which starts in 2027, is covered by the same plan.",
     href: "/products/cbam-compliance",
     cta: "Explore CBAM",
   },

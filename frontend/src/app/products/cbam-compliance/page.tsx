@@ -10,7 +10,7 @@ import {
 export const metadata: Metadata = {
   title: "CBAM Compliance — Intellocarbon",
   description:
-    "Precision Scope 1 & 2 emissions accounting, verified quarterly reporting, and regulatory relief mechanisms for Indian industrial exporters under the EU Carbon Border Adjustment Mechanism.",
+    "Precision emissions accounting, verified quarterly reporting, and regulatory relief mechanisms for Indian industrial exporters under the EU Carbon Border Adjustment Mechanism and the UK mechanism starting 2027.",
 };
 
 const QUARTERS = [
@@ -62,6 +62,57 @@ function ComplianceCalendar() {
         Between windows, the engine monitors regulatory changes, emission factor revisions and
         certificate pricing so your reported position stays current rather than reconstructed at
         deadline.
+      </p>
+    </ProductSection>
+  );
+}
+
+/**
+ * The UK mechanism, presented as its own section rather than folded into the
+ * EU copy above: it is a separate regime on a separate calendar, and a reader
+ * deciding whether they need it has to be able to tell the two apart. Kept to
+ * what an exporter needs to act on — when it starts, what it costs them here,
+ * and how it differs in shape from the EU regime. The scope mechanics belong
+ * in the platform, not on a marketing page.
+ */
+function UkCbamSection() {
+  return (
+    <ProductSection
+      title="The UK mechanism, from 2027"
+      subtitle="The United Kingdom introduces its own carbon border adjustment mechanism on 1 January 2027, a year behind the EU. It is a separate regime with its own registration, its own calendar and its own rate — not an extension of the EU one — and exporters selling into both markets will carry both obligations at once."
+    >
+      <div className="grid gap-5 sm:grid-cols-3">
+        <Card className="rounded-[12px] p-6">
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-500">Starts</p>
+          <p className="mt-3 text-sm font-semibold text-[#E8F0F7]">1 January 2027</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#8AA0B4]">
+            The first accounting period runs the full calendar year, with the return due by 31 May 2028.
+            Reporting moves to a quarterly rhythm after that.
+          </p>
+        </Card>
+        <Card className="rounded-[12px] p-6">
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-500">Covers</p>
+          <p className="mt-3 text-sm font-semibold text-[#E8F0F7]">A narrower set of goods</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#8AA0B4]">
+            Aluminium, cement, fertilisers, hydrogen and iron &amp; steel. Electricity, which the EU
+            mechanism covers, is outside the UK&apos;s scope — so an EU position does not simply carry across.
+          </p>
+        </Card>
+        <Card className="rounded-[12px] p-6">
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-500">Costs you</p>
+          <p className="mt-3 text-sm font-semibold text-[#E8F0F7]">Nothing further</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#8AA0B4]">
+            UK CBAM is included in the same CBAM Compliance plan as the EU mechanism. No separate
+            subscription, no second data entry — the platform reports both from the figures you already keep.
+          </p>
+        </Card>
+      </div>
+
+      <p className="mt-6 text-sm text-[#8AA0B4]">
+        The two regimes price a different set of emissions and settle at different rates, so the same
+        shipment can carry a different liability in each market. The platform holds both positions
+        separately rather than presenting one number for two obligations, and the UK rate is applied only
+        once HMRC has published it.
       </p>
     </ProductSection>
   );
@@ -138,7 +189,7 @@ function ProofMockup() {
 export default function CbamCompliancePage() {
   return (
     <ProductPage
-      eyebrow="EU CBAM"
+      eyebrow="EU & UK CBAM"
       headline="Know your CBAM liability before it lands."
       subhead="Sophisticated Scope 1 & 2 emissions intelligence, verified reporting, and regulatory relief mechanisms — engineered specifically for Indian industrial exporters."
       primaryCta={{ label: "See your CBAM exposure", href: "/intellocalc/border" }}
@@ -151,7 +202,7 @@ export default function CbamCompliancePage() {
         "Updated automatically as rules change",
         "Data hosted securely in India",
       ]}
-      challengeSubtitle="What the EU Carbon Border Adjustment Mechanism actually creates for Indian exporters."
+      challengeSubtitle="What carbon border adjustment — the EU mechanism now, the UK's from 2027 — actually creates for Indian exporters."
       challenges={[
         "Emissions data sits scattered across mills and facilities — in spreadsheets, invoices and plant logs that were never built to produce a regulatory figure.",
         "There is no standardised methodology Indian exporters can rely on, so two competent teams working from the same plant data can arrive at different declared emissions.",
@@ -180,7 +231,12 @@ export default function CbamCompliancePage() {
             "An accredited verifier works inside the platform against the Annex VI checklist, with the evidence trail attached to each figure rather than exchanged over email.",
         },
       ]}
-      featureSection={<ComplianceCalendar />}
+      featureSection={
+        <>
+          <ComplianceCalendar />
+          <UkCbamSection />
+        </>
+      }
       proofTitle="Proof"
       proofSubtitle="A redacted page from a CBAM Communication Package generated by the platform."
       proof={<ProofMockup />}

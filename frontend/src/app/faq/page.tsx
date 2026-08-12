@@ -68,6 +68,21 @@ const CBAM_FAQS = [
     answer:
       "Yes — Intellocarbon automatically accounts for carbon price already paid in India when calculating your CBAM liability.",
   },
+  {
+    question: "Does Intellocarbon support UK CBAM as well as EU CBAM?",
+    answer:
+      "Yes. Both are covered by the CBAM Compliance plan at no additional charge — there is no separate UK subscription and no second data entry. If you export to both markets, the platform holds each position separately, because the two mechanisms price a different set of emissions and settle at different rates.",
+  },
+  {
+    question: "What is the difference between UK CBAM and EU CBAM?",
+    answer:
+      "Three differences matter in practice. The UK mechanism starts on 1 January 2027, a year after the EU's. It covers a narrower set of goods — aluminium, cement, fertilisers, hydrogen and iron & steel — and excludes electricity, which the EU mechanism covers. And in its opening years it prices a narrower set of emissions than the EU does: the electricity-related emissions of your goods, which already count towards your EU position, are deferred in the UK until 2029 at the earliest. The same shipment can therefore carry a different liability in each market.",
+  },
+  {
+    question: "When do I need to start UK CBAM compliance?",
+    answer:
+      "The mechanism takes effect on 1 January 2027. The first accounting period runs that full calendar year, with the return due by 31 May 2028; reporting moves to a quarterly rhythm from 2028. In practice the work starts earlier — the return is built from a full year of production data, so the figures need to be accumulating from January 2027 rather than reconstructed in 2028.",
+  },
 ];
 
 const ESG_FAQS = [
