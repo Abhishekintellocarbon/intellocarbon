@@ -302,6 +302,39 @@ export const getCctsReportPeriodStatus = (now: Date): ReportPeriodStatus => {
   };
 };
 
+/**
+ * The UK CBAM period whose window is open right now, or the next one that
+ * will open.
+ *
+ * Two regimes in one function, because the UK's own calendar changes shape:
+ * the first accounting period (calendar 2027) is filed as a single annual
+ * return, whose window runs from the close of the period to the 31 May 2028
+ * deadline. From then on filing is quarterly and works exactly like the EU's
+ * — each window files the preceding calendar quarter — so that half delegates
+ * to the same helpers rather than restating them.
+ */
+export const getUkCbamReportPeriodStatus = (now: Date): ReportPeriodStatus => {
+  const firstReturnDeadline = dateFor(UK_CBAM_FIRST_ANNUAL_RETURN_YEAR, UK_CBAM_ANNUAL_RETURN_DEADLINE);
+
+  if (now <= firstReturnDeadline) {
+    const windowStart = new Date(
+      Date.UTC(UK_CBAM_FIRST_ACCOUNTING_PERIOD_YEAR + 1, 0, 1, 0, 0, 0),
+    );
+    return {
+      period: String(UK_CBAM_FIRST_ACCOUNTING_PERIOD_YEAR),
+      displayLabel: `${UK_CBAM_FIRST_ACCOUNTING_PERIOD_YEAR} annual return`,
+      isOpen: now >= windowStart && now <= firstReturnDeadline,
+      windowStart,
+      windowEnd: firstReturnDeadline,
+      dataRangeStart: UK_CBAM_FIRST_ACCOUNTING_PERIOD_START,
+      dataRangeEnd: UK_CBAM_FIRST_ACCOUNTING_PERIOD_END,
+    };
+  }
+
+  const quarterly = getCbamReportPeriodStatus(now);
+  return { ...quarterly, displayLabel: `${quarterly.displayLabel} (UK)` };
+};
+
 /** Same 12-month-window model as CCTS above, built on BRSR's own reportingPeriod window math. */
 export const getBrsrReportPeriodStatus = (now: Date): ReportPeriodStatus => {
   const livingYear = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;

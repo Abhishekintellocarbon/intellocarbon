@@ -4,7 +4,7 @@ import { EvidencePendingBadge } from "@/components/ui/evidence-pending-badge";
 import { cn } from "@/lib/utils";
 import { DashboardEmptyState } from "@/components/dashboard/shared/dashboard-empty-state";
 import { UpsellCard } from "./upsell-card";
-import { fmtEur, fmtIntensity, fmtTco2e } from "@/components/dashboard/shared/dashboard-constants";
+import { fmtEur, fmtGbp, fmtIntensity, fmtTco2e } from "@/components/dashboard/shared/dashboard-constants";
 import type { DashboardAccess } from "./dashboard-access";
 import type { FacilityDashboard, PlanDefinition, SubscriptionTier } from "@/lib/types";
 
@@ -56,7 +56,7 @@ export function ComplianceStatusStrip({
   access: DashboardAccess;
   plans: PlanDefinition[];
 }) {
-  const { cbam, ccts, brsr } = dashboard;
+  const { cbam, ukCbam, ccts, brsr } = dashboard;
   const addDataHref = `/facilities/${facilityId}/data-entry/new`;
   const brsrHref = `/facilities/${facilityId}/brsr/new`;
 
@@ -64,8 +64,11 @@ export function ComplianceStatusStrip({
   const cctsUpsell = planUpsell(plans, "CCTS_COMPLIANCE");
   const brsrUpsell = planUpsell(plans, "BRSR_CORE_REPORTING");
 
+  // Four cards when the company is in UK scope, three otherwise. The UK card
+  // sits next to the EU one rather than replacing or merging with it: a
+  // company can owe both, and one combined number would describe neither.
   return (
-    <div className="grid gap-5 sm:grid-cols-3">
+    <div className={cn("grid gap-5 sm:grid-cols-2", ukCbam.applicable ? "lg:grid-cols-4" : "sm:grid-cols-3")}>
       {/* Card 1 — CBAM */}
       {!access.hasCbam && cbamUpsell ? (
         <UpsellCard {...cbamUpsell} />
@@ -99,6 +102,53 @@ export function ComplianceStatusStrip({
               ctaHref={addDataHref}
               ctaLabel="Add data entry"
             />
+          )}
+        </StatCard>
+      )}
+
+      {/* Card 1b — UK CBAM, only when the company carries UK_CBAM */}
+      {ukCbam.applicable && (
+        <StatCard title="UK CBAM">
+          {!ukCbam.hasData ? (
+            <DashboardEmptyState
+              icon={ClipboardList}
+              title="No UK CBAM data yet"
+              description="Submit activity data for a reporting period to see your UK CBAM position."
+              ctaHref={addDataHref}
+              ctaLabel="Add data entry"
+            />
+          ) : ukCbam.status === "OUT_OF_SCOPE" ? (
+            <>
+              <StatusBadge tone="grey">Out of scope</StatusBadge>
+              <p className="mt-3 text-sm text-muted-foreground">{ukCbam.reason}</p>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone={ukCbam.status === "RATE_PENDING" ? "amber" : "green"}>
+                  {ukCbam.status === "RATE_PENDING" ? "Rate not yet set" : "Liability calculated"}
+                </StatusBadge>
+                {ukCbam.evidencePending && <EvidencePendingBadge />}
+              </div>
+              <p className="mt-3 text-2xl font-semibold text-foreground">
+                {fmtIntensity(ukCbam.specificEmbeddedEmissions)}{" "}
+                <span className="text-sm font-normal text-muted-foreground">tCO2e/t</span>
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Scope 1 + precursors — {fmtTco2e(ukCbam.excludedIndirectTco2e)} indirect excluded
+              </p>
+              <p className="mt-4 border-t border-surface-border pt-3 text-xs text-muted-foreground">
+                {ukCbam.status === "RATE_PENDING" ? "Estimated liability" : `Estimated liability (${ukCbam.rateQuarter})`}
+              </p>
+              {/* Never a number here until HMRC publishes a rate — a zero
+                  would read as "nothing owed" rather than "not yet priced". */}
+              {ukCbam.status === "RATE_PENDING" ? (
+                <p className="mt-0.5 text-sm font-medium text-warning">Rate not yet configured</p>
+              ) : (
+                <p className="mt-0.5 text-lg font-semibold text-foreground">{fmtGbp(ukCbam.netLiabilityGbp)}</p>
+              )}
+              <p className="mt-2 text-[11px] text-muted">{ukCbam.periodLabel}</p>
+            </>
           )}
         </StatCard>
       )}

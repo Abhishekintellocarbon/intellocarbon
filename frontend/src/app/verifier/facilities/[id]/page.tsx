@@ -21,6 +21,7 @@ const fmtDateTime = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 const fmtNum = (n: number, digits = 4) => n.toLocaleString("en-IN", { maximumFractionDigits: digits });
 const fmtEur = (n: number) => `€${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const fmtGbp = (n: number) => `£${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 function MethodologyNote({ note }: { note: VerificationMethodologyNote }) {
   return (
@@ -105,7 +106,7 @@ function VerifierFacilityDetailContent() {
 
                     {entry.financials && (
                       <div className="mt-5 border-t border-surface-border pt-4">
-                        <h3 className="text-sm font-semibold text-foreground">Calculation engine output</h3>
+                        <h3 className="text-sm font-semibold text-foreground">Calculation engine output — EU CBAM / CCTS</h3>
                         <div className="mt-3 grid gap-4 sm:grid-cols-2">
                           <div className="rounded-lg border border-surface-border p-4">
                             <p className="text-xs font-semibold text-teal-500">Specific Embedded Emissions (SEE)</p>
@@ -145,6 +146,69 @@ function VerifierFacilityDetailContent() {
                             </p>
                             <p className="text-xs text-muted-foreground">{fmtEur(entry.financials.article9DeductionEur)} — net liability {fmtEur(entry.financials.netLiabilityEur)}</p>
                             <MethodologyNote note={entry.financials.methodology.article9} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* A separate block, explicitly labelled, rather than more
+                        tiles in the grid above: the UK counts a different set
+                        of emissions on a different rate, and a verifier has to
+                        be able to tell at a glance which regime each figure
+                        belongs to. Absent entirely when the company isn't in
+                        UK scope. */}
+                    {entry.ukCbamFinancials && entry.ukCbamFinancials.status !== "OUT_OF_SCOPE" && (
+                      <div className="mt-5 border-t border-surface-border pt-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-semibold text-foreground">Calculation engine output — UK CBAM</h3>
+                          {entry.ukCbamFinancials.status === "RATE_PENDING" && (
+                            <span className="rounded-full border border-warning/30 bg-warning/10 px-2.5 py-0.5 text-[11px] font-semibold text-warning">
+                              Rate not yet configured
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                          <div className="rounded-lg border border-surface-border p-4">
+                            <p className="text-xs font-semibold text-teal-500">Emissions in scope (Scope 1 + precursors)</p>
+                            <p className="mt-1 text-lg font-semibold text-foreground">
+                              {fmtNum(entry.ukCbamFinancials.emissionsTco2e ?? 0, 2)}{" "}
+                              <span className="text-xs font-normal text-muted-foreground">tCO2e</span>
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {fmtNum(entry.ukCbamFinancials.specificEmbeddedEmissions ?? 0, 3)} tCO2e/t ·{" "}
+                              {fmtNum(entry.ukCbamFinancials.excludedIndirectTco2e ?? 0, 2)} tCO2e indirect excluded
+                            </p>
+                            {entry.ukCbamFinancials.methodology && (
+                              <MethodologyNote note={entry.ukCbamFinancials.methodology.emissions} />
+                            )}
+                          </div>
+
+                          <div className="rounded-lg border border-surface-border p-4">
+                            <p className="text-xs font-semibold text-teal-500">
+                              UK CBAM liability
+                              {entry.ukCbamFinancials.rateQuarter ? ` (${entry.ukCbamFinancials.rateQuarter})` : ""}
+                            </p>
+                            {entry.ukCbamFinancials.status === "RATE_PENDING" ? (
+                              <>
+                                <p className="mt-1 text-lg font-semibold text-warning">Not yet priced</p>
+                                <p className="text-xs text-muted-foreground">{entry.ukCbamFinancials.reason}</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="mt-1 text-lg font-semibold text-foreground">
+                                  {fmtGbp(entry.ukCbamFinancials.netLiabilityGbp ?? 0)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Gross {fmtGbp(entry.ukCbamFinancials.grossLiabilityGbp ?? 0)} at{" "}
+                                  {fmtGbp(entry.ukCbamFinancials.rateGbpPerTonne ?? 0)}/tCO2e · less{" "}
+                                  {fmtGbp(entry.ukCbamFinancials.overseasCarbonPriceDeductionGbp ?? 0)} carbon price paid
+                                  overseas
+                                </p>
+                              </>
+                            )}
+                            {entry.ukCbamFinancials.methodology && (
+                              <MethodologyNote note={entry.ukCbamFinancials.methodology.liability} />
+                            )}
                           </div>
                         </div>
                       </div>

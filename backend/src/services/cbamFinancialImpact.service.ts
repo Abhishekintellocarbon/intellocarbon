@@ -15,7 +15,18 @@ const stableDigits = (id: string): string => {
   return String(1000 + (hash % 9000));
 };
 
-export type CbamReportType = "CBAM" | "CCTS";
+export type CbamReportType = "CBAM" | "CCTS" | "UK_CBAM";
+
+/**
+ * The marker that goes in the reference. UK_CBAM is rendered "UKCBAM" rather
+ * than passed through verbatim so the reference stays a single unbroken token
+ * (an underscore reads as a field separator next to the hyphens around it).
+ */
+const REFERENCE_MARKER: Record<CbamReportType, string> = {
+  CBAM: "CBAM",
+  CCTS: "CCTS",
+  UK_CBAM: "UKCBAM",
+};
 
 /**
  * CBAM and CCTS reports for the same activity data entry used to share this
@@ -24,10 +35,15 @@ export type CbamReportType = "CBAM" | "CCTS";
  * identical Document ID. The type prefix disambiguates them; the digit suffix
  * itself is unchanged so a report generated before this fix and one generated
  * after still share the same stable digits for the same underlying data.
+ *
+ * The UK CBAM return is a third document over that same entry, and a company
+ * in scope for both regimes files both — so it needs its own marker for the
+ * same reason, or its return and the EU package would carry one ID between
+ * them. The EU and CCTS markers are unchanged.
  */
 export const reportReferenceNumber = (ctx: ReportContext, reportType: CbamReportType): string => {
   const quarter = Math.floor(ctx.periodEnd.getUTCMonth() / 3) + 1;
-  return `ICT-${reportType}-${ctx.periodEnd.getUTCFullYear()}-Q${quarter}-${stableDigits(ctx.id)}`;
+  return `ICT-${REFERENCE_MARKER[reportType]}-${ctx.periodEnd.getUTCFullYear()}-Q${quarter}-${stableDigits(ctx.id)}`;
 };
 
 export interface CctsCccPosition {

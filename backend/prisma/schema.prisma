@@ -518,6 +518,11 @@ enum ReportType {
   CBAM
   CCTS
   BRSR
+  // The UK CBAM return. A distinct type rather than a variant of CBAM: it is
+  // a different regime with its own accounting period, deadline and
+  // liability basis, and a facility can owe both in the same period — which
+  // the (facility, reportType, period) uniqueness would otherwise collide on.
+  UK_CBAM
 }
 
 enum ReportStatus {

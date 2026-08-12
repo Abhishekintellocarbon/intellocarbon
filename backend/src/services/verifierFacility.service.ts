@@ -2,8 +2,9 @@ import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { requireCompanyAssigned, getAssignedCompanyIds } from "./verifierAssignment.service";
 import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
+import { computeUkCbamFinancialImpact } from "./ukCbamFinancialImpact.service";
 import type { ReportContext } from "./report.service";
-import { CALCULATION_METHODOLOGY } from "../data/verificationMethodology";
+import { CALCULATION_METHODOLOGY, UK_CBAM_METHODOLOGY } from "../data/verificationMethodology";
 
 /**
  * Facilities under companies assigned to this verifier that have at least
@@ -118,6 +119,11 @@ export const getFacilityDetail = async (verifierId: string, facilityId: string) 
     const evidencePending = entry._count.documents === 0;
 
     let financials = null;
+    // Separate from `financials` rather than merged into it: a verifier has
+    // to be able to see which regime each figure belongs to, and the UK's
+    // emissions boundary and currency differ from the EU's. Null whenever
+    // the company isn't in UK scope, so the panel simply doesn't render.
+    let ukCbamFinancials = null;
     if (entry.calculationResult && entry.periodStart && entry.periodEnd && entry.productionQuantityT != null) {
       const ctx = {
         ...entry,
@@ -141,9 +147,30 @@ export const getFacilityDetail = async (verifierId: string, facilityId: string) 
         cctsDeltaTco2e: impact.cctsPosition.pending ? null : impact.cctsPosition.deltaTco2e,
         methodology: CALCULATION_METHODOLOGY,
       };
+
+      if (facility.company.cbamFrameworks.includes("UK_CBAM")) {
+        const ukImpact = computeUkCbamFinancialImpact(ctx);
+        ukCbamFinancials =
+          ukImpact.status === "OUT_OF_SCOPE"
+            ? { status: ukImpact.status, reason: ukImpact.reason }
+            : {
+                status: ukImpact.status,
+                emissionsTco2e: ukImpact.emissionsTco2e,
+                specificEmbeddedEmissions: ukImpact.specificEmbeddedEmissions,
+                excludedIndirectTco2e: ukImpact.excludedIndirectTco2e,
+                rateGbpPerTonne: ukImpact.status === "CALCULATED" ? ukImpact.rateGbpPerTonne : null,
+                rateQuarter: ukImpact.status === "CALCULATED" ? ukImpact.rateQuarter : null,
+                grossLiabilityGbp: ukImpact.status === "CALCULATED" ? ukImpact.grossLiabilityGbp : null,
+                overseasCarbonPriceDeductionGbp:
+                  ukImpact.status === "CALCULATED" ? ukImpact.overseasCarbonPriceDeductionGbp : null,
+                netLiabilityGbp: ukImpact.status === "CALCULATED" ? ukImpact.netLiabilityGbp : null,
+                reason: ukImpact.status === "RATE_PENDING" ? ukImpact.reason : null,
+                methodology: UK_CBAM_METHODOLOGY,
+              };
+      }
     }
 
-    return { ...entry, evidencePending, financials };
+    return { ...entry, evidencePending, financials, ukCbamFinancials };
   });
 
   return {

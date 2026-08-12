@@ -1,4 +1,4 @@
-import type { ReportType, SubscriptionTier } from "@prisma/client";
+import type { CbamFramework, ReportType, SubscriptionTier } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { requireOwnedFacility } from "./facility.service";
@@ -10,6 +10,7 @@ import {
   getCbamReportPeriodStatus,
   getCctsReportPeriodStatus,
   getBrsrReportPeriodStatus,
+  getUkCbamReportPeriodStatus,
   type ReportPeriodStatus,
 } from "../data/complianceDeadlines";
 
@@ -24,6 +25,11 @@ const pdfToBuffer = (doc: PDFKit.PDFDocument): Promise<Buffer> =>
 
 const TIER_GRANTS: Record<ReportType, SubscriptionTier[]> = {
   CBAM: ["CBAM_COMPLIANCE", "CBAM_PLUS_CCTS"],
+  // Deliberately the same grants as EU CBAM: UK CBAM is included in the
+  // existing CBAM tiers rather than sold separately, so a CBAM subscriber in
+  // UK scope gets the return without a second purchase. Change this only
+  // alongside a pricing decision.
+  UK_CBAM: ["CBAM_COMPLIANCE", "CBAM_PLUS_CCTS"],
   CCTS: ["CCTS_COMPLIANCE", "CBAM_PLUS_CCTS"],
   BRSR: ["BRSR_CORE_REPORTING"],
 };
@@ -36,6 +42,7 @@ const hasAccess = async (companyId: string, reportType: ReportType): Promise<boo
 
 const periodStatusFor = (reportType: ReportType, now: Date): ReportPeriodStatus => {
   if (reportType === "CBAM") return getCbamReportPeriodStatus(now);
+  if (reportType === "UK_CBAM") return getUkCbamReportPeriodStatus(now);
   if (reportType === "CCTS") return getCctsReportPeriodStatus(now);
   return getBrsrReportPeriodStatus(now);
 };
@@ -69,14 +76,24 @@ const hasUncrossCheckedEvidence = async (facilityId: string): Promise<boolean> =
   return uncheckedCount > 0;
 };
 
-const REPORT_TYPES: ReportType[] = ["CBAM", "CCTS", "BRSR"];
+const REPORT_TYPES: ReportType[] = ["CBAM", "UK_CBAM", "CCTS", "BRSR"];
+
+/**
+ * Which report types this company can see a card for. Subscription access is
+ * a separate question, handled by hasAccess — this is about the regime
+ * applying at all: a company not in UK scope shouldn't be offered a UK CBAM
+ * return even on a CBAM plan that technically grants it. Only the UK card is
+ * gated this way; the EU card's behaviour is unchanged.
+ */
+const applicableReportTypes = (cbamFrameworks: CbamFramework[]): ReportType[] =>
+  REPORT_TYPES.filter((t) => t !== "UK_CBAM" || cbamFrameworks.includes("UK_CBAM"));
 
 export const getReportGenerationStatus = async (userId: string, facilityId: string) => {
   const facility = await requireOwnedFacility(userId, facilityId);
   const now = new Date();
 
   const cards = await Promise.all(
-    REPORT_TYPES.map(async (reportType) => {
+    applicableReportTypes(facility.company.cbamFrameworks).map(async (reportType) => {
       const access = await hasAccess(facility.companyId, reportType);
       const period = periodStatusFor(reportType, now);
       const existing = access
@@ -138,7 +155,14 @@ export const generateReport = async (userId: string, facilityId: string, reportT
 
   let pdfDoc: PDFKit.PDFDocument;
 
-  if (reportType === "CBAM" || reportType === "CCTS") {
+  if (reportType === "UK_CBAM" && !facility.company.cbamFrameworks.includes("UK_CBAM")) {
+    throw AppError.forbidden(
+      "This company is not registered for UK CBAM. Add UK CBAM in company settings first.",
+      "UK_CBAM_NOT_APPLICABLE",
+    );
+  }
+
+  if (reportType === "CBAM" || reportType === "CCTS" || reportType === "UK_CBAM") {
     const activityData = await prisma.activityData.findFirst({
       where: {
         facilityId,

@@ -1,12 +1,14 @@
 import { prisma } from "../config/prisma";
 import { requireOwnedFacility } from "./facility.service";
 import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
+import { computeUkCbamFinancialImpact } from "./ukCbamFinancialImpact.service";
 import type { ReportContext } from "./report.service";
 import { DISCLOSED_ATTRIBUTE_COUNT } from "./brsrReport/build";
 import { round, quarterLabel, periodLabel, seeUnitFor, cctsTone, type CctsTone } from "./dashboardShared.helpers";
 import {
   nextCbamDeadline,
   nextCbamAnnualDeclarationDeadline,
+  nextUkCbamDeadline,
   nextCctsDeadline,
   currentBrsrFyLabel,
   currentBrsrFyDeadline,
@@ -77,6 +79,51 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
       }
     : { hasData: false as const };
 
+  // ---- Section 1, Card 1b — UK CBAM ----
+  // Shown only when the company carries UK_CBAM in cbamFrameworks. Kept as
+  // its own card rather than folded into the CBAM card above: a company can
+  // be in scope for both, the two count different emissions, and merging
+  // them would present one number for two obligations. `applicable` is
+  // decided here rather than in the frontend so the rule lives with the rest
+  // of the regime logic.
+  const ukCbamApplicable = facility.company.cbamFrameworks.includes("UK_CBAM");
+  const ukCbam = !ukCbamApplicable
+    ? { applicable: false as const }
+    : latest
+      ? (() => {
+          const impact = computeUkCbamFinancialImpact(latest.ctx);
+          const shared = {
+            applicable: true as const,
+            hasData: true as const,
+            periodLabel: periodLabel(latest.ctx.periodStart, latest.ctx.periodEnd),
+            evidencePending: latestEvidencePending,
+          };
+          if (impact.status === "OUT_OF_SCOPE") {
+            return { ...shared, status: "OUT_OF_SCOPE" as const, reason: impact.reason };
+          }
+          if (impact.status === "RATE_PENDING") {
+            return {
+              ...shared,
+              status: "RATE_PENDING" as const,
+              emissionsTco2e: impact.emissionsTco2e,
+              specificEmbeddedEmissions: impact.specificEmbeddedEmissions,
+              excludedIndirectTco2e: impact.excludedIndirectTco2e,
+              reason: impact.reason,
+            };
+          }
+          return {
+            ...shared,
+            status: "CALCULATED" as const,
+            emissionsTco2e: impact.emissionsTco2e,
+            specificEmbeddedEmissions: impact.specificEmbeddedEmissions,
+            excludedIndirectTco2e: impact.excludedIndirectTco2e,
+            rateGbpPerTonne: impact.rateGbpPerTonne,
+            rateQuarter: impact.rateQuarter,
+            netLiabilityGbp: impact.netLiabilityGbp,
+          };
+        })()
+      : { applicable: true as const, hasData: false as const };
+
   // ---- Section 1, Card 2 — CCTS ----
   const ccts = latest
     ? (() => {
@@ -113,6 +160,7 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
   const deadlines = {
     cbam: deadlineInfo(nextCbamDeadline(now)),
     cbamAnnual: deadlineInfo(nextCbamAnnualDeclarationDeadline(now)),
+    ukCbam: deadlineInfo(nextUkCbamDeadline(now)),
     ccts: deadlineInfo(nextCctsDeadline(now)),
     brsr: deadlineInfo(currentBrsrFyDeadline(now)),
   };
@@ -255,6 +303,7 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
   return {
     facility: { id: facility.id, name: facility.name, sector: facility.company.sector, productionRoute: facility.productionRoute },
     cbam,
+    ukCbam,
     ccts,
     brsr,
     deadlines,

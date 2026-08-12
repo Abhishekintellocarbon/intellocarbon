@@ -76,7 +76,7 @@ const excludedIndirectFor = (ctx: ReportContext): number => {
 };
 
 export const computeUkCbamFinancialImpact = (ctx: ReportContext): UkCbamFinancialImpact => {
-  const reportReference = reportReferenceNumber(ctx, "CBAM");
+  const reportReference = reportReferenceNumber(ctx, "UK_CBAM");
 
   // Electricity is in scope for EU CBAM and out of scope for the UK's — the
   // one sector-level difference between the regimes, and the reason this

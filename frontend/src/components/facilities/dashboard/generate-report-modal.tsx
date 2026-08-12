@@ -10,6 +10,7 @@ import type { GeneratedReportType, ReportCardStatus, ReportGenerationStatus } fr
 
 const REPORT_TYPE_META: Record<GeneratedReportType, { title: string; description: string }> = {
   CBAM: { title: "CBAM Communication Package", description: "EU Carbon Border Adjustment Mechanism quarterly declaration." },
+  UK_CBAM: { title: "UK CBAM Return", description: "UK Carbon Border Adjustment Mechanism return — Scope 1 and precursor emissions, filed with HMRC." },
   CCTS: { title: "CCTS GHG Intensity Report", description: "India's Carbon Credit Trading Scheme annual GHG intensity report." },
   BRSR: { title: "BRSR Core Report", description: "SEBI BRSR Core — the 9 mandated ESG attributes." },
 };

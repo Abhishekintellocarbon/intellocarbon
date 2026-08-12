@@ -6,6 +6,7 @@ import type { CompanyDashboardAnalytics } from "@/lib/types";
 import { ChartSkeleton } from "./shared/chart-skeleton";
 import { EmissionsTrendChart } from "./emissions-trend-chart";
 import { LiabilityTrendChart } from "./liability-trend-chart";
+import { UkCbamLiabilityCard } from "./uk-cbam-liability-card";
 import { EmissionsCompositionChart } from "./emissions-composition-chart";
 import { CctsIntensityGauge } from "./ccts-intensity-gauge";
 import { FacilityComparisonChart } from "./facility-comparison-chart";
@@ -47,6 +48,14 @@ export function AnalyticsSection() {
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <EmissionsTrendChart data={analytics.emissionsTrend} />
           <LiabilityTrendChart data={analytics.liabilityTrend} currentCertificatePrice={analytics.currentCertificatePrice} />
+          {/* Renders nothing when the company isn't in UK scope. Placed
+              directly after the EU liability chart so the two regimes read as
+              a pair rather than one being buried below the fold. */}
+          {analytics.ukCbam.applicable && (
+            <div className="sm:col-span-2">
+              <UkCbamLiabilityCard ukCbam={analytics.ukCbam} />
+            </div>
+          )}
           <EmissionsCompositionChart composition={analytics.emissionsComposition} />
           <CctsIntensityGauge intensity={analytics.cctsIntensity} />
           {analytics.facilityComparison.length >= 2 && (

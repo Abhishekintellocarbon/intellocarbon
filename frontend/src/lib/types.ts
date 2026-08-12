@@ -758,9 +758,33 @@ export interface VerifierEntryFinancials {
   methodology: Record<"see" | "cbamLiability" | "cctsIntensity" | "article9", VerificationMethodologyNote>;
 }
 
+/**
+ * The UK CBAM figures shown to a verifier — null whenever the company isn't
+ * in UK scope. Every liability field is nullable rather than the type being
+ * a union, because a verifier panel renders the same rows in both states and
+ * shows "not published" where a number would be; `status` says which.
+ */
+export interface VerifierEntryUkCbamFinancials {
+  status: "OUT_OF_SCOPE" | "RATE_PENDING" | "CALCULATED";
+  reason?: string | null;
+  emissionsTco2e?: number;
+  specificEmbeddedEmissions?: number;
+  excludedIndirectTco2e?: number;
+  rateGbpPerTonne?: number | null;
+  rateQuarter?: string | null;
+  grossLiabilityGbp?: number | null;
+  overseasCarbonPriceDeductionGbp?: number | null;
+  netLiabilityGbp?: number | null;
+  methodology?: Record<"emissions" | "liability" | "overseasCarbonPrice", VerificationMethodologyNote>;
+}
+
 export interface VerifierFacilityDetail {
   facility: Facility & { company: Company & { owner: { id: string; name: string; email: string } } };
-  activityData: (ActivityData & { evidencePending: boolean; financials: VerifierEntryFinancials | null })[];
+  activityData: (ActivityData & {
+    evidencePending: boolean;
+    financials: VerifierEntryFinancials | null;
+    ukCbamFinancials: VerifierEntryUkCbamFinancials | null;
+  })[];
   documents: AdminDocument[];
 }
 
@@ -786,7 +810,7 @@ export interface ReportWindowStatus {
 // --- Report generation (dashboard "Generate Report" modal) ---
 // Mirrors backend/src/services/reportGeneration.service.ts.
 
-export type GeneratedReportType = "CBAM" | "CCTS" | "BRSR";
+export type GeneratedReportType = "CBAM" | "CCTS" | "BRSR" | "UK_CBAM";
 
 export interface ReportPeriodStatus {
   period: string;
@@ -871,6 +895,50 @@ export interface FacilityDashboardCbam {
   evidencePending?: boolean;
 }
 
+/**
+ * The UK CBAM card. `applicable` is false whenever the company doesn't carry
+ * UK_CBAM — the backend decides that, so the card is simply absent rather
+ * than the frontend re-deriving scope. `status` mirrors the three states the
+ * liability engine can return; RATE_PENDING carries real emissions and no
+ * liability field at all, which is what stops a zero being rendered as a
+ * price.
+ */
+export type FacilityDashboardUkCbam =
+  | { applicable: false }
+  | { applicable: true; hasData: false }
+  | {
+      applicable: true;
+      hasData: true;
+      status: "OUT_OF_SCOPE";
+      periodLabel: string;
+      evidencePending: boolean;
+      reason: string;
+    }
+  | {
+      applicable: true;
+      hasData: true;
+      status: "RATE_PENDING";
+      periodLabel: string;
+      evidencePending: boolean;
+      emissionsTco2e: number;
+      specificEmbeddedEmissions: number;
+      excludedIndirectTco2e: number;
+      reason: string;
+    }
+  | {
+      applicable: true;
+      hasData: true;
+      status: "CALCULATED";
+      periodLabel: string;
+      evidencePending: boolean;
+      emissionsTco2e: number;
+      specificEmbeddedEmissions: number;
+      excludedIndirectTco2e: number;
+      rateGbpPerTonne: number;
+      rateQuarter: string;
+      netLiabilityGbp: number;
+    };
+
 export interface FacilityDashboardCcts {
   hasData: boolean;
   actualIntensity?: number;
@@ -925,11 +993,13 @@ export interface FacilityActivityFeedItem {
 export interface FacilityDashboard {
   facility: { id: string; name: string; sector: Sector; productionRoute: string | null };
   cbam: FacilityDashboardCbam;
+  ukCbam: FacilityDashboardUkCbam;
   ccts: FacilityDashboardCcts;
   brsr: FacilityDashboardBrsr;
   deadlines: {
     cbam: FacilityDashboardDeadline;
     cbamAnnual: FacilityDashboardDeadline;
+    ukCbam: FacilityDashboardDeadline;
     ccts: FacilityDashboardDeadline;
     brsr: FacilityDashboardDeadline;
   };
@@ -1043,6 +1113,15 @@ export interface CompanyBrsrAnalytics {
   facilityComparison: CompanyBrsrFacilityComparisonPoint[];
 }
 
+/** Company-wide UK CBAM. `currentRate` is null — never 0 — while no rate is published. */
+export type CompanyUkCbamAnalytics =
+  | { applicable: false }
+  | {
+      applicable: true;
+      currentRate: { ratePerTonneGbp: number; quarterLabel: string } | null;
+      liabilityTrend: { quarterLabel: string; emissionsTco2e: number; liabilityGbp: number | null }[];
+    };
+
 export interface CompanyDashboardAnalytics {
   facilityCount: number;
   emissionsTrend: CompanyEmissionsTrendPoint[];
@@ -1050,6 +1129,7 @@ export interface CompanyDashboardAnalytics {
   currentCertificatePrice: { pricePerTonneEur: number; quarterLabel: string };
   emissionsComposition: CompanyEmissionsComposition;
   cctsIntensity: CompanyCctsIntensity;
+  ukCbam: CompanyUkCbamAnalytics;
   facilityComparison: CompanyFacilityComparisonPoint[];
   yearOverYear: CompanyYearOverYear;
   // null when the company has no active BRSR Core subscription.
