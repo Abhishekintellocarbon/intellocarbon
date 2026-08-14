@@ -1,4 +1,3 @@
-import path from "path";
 import type { ReportContext } from "../report.service";
 import type { CbamFinancialImpact } from "../cbamFinancialImpact.service";
 import type { CertificatePricePoint } from "../certificatePriceHistory.service";
@@ -30,7 +29,6 @@ import { horizontalBarComparison, verticalBarChart, CHART_BLUE } from "./charts"
  * default, and where the price is heading.
  */
 
-const LOGO_PATH = path.join(__dirname, "../../assets/logo-full.png");
 
 /** Last N quarters of price history — a board needs a trend, not a full archive. */
 const PRICE_TREND_QUARTERS = 6;
@@ -44,7 +42,7 @@ export const buildCbamExecutiveSummary = async (
   financials: CbamFinancialImpact,
   priceHistory: CertificatePricePoint[],
 ) => {
-  const pb = new PageBuilder(doc, financials.reportReference, LOGO_PATH);
+  const pb = new PageBuilder(doc, financials.reportReference);
   // No cover page in this document — page 1 is content and should carry the
   // same branded header band as pages 2 and 3.
   pb.noCoverPage();

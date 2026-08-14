@@ -1,4 +1,4 @@
-import path from "path";
+import { LOGO_LOCKUP_ON_DARK } from "../brandAssets";
 import type { ReportContext } from "../report.service";
 import type { UkCbamFinancialImpact, UkCbamOutOfScope } from "../ukCbamFinancialImpact.service";
 import { AppError } from "../../utils/AppError";
@@ -28,7 +28,9 @@ import {
   nextUkCbamDeadline,
 } from "../../data/complianceDeadlines";
 
-const LOGO_PATH = path.join(__dirname, "../../assets/logo-full.png");
+// Cover band is the dark gradient — see brandAssets for why the interior
+// pages use a different lockup.
+const LOGO_PATH = LOGO_LOCKUP_ON_DARK;
 
 /**
  * What the section builders below are allowed to receive. An out-of-scope
@@ -62,7 +64,7 @@ export const buildUkCbamReturn = async (
     throw AppError.badRequest(impact.reason, "UK_CBAM_OUT_OF_SCOPE");
   }
 
-  const pb = new PageBuilder(doc, impact.reportReference, LOGO_PATH);
+  const pb = new PageBuilder(doc, impact.reportReference);
   const qr = await buildVerifyQr(impact.reportReference);
 
   buildCoverPage(pb, ctx, impact, qr);

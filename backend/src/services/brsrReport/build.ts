@@ -1,4 +1,4 @@
-import path from "path";
+import { LOGO_LOCKUP_ON_DARK } from "../brandAssets";
 import PDFDocument from "pdfkit";
 import type { BrsrCoreReport, Facility, Company, User, BrsrVerificationRequest } from "@prisma/client";
 import type { BrsrCoreMetrics } from "../brsrCalculation.service";
@@ -18,7 +18,9 @@ import {
 } from "../cbamReport/theme";
 import { donutChart, horizontalGroupedBars, CHART_BLUE, CHART_SLATE } from "../cbamReport/charts";
 
-const LOGO_PATH = path.join(__dirname, "../../assets/logo-full.png");
+// Cover band is the dark gradient — see brandAssets for why the interior
+// pages use a different lockup.
+const LOGO_PATH = LOGO_LOCKUP_ON_DARK;
 
 type FacilityWithCompany = Facility & { company: Company & { owner: User } };
 type ReportWithVerification = BrsrCoreReport & {
@@ -74,7 +76,7 @@ export const buildBrsrCorePdf = async (
   });
 
   const reference = reportReference(report);
-  const pb = new PageBuilder(doc, reference, LOGO_PATH);
+  const pb = new PageBuilder(doc, reference);
   const qr = await buildVerifyQr(reference);
 
   buildCoverPage(pb, report, metrics, reference, qr);

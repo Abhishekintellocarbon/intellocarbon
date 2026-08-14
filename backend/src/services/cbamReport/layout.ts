@@ -1,3 +1,4 @@
+import { LOGO_LOCKUP_ON_LIGHT } from "../brandAssets";
 import {
   TEAL,
   TEAL_DARK,
@@ -122,12 +123,10 @@ export class PageBuilder {
   private tocStartY = TOP_Y;
   private coverPageIndex = 0;
   private reportReference: string;
-  private logoPath: string;
 
-  constructor(doc: PDFKit.PDFDocument, reportReference: string, logoPath: string) {
+  constructor(doc: PDFKit.PDFDocument, reportReference: string) {
     this.doc = doc;
     this.reportReference = reportReference;
-    this.logoPath = logoPath;
   }
 
   private currentPageIndex() {
@@ -596,7 +595,8 @@ export class PageBuilder {
   }
 
   private drawHeaderBand() {
-    this.doc.image(this.logoPath, MARGIN_X, 26, { width: 78 });
+    // On-light lockup: interior pages are plain white, unlike the cover band.
+    this.doc.image(LOGO_LOCKUP_ON_LIGHT, MARGIN_X, 26, { width: 78 });
     this.doc
       .fillColor(MUTED)
       .font("Helvetica")
