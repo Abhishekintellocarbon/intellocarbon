@@ -532,6 +532,14 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier, 
       total_count: 120,
       quantity: facilitiesIncluded,
       notes: { companyId, tier },
+      // customer_notify: 1 above hands subscription comms to Razorpay, but
+      // Razorpay has no customer to send them to at this point — it only
+      // links one at the authorisation payment (which is why its Create
+      // Subscription API has no customer_id request parameter; the
+      // customer_id on the response is populated later). notify_info is the
+      // documented way to supply the address up front, so the notifications
+      // we've already opted into actually reach someone.
+      notify_info: { notify_email: company.owner.email },
       // Razorpay bills an add-on passed at creation on the subscription's
       // *first* invoice only, in the same authorisation payment as the first
       // month. That is what makes this a single checkout modal, and it is
