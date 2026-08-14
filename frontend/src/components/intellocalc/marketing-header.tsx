@@ -22,16 +22,6 @@ export function MarketingHeader() {
             <Logo size="lg" />
           </Link>
           <nav className="hidden items-center gap-3 md:flex">
-            {/* First item, ahead of Home. A free public tool with its own
-                page — deliberately not inside the IntelloCalc tools panel,
-                since it screens carbon *projects* rather than an entity's own
-                compliance position. */}
-            <Link
-              href="/project-screener"
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
-            >
-              Project Screener
-            </Link>
             <Link
               href="/"
               className="rounded-lg px-3 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
@@ -44,6 +34,16 @@ export function MarketingHeader() {
               className="rounded-lg px-3 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
             >
               ESG
+            </Link>
+            {/* Sits between ESG and About Us — a free public tool with its own
+                page, deliberately not inside the IntelloCalc tools panel,
+                since it screens carbon *projects* rather than an entity's own
+                compliance position. */}
+            <Link
+              href="/project-screener"
+              className="rounded-lg px-3 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+            >
+              Project Screener
             </Link>
             <Link
               href="/about"

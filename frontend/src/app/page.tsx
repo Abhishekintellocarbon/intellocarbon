@@ -408,7 +408,11 @@ export default function Home() {
       <TestimonialsSection />
 
       {/* Blog / insights */}
-      <section id="insights" className="relative z-10 mx-auto max-w-6xl px-6 pb-20 text-center">
+      {/* pb-28 rather than the pb-20 the sections above use: this is the last
+          section on the page and the footer's top border lands immediately
+          after it, so it needs a wider gap than the section-to-section rhythm
+          to read as a break rather than as a divider inside the content. */}
+      <section id="insights" className="relative z-10 mx-auto max-w-6xl px-6 pb-28 text-center">
         <h2 className="text-[28px] font-semibold sm:text-[32px]">Insights and regulatory updates</h2>
 
         <div className="mt-10 grid gap-6 text-left lg:grid-cols-3">
@@ -433,8 +437,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-surface-border bg-background px-6 py-14">
+      {/* Footer. z-20 and an opaque background put it unambiguously above the
+          page's decorative layers (bg-grid, the radial glow and the two blur
+          circles), which are absolutely positioned across the full height of
+          the root container. */}
+      <footer className="relative z-20 mt-4 border-t border-surface-border bg-background px-6 py-14">
         <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <span className="flex items-center gap-2 text-lg font-bold text-foreground">
