@@ -194,6 +194,11 @@ export default function CctsCarbonMarketsPage() {
             "For companies also facing international carbon obligations, our engine identifies where domestic carbon costs already reduce overseas exposure — calculated with a precision built specifically for dual-framework compliance.",
         },
         {
+          title: "A dashboard that holds the position",
+          description:
+            "Your GHG emissions intensity is charted against your own registered target period by period, your CCC surplus or deficit is stated in credits as the year progresses, your notified targets are drawn as a multi-year trajectory, and the annual cycle counts down to 31 July. Certificates become tradable on IEX in October 2026 — until then the market price reads as not yet open rather than being estimated.",
+        },
+        {
           title: "Verification workflow, built in",
           description:
             "The evidence trail is assembled inside the platform against BEE's ACVA process, so verification runs on structured records rather than reassembled spreadsheets.",

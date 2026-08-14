@@ -41,6 +41,11 @@ const CCTS_FAQS = [
     question: "How often is CCTS verified?",
     answer: "Once per year, by a BEE-accredited Accredited Carbon Verification Agency (ACVA).",
   },
+  {
+    question: "What does the CCTS dashboard actually show between compliance deadlines?",
+    answer:
+      "Your position against your own notified target, kept live rather than reconstructed at the deadline. GHG emissions intensity is charted period by period against the target your entity registered — CCTS targets are notified per obligated entity, so it is your target on the chart, never a sector average inferred on your behalf. Your CCC position follows from it in credits: a surplus you could sell, or a shortfall you would need to cover. Your targets across compliance years are drawn as your own multi-year trajectory, with any year you hold no notified target for left as a gap rather than filled in. And the annual cycle counts down to 31 July, naming the financial year that date settles. On price: Carbon Credit Certificates only become tradable on the Indian Energy Exchange in October 2026, so until then the dashboard states that the market is not yet open and your position stays in credits. It will not put a rupee value on a certificate that has never traded.",
+  },
 ];
 
 const CBAM_FAQS = [

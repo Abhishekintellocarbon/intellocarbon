@@ -36,7 +36,11 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
     features: [
       "GHG intensity monitoring",
       "CCTS BEE format reports (Forms 1-A, 1-B, 1-C, 1-D)",
-      "CCC surplus/deficit tracking",
+      "GEI trend charted against your own notified target",
+      "CCC surplus/deficit position — credits to sell, or the shortfall to cover",
+      "Multi-year target trajectory — your entity's own notified targets, year by year",
+      "CCC market price tracking — shown as not yet open until IEX trading begins in October 2026",
+      "Annual compliance cycle countdown",
       "ACVA verification workflow",
       "Quarterly deadline alerts",
       "7-year document retention",
