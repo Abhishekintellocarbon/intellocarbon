@@ -896,6 +896,13 @@ export const adminApi = {
   updateUkCbamRate: (input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
     apiFetch("/api/admin/uk-cbam-rate", { method: "PUT", body: JSON.stringify(input) }),
 
+  // Seeded at 0 to mean "no price" — no Carbon Credit Certificate has ever
+  // traded, and the CCTS market only opens on IEX in October 2026. The
+  // endpoint only accepts a positive value, so a real figure here is what
+  // first lets any CCC position be given a rupee value.
+  updateCccMarketPrice: (input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
+    apiFetch("/api/admin/ccc-market-price", { method: "PUT", body: JSON.stringify(input) }),
+
   updateCeaGridFactor: (input: QuickUpdateValueInput): Promise<{ factor: EmissionFactor }> =>
     apiFetch("/api/admin/cea-grid-factor", { method: "PUT", body: JSON.stringify(input) }),
 
