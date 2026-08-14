@@ -82,6 +82,7 @@ import type {
   LeadCapture,
   LeadContact,
 } from "./intellocalc-types";
+import type { ProjectScreenerInputs, ProjectScreenerResults } from "./project-screener-types";
 
 export interface ApiUser {
   id: string;
@@ -760,6 +761,24 @@ export const intellocalcApi = {
     }),
 
   complianceMapPdfUrl: (leadId: string) => `${API_URL}/api/leads/${leadId}/compliance-map.pdf`,
+};
+
+/**
+ * Project Eligibility Screener. Posts to the same public /api/leads endpoint
+ * as the IntelloCalc tools — one lead-capture contract, one rate limiter, one
+ * leads table — but is exported separately because it is not an IntelloCalc
+ * tool and should not be reached through `intellocalcApi`.
+ */
+export const projectScreenerApi = {
+  submit: (
+    contact: LeadContact,
+    inputs: ProjectScreenerInputs,
+  ): Promise<{ results: ProjectScreenerResults }> =>
+    apiFetch("/api/leads", {
+      method: "POST",
+      body: JSON.stringify({ tool: "PROJECT_SCREENER", ...contact, inputs }),
+      skipAuth: true,
+    }),
 };
 
 export type EsgWaitlistFramework = "ESG_GRI" | "ESG_ISSB" | "ESG_CSRD" | "ESG_CDP";

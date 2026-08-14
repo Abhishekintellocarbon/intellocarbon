@@ -47,6 +47,14 @@ export function MobileNav({ isAuthenticated }: { isAuthenticated: boolean }) {
             </div>
 
             <nav className="mt-6 flex flex-1 flex-col gap-1">
+              {/* Same first position as the desktop nav. */}
+              <Link
+                href="/project-screener"
+                onClick={close}
+                className="rounded-lg px-3 py-3 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+              >
+                Project Screener
+              </Link>
               <Link
                 href="/"
                 onClick={close}
