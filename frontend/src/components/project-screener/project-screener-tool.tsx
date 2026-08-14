@@ -250,11 +250,19 @@ export function ProjectScreenerTool() {
         )}
       </div>
 
+      {/* Opens on "Screen this project", before the result is shown — the same
+          point the IntelloCalc tools gate on, so the flow is consistent across
+          every public tool. The modal captures name, company, email (all
+          required) and phone (optional); the wording below is the one thing
+          scoped to this page, and it asks for the phone number explicitly
+          because a project screening is a conversation, not a one-off number.
+          Phone stays optional in the shared schema — making it required here
+          would change it for the three IntelloCalc tools too. */}
       <LeadCaptureModal
         open={pendingInputs !== null}
         onClose={() => setPendingInputs(null)}
         title="Where should we send this?"
-        description="Your indicative screening appears right after this — we keep your details so we can follow up on the project if you want us to."
+        description="Your indicative screening appears right after this. Add a phone number if you'd like someone to talk the result through with you — otherwise we'll follow up by email."
         ctaLabel="Show my screening"
         onSubmit={submitLead}
       />
