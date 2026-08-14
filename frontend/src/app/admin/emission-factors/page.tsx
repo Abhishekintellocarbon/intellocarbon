@@ -391,6 +391,7 @@ function EmissionFactorsContent() {
 
   const cbamCertificatePrice = factors?.find((f) => f.name === "CBAM Certificate Price" && f.isCurrent);
   const ukCbamRate = factors?.find((f) => f.name === "UK CBAM Rate" && f.isCurrent);
+  const cccMarketPrice = factors?.find((f) => f.name === "CCC Market Price" && f.isCurrent);
   const ceaGridFactor = factors?.find((f) => f.name === "CEA Grid Emission Factor" && f.isCurrent);
 
   const filteredFactors = useMemo(() => {
@@ -430,6 +431,17 @@ function EmissionFactorsContent() {
             unsetNote="Not yet published — HMRC sets this quarterly from the UK ETS auction price plus Carbon Price Support, ahead of the 1 Jan 2027 accounting period."
             onSave={async (value, source) => {
               const { factor } = await adminApi.updateUkCbamRate({ value, source });
+              setFactors((prev) => (prev ? replaceCurrentByName(prev, factor) : prev));
+            }}
+          />
+          <QuickUpdateCard
+            title="CCC Market Price"
+            unit="INR/CCC"
+            valuePrefix="₹"
+            current={cccMarketPrice}
+            unsetNote="Market not yet open — Carbon Credit Certificates become tradable on the Indian Energy Exchange in October 2026. No CCC has traded, so there is no price to enter until then."
+            onSave={async (value, source) => {
+              const { factor } = await adminApi.updateCccMarketPrice({ value, source });
               setFactors((prev) => (prev ? replaceCurrentByName(prev, factor) : prev));
             }}
           />

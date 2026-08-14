@@ -1075,6 +1075,88 @@ export interface FacilityDashboardCcts {
   evidencePending?: boolean;
 }
 
+/**
+ * The CCC surplus/deficit position, priced where a price exists.
+ *
+ * The credits themselves are real in every non-TARGET_PENDING state — it is
+ * only the valuation that is withheld, and the union is what stops a rupee
+ * figure being rendered before there is one. MARKET_NOT_OPEN and
+ * PRICE_PENDING are kept apart on purpose: the first cannot be cleared by
+ * anyone (CCC trading opens on IEX in October 2026), the second is a Super
+ * Admin entering the traded price in the Emission Factor Manager.
+ */
+export type FacilityDashboardCctsPosition =
+  | { status: "TARGET_PENDING"; reason: string }
+  | {
+      status: "MARKET_NOT_OPEN";
+      isSurplus: boolean;
+      cccCredits: number;
+      targetIntensity: number;
+      actualIntensity: number;
+      opensLabel: string;
+      venue: string;
+      reason: string;
+    }
+  | {
+      status: "PRICE_PENDING";
+      isSurplus: boolean;
+      cccCredits: number;
+      targetIntensity: number;
+      actualIntensity: number;
+      venue: string;
+      reason: string;
+    }
+  | {
+      status: "VALUED";
+      isSurplus: boolean;
+      cccCredits: number;
+      targetIntensity: number;
+      actualIntensity: number;
+      pricePerCreditInr: number;
+      priceAsOfDate: string;
+      priceSource: string;
+      positionValueInr: number;
+      /** Deficit only — twice the market price of the shortfall. Null on a surplus. */
+      penaltyExposureInr: number | null;
+      penaltyMultiplier: number;
+      penaltySource: string;
+    };
+
+export type FacilityDashboardCccMarketPrice =
+  | { status: "MARKET_NOT_OPEN"; opensLabel: string; venue: string; reason: string }
+  | { status: "PRICE_PENDING"; venue: string; reason: string }
+  | { status: "AVAILABLE"; venue: string; pricePerCreditInr: number; asOfDate: string; source: string };
+
+export interface CccMarketPricePoint {
+  asOfDate: string;
+  pricePerCreditInr: number;
+  source: string;
+  isCurrent: boolean;
+}
+
+/**
+ * One CCTS compliance year of this facility's own trajectory. `targetIntensity`
+ * is the entity's own BEE-notified target as entered — never a sector average,
+ * which this platform does not hold — and is null for a year with no target on
+ * file rather than interpolated.
+ */
+export interface CctsTargetTrajectoryPoint {
+  complianceYear: string;
+  targetIntensity: number | null;
+  achievedIntensity: number | null;
+  periodCount: number;
+}
+
+export interface FacilityDashboardCctsCompliance {
+  complianceYear: string;
+  deadline: string;
+  daysRemaining: number;
+  reportPeriod: string;
+  reportWindowIsOpen: boolean;
+  reportWindowOpens: string;
+  reportWindowCloses: string;
+}
+
 export interface FacilityDashboardBrsr {
   fyLabel: string;
   status: "SUBMITTED" | "DRAFT" | "NOT_STARTED";
@@ -1134,6 +1216,12 @@ export interface FacilityDashboard {
   liabilityTrend: FacilityLiabilityTrendPoint[];
   intensityTrend: FacilityIntensityTrendPoint[];
   intensityTargetLine: number | null;
+  /** Null until at least one period has been submitted — there is no position to state before that. */
+  cctsPosition: FacilityDashboardCctsPosition | null;
+  cccMarketPrice: FacilityDashboardCccMarketPrice;
+  cccMarketPriceTrend: CccMarketPricePoint[];
+  cctsTargetTrajectory: CctsTargetTrajectoryPoint[];
+  cctsCompliance: FacilityDashboardCctsCompliance;
   recentActivity: FacilityActivityFeedItem[];
   hasEvidencePendingSubmissions: boolean;
   crossCheckSummary: { total: number; matched: number };

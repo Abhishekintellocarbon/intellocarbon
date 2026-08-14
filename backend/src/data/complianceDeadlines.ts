@@ -118,6 +118,45 @@ export const nextCctsDeadline = (now: Date): Date => {
 };
 
 /**
+ * The financial year a date falls in, e.g. "FY2026-27" for any date in
+ * Apr 2026 - Mar 2027. currentBrsrFyLabel(now) is exactly this question asked
+ * of today, so it is the implementation rather than a second copy of the
+ * April-March convention.
+ */
+export const fyLabelFor = (date: Date): string => currentBrsrFyLabel(date);
+
+/**
+ * A CCTS compliance year is the financial year whose intensity performance is
+ * being settled — the same FY convention the rest of the platform uses.
+ * Named separately from the BRSR helper so CCTS call sites read as CCTS.
+ */
+export const cctsComplianceYearFor = (date: Date): string => fyLabelFor(date);
+
+export interface CctsComplianceCycle {
+  /** The FY this deadline settles, e.g. "FY2025-26". */
+  complianceYear: string;
+  /** 31 July of the year following that FY's close. */
+  deadline: Date;
+}
+
+/**
+ * The CCTS compliance cycle the next deadline belongs to.
+ *
+ * The 31 July deadline settles the FY that closed the preceding 31 March — so
+ * 31 Jul 2026 is the compliance date for FY2025-26. Built on nextCctsDeadline
+ * rather than restating the calendar, so the two can never disagree about
+ * which date is next.
+ */
+export const nextCctsComplianceCycle = (now: Date): CctsComplianceCycle => {
+  const deadline = nextCctsDeadline(now);
+  const fyStartYear = deadline.getUTCFullYear() - 1;
+  return {
+    complianceYear: `FY${fyStartYear}-${String((fyStartYear + 1) % 100).padStart(2, "0")}`,
+    deadline,
+  };
+};
+
+/**
  * Next upcoming CBAM annual declaration deadline (31 May) on/after `now`.
  * Clamped to CBAM_FIRST_ANNUAL_DECLARATION_YEAR — the rule only takes effect
  * for 2026 imports onward, so there is no real 31 May 2026 deadline.

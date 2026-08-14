@@ -13,6 +13,10 @@ import { LiabilityTrendChart } from "@/components/facilities/dashboard/liability
 import { IntensityTrendChart } from "@/components/facilities/dashboard/intensity-trend-chart";
 import { SeeBenchmarkStrip } from "@/components/facilities/dashboard/see-benchmark-strip";
 import { CertificatePriceTrendChart } from "@/components/facilities/dashboard/certificate-price-trend-chart";
+import { CccPositionCard } from "@/components/facilities/dashboard/ccc-position-card";
+import { CccMarketPriceTracker } from "@/components/facilities/dashboard/ccc-market-price-tracker";
+import { CctsTargetTrajectoryChart } from "@/components/facilities/dashboard/ccts-target-trajectory-chart";
+import { CctsComplianceCountdown } from "@/components/facilities/dashboard/ccts-compliance-countdown";
 import { ExecutiveSummaryButton } from "@/components/facilities/dashboard/executive-summary-button";
 import { RecentActivityFeed } from "@/components/facilities/dashboard/recent-activity-feed";
 import { GenerateReportButton } from "@/components/facilities/dashboard/generate-report-button";
@@ -129,7 +133,24 @@ function FacilityDashboardContent() {
               <ExecutiveSummaryButton facilityId={facility.id} facilityName={facility.name} />
             </>
           )}
+          {/* Ungated, as it has always been — a CBAM subscriber sees their
+              GEI trend too. Only the genuinely CCTS-specific cards below sit
+              behind access.hasCcts. */}
           <IntensityTrendChart dashboard={dashboard} facilityId={facility.id} />
+
+          {/* CCTS-only additions. access.hasCcts already accounts for
+              CBAM_PLUS_CCTS bundling CCTS, mirroring the CBAM block above —
+              no new pricing tier is involved. */}
+          {access.hasCcts && (
+            <>
+              <div className="grid gap-8 lg:grid-cols-2">
+                <CccPositionCard dashboard={dashboard} facilityId={facility.id} />
+                <CccMarketPriceTracker dashboard={dashboard} />
+              </div>
+              <CctsTargetTrajectoryChart dashboard={dashboard} facilityId={facility.id} />
+              <CctsComplianceCountdown dashboard={dashboard} />
+            </>
+          )}
           <RecentActivityFeed dashboard={dashboard} />
         </div>
       </main>

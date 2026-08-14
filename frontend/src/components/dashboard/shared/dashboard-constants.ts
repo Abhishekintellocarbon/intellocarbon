@@ -14,5 +14,9 @@ export const EMISSIONS_SEGMENT_COLORS = [CHART_COLORS.teal, CHART_COLORS.blue, C
 export const fmtEur = (n: number) => `€${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 /** UK CBAM figures are GBP — same shape as fmtEur so the two regimes read alike apart from the symbol. */
 export const fmtGbp = (n: number) => `£${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+/** CCTS figures are rupees — same shape as fmtEur/fmtGbp so the regimes read alike apart from the symbol. */
+export const fmtInr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+/** A CCC is one tonne of CO2e, so credits are whole-ish counts rather than intensities. */
+export const fmtCredits = (n: number) => `${n.toLocaleString("en-IN", { maximumFractionDigits: 1 })} CCC`;
 export const fmtTco2e = (n: number, digits = 1) => `${n.toLocaleString("en-IN", { maximumFractionDigits: digits })} tCO2e`;
 export const fmtIntensity = (n: number) => n.toLocaleString("en-IN", { maximumFractionDigits: 3 });

@@ -2,7 +2,8 @@ import { prisma } from "../config/prisma";
 import { requireOwnedFacility } from "./facility.service";
 import { computeCbamFinancialImpact } from "./cbamFinancialImpact.service";
 import { computeUkCbamFinancialImpact } from "./ukCbamFinancialImpact.service";
-import { listCbamCertificatePriceHistory } from "./certificatePriceHistory.service";
+import { listCbamCertificatePriceHistory, listCccMarketPriceHistory } from "./certificatePriceHistory.service";
+import { computeCctsCccMarketPosition, getCccMarketPriceStatus } from "./cctsMarketPosition.service";
 import type { ReportContext } from "./report.service";
 import { DISCLOSED_ATTRIBUTE_COUNT } from "./brsrReport/build";
 import { round, quarterLabel, periodLabel, seeUnitFor, cctsTone, type CctsTone } from "./dashboardShared.helpers";
@@ -11,6 +12,9 @@ import {
   nextCbamAnnualDeclarationDeadline,
   nextUkCbamDeadline,
   nextCctsDeadline,
+  nextCctsComplianceCycle,
+  cctsComplianceYearFor,
+  getCctsReportPeriodStatus,
   currentBrsrFyLabel,
   currentBrsrFyDeadline,
   daysUntil,
@@ -229,6 +233,82 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
       ? round(latestWithTarget.impact.cctsPosition.targetIntensity, 4)
       : null;
 
+  // ---- Section 5b — CCC surplus/deficit position (latest submitted period) ----
+  // The (target − achieved) × production arithmetic is NOT redone here: it is
+  // read off latest.impact.cctsPosition, the same computed output the CCTS
+  // report and the compliance strip already use. This only decides whether
+  // the resulting credits can be given a rupee value yet.
+  const cctsPosition = latest
+    ? computeCctsCccMarketPosition(latest.impact.cctsPosition, now)
+    : null;
+
+  // ---- Section 5c — CCC market price ----
+  // Company-independent, like the CBAM certificate price above: one market,
+  // one price. Both the current status and the recorded history come from the
+  // Emission Factor Manager's supersession chain, not a new data source.
+  const cccMarketPrice = getCccMarketPriceStatus(now);
+  const cccMarketPriceTrend = await listCccMarketPriceHistory();
+
+  // ---- Section 5d — this facility's own multi-year target trajectory ----
+  //
+  // Deliberately the facility's *own* notified targets, one point per CCTS
+  // compliance year, and nothing else. CCTS targets are notified per obligated
+  // entity, not per sector, and this platform holds no verified sector-average
+  // trajectory — so there is no sector curve to draw and none is drawn. A
+  // compliance year with no target entered appears with targetIntensity null
+  // rather than being interpolated between the years around it.
+  //
+  // The achieved figure beside it is an aggregation of numbers the engine has
+  // already computed, not a recalculation: total CCTS-basis emissions over
+  // total production for the year, which is the same ratio ghgIntensityCcts is
+  // per period (identical denominator — production tonnes, or MWh exported for
+  // electricity). Summing first is what makes the year's figure production-
+  // weighted rather than a mean of ratios.
+  const trajectoryByYear = new Map<
+    string,
+    { emissionsCctsTco2e: number; production: number; targetIntensity: number | null; periodCount: number }
+  >();
+  for (const { ctx, impact } of financials) {
+    const complianceYear = cctsComplianceYearFor(ctx.periodEnd);
+    const production = ctx.sector === "ELECTRICITY" ? (ctx.electricityExportedEuMwh ?? 0) : ctx.productionQuantityT;
+    const bucket = trajectoryByYear.get(complianceYear) ?? {
+      emissionsCctsTco2e: 0,
+      production: 0,
+      targetIntensity: null,
+      periodCount: 0,
+    };
+    bucket.emissionsCctsTco2e += ctx.calculationResult.totalEmissionsCctsAr2Bur3;
+    bucket.production += production;
+    bucket.periodCount += 1;
+    // Entries are ordered by periodEnd ascending, so the last target seen for
+    // a year is the most recently entered one for that year.
+    if (!impact.cctsPosition.pending) bucket.targetIntensity = impact.cctsPosition.targetIntensity;
+    trajectoryByYear.set(complianceYear, bucket);
+  }
+  const cctsTargetTrajectory = Array.from(trajectoryByYear.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([complianceYear, v]) => ({
+      complianceYear,
+      targetIntensity: v.targetIntensity != null ? round(v.targetIntensity, 4) : null,
+      achievedIntensity: v.production > 0 ? round(v.emissionsCctsTco2e / v.production, 4) : null,
+      periodCount: v.periodCount,
+    }));
+
+  // ---- Section 5e — CCTS compliance cycle ----
+  // Which FY the next 31 July deadline settles, and whether that year's
+  // report can be generated yet — both from the existing regulatory calendar.
+  const cctsCycle = nextCctsComplianceCycle(now);
+  const cctsReportPeriod = getCctsReportPeriodStatus(now);
+  const cctsCompliance = {
+    complianceYear: cctsCycle.complianceYear,
+    deadline: cctsCycle.deadline.toISOString(),
+    daysRemaining: daysUntil(now, cctsCycle.deadline),
+    reportPeriod: cctsReportPeriod.displayLabel,
+    reportWindowIsOpen: cctsReportPeriod.isOpen,
+    reportWindowOpens: cctsReportPeriod.windowStart.toISOString(),
+    reportWindowCloses: cctsReportPeriod.windowEnd.toISOString(),
+  };
+
   // ---- Section 6 — recent activity feed ----
   const feedItems: FeedItem[] = entries.map((entry) => ({
     id: `submission:${entry.id}`,
@@ -319,6 +399,11 @@ export const getFacilityDashboard = async (userId: string, facilityId: string) =
     liabilityTrend,
     intensityTrend,
     intensityTargetLine,
+    cctsPosition,
+    cccMarketPrice,
+    cccMarketPriceTrend,
+    cctsTargetTrajectory,
+    cctsCompliance,
     recentActivity,
     hasEvidencePendingSubmissions,
     crossCheckSummary,

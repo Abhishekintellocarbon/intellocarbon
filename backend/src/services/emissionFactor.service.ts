@@ -3,6 +3,7 @@ import { AppError } from "../utils/AppError";
 import { setGridEmissionFactor } from "../data/emissionFactors";
 import { setCbamCertificatePrice, CBAM_CERTIFICATE_PRICE_FACTOR_NAME } from "../data/cbamReferenceData";
 import { setUkCbamRate, UK_CBAM_RATE_FACTOR_NAME } from "../data/ukCbamReferenceData";
+import { setCccMarketPrice, CCC_MARKET_PRICE_FACTOR_NAME } from "../data/cctsReferenceData";
 import type {
   CreateEmissionFactorInput,
   UpdateEmissionFactorInput,
@@ -174,6 +175,23 @@ export const updateUkCbamRate = async (input: QuickUpdateValueInput) => {
   return factor;
 };
 
+/**
+ * CCC market price — the traded price of a Carbon Credit Certificate under
+ * CCTS. Same quick-update shape as the two above; the migration seeds the row
+ * with a value of 0 and a "market not open" source, so until a Super Admin
+ * supersedes it with a real IEX figure getCccMarketPrice() keeps returning
+ * null and no CCC position anywhere is given a rupee value.
+ */
+export const updateCccMarketPrice = async (input: QuickUpdateValueInput) => {
+  const factor = await supersedeOrCreateByName(
+    CCC_MARKET_PRICE_FACTOR_NAME,
+    { fuelType: "CCC_MARKET_PRICE", unit: "INR/CCC", sectorApplicability: "ALL" },
+    input,
+  );
+  setCccMarketPrice(factor.value, factor.source, factor.validFrom);
+  return factor;
+};
+
 export const updateCeaGridFactor = async (input: QuickUpdateValueInput) => {
   const factor = await supersedeOrCreateByName(
     "CEA Grid Emission Factor",
@@ -191,15 +209,18 @@ export const updateCeaGridFactor = async (input: QuickUpdateValueInput) => {
  * emissionFactors.ts/cbamReferenceData.ts if a row is missing, e.g. on a
  * fresh DB before this migration's seed has run. The UK CBAM rate has no
  * code default to fall back to — it stays null until HMRC publishes one and
- * a Super Admin enters it.
+ * a Super Admin enters it, and neither does the CCC market price, which
+ * cannot exist at all until CCC trading opens on IEX in October 2026.
  */
 export const hydrateEmissionFactorCache = async (): Promise<void> => {
-  const [certPrice, gridFactor, ukCbamRate] = await Promise.all([
+  const [certPrice, gridFactor, ukCbamRate, cccMarketPrice] = await Promise.all([
     prisma.emissionFactor.findFirst({ where: { name: CBAM_CERTIFICATE_PRICE_FACTOR_NAME, isCurrent: true } }),
     prisma.emissionFactor.findFirst({ where: { name: "CEA Grid Emission Factor", isCurrent: true } }),
     prisma.emissionFactor.findFirst({ where: { name: UK_CBAM_RATE_FACTOR_NAME, isCurrent: true } }),
+    prisma.emissionFactor.findFirst({ where: { name: CCC_MARKET_PRICE_FACTOR_NAME, isCurrent: true } }),
   ]);
   if (certPrice) setCbamCertificatePrice(certPrice.value, certPrice.source, certPrice.validFrom);
   if (gridFactor) setGridEmissionFactor(gridFactor.value, gridFactor.source);
   if (ukCbamRate) setUkCbamRate(ukCbamRate.value, ukCbamRate.source, ukCbamRate.validFrom);
+  if (cccMarketPrice) setCccMarketPrice(cccMarketPrice.value, cccMarketPrice.source, cccMarketPrice.validFrom);
 };
