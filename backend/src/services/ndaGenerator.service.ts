@@ -1,8 +1,10 @@
-import path from "path";
+import { LOGO_LOCKUP_ON_LIGHT } from "./brandAssets";
 import PDFDocument from "pdfkit";
 import { buildNdaDocument, type NdaGeneratorInput } from "./ndaGenerator/build";
 
-const LOGO_PATH = path.join(__dirname, "../assets/logo-full.png");
+// White-page document throughout — no dark cover band, so the on-light
+// lockup is correct everywhere in it.
+const LOGO_PATH = LOGO_LOCKUP_ON_LIGHT;
 
 const pdfToBuffer = (doc: PDFKit.PDFDocument): Promise<Buffer> =>
   new Promise((resolve, reject) => {

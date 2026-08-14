@@ -1,4 +1,4 @@
-import path from "path";
+import { LOGO_LOCKUP_ON_DARK } from "../brandAssets";
 import type { ReportContext } from "../report.service";
 import { computeCbamFinancialImpact, type CbamFinancialImpact } from "../cbamFinancialImpact.service";
 import { PageBuilder } from "../cbamReport/layout";
@@ -27,7 +27,9 @@ import {
 } from "../../data/emissionFactors";
 import { GWP_AR2_BUR3 } from "../../data/gwpTables";
 
-const LOGO_PATH = path.join(__dirname, "../../assets/logo-full.png");
+// Cover band is the dark gradient — see brandAssets for why the interior
+// pages use a different lockup.
+const LOGO_PATH = LOGO_LOCKUP_ON_DARK;
 const EMISSION_FACTOR_SOURCE = "IPCC 2006 Guidelines for National GHG Inventories (Tier-1) — India GHG Programme";
 
 const UNIT_LABELS: Record<string, string> = {
@@ -57,7 +59,7 @@ export const buildCctsGhgIntensityReport = async (doc: PDFKit.PDFDocument, ctx: 
   // reference number and the already-computed CCTS CCC surplus/deficit position —
   // no CBAM-specific figures (liability, certificates) are read from it here.
   const financials = computeCbamFinancialImpact(ctx, "CCTS");
-  const pb = new PageBuilder(doc, financials.reportReference, LOGO_PATH);
+  const pb = new PageBuilder(doc, financials.reportReference);
   const qr = await buildVerifyQr(financials.reportReference);
 
   buildCoverPage(pb, ctx, financials, qr);

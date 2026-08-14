@@ -45,6 +45,8 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
+        // Wordmark only — not a body face. See the Logo component.
+        wordmark: ["var(--font-archivo)", "Archivo", "system-ui", "sans-serif"],
       },
       backgroundImage: {
         "gradient-teal-blue": "linear-gradient(135deg, #00D4AA 0%, #4A9EFF 100%)",

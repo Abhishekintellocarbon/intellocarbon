@@ -1,4 +1,4 @@
-import path from "path";
+import { LOGO_LOCKUP_ON_DARK } from "../brandAssets";
 import type { ReportContext } from "../report.service";
 import type { CbamFinancialImpact } from "../cbamFinancialImpact.service";
 import { PageBuilder } from "./layout";
@@ -31,7 +31,9 @@ import {
 import { GWP_AR5, GWP_AR2_BUR3 } from "../../data/gwpTables";
 import { CN_CODES_BY_SECTOR, SECTOR_PRODUCTION_ROUTES } from "../../data/cbamReferenceData";
 
-const LOGO_PATH = path.join(__dirname, "../../assets/logo-full.png");
+// Cover band is the dark gradient — see brandAssets for why the interior
+// pages use a different lockup.
+const LOGO_PATH = LOGO_LOCKUP_ON_DARK;
 const EMISSION_FACTOR_SOURCE = "EU 2023/1773 Annex VIII";
 
 const UNIT_LABELS: Record<string, string> = {
@@ -55,7 +57,7 @@ export const buildCbamCommunicationPackage = async (
   ctx: ReportContext,
   financials: CbamFinancialImpact,
 ) => {
-  const pb = new PageBuilder(doc, financials.reportReference, LOGO_PATH);
+  const pb = new PageBuilder(doc, financials.reportReference);
   const qr = await buildVerifyQr(financials.reportReference);
 
   buildCoverPage(pb, ctx, financials, qr);

@@ -56,8 +56,10 @@ export function AppHeader() {
     <header className="border-b border-surface-border bg-surface/60 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-8">
+          {/* size="lg" so the in-app header carries the same 40px mark as the
+              public site header — one logo size across every page. */}
           <Link href={(user && HOME_HREF[user.role]) || "/dashboard"}>
-            <Logo />
+            <Logo size="lg" />
           </Link>
           <nav className="hidden items-center gap-1 sm:flex">
             {allNavLinks.map((link) => {
