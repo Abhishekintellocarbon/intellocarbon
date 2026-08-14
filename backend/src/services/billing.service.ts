@@ -289,6 +289,34 @@ const razorpayCheckoutFailure = (action: string, companyId: string, tier: Subscr
   );
 };
 
+/**
+ * Razorpay's 400 when a customer with the same email already exists on the
+ * merchant account. `fail_existing: 0` on the create call below is supposed
+ * to make this unreachable by returning the existing customer instead — this
+ * is the belt to that braces, because the failure mode it guards against is
+ * severe and self-sustaining:
+ *
+ * We only skip customer creation when some subscription row already carries a
+ * razorpayCustomerId. If the customer exists at Razorpay but that id was
+ * never persisted on our side, every checkout retries the create, gets this
+ * error, and blocks — so the id is never stored, so the next attempt fails
+ * the same way. A company in that state cannot buy anything, on any tier,
+ * until someone intervenes. That is what took checkout down on 12 Aug 2026.
+ *
+ * Matched on the error's own code/description rather than the bare 400,
+ * which Razorpay also returns for genuinely bad requests worth failing on.
+ */
+const isCustomerAlreadyExistsError = (err: unknown): boolean => {
+  if (typeof err !== "object" || err === null) return false;
+  const { statusCode, error } = err as { statusCode?: number; error?: { code?: string; description?: string } };
+  return (
+    statusCode === 400 &&
+    error?.code === "BAD_REQUEST_ERROR" &&
+    typeof error.description === "string" &&
+    error.description.toLowerCase().includes("customer already exists")
+  );
+};
+
 const devBypassCheckout = async (companyId: string, tier: SubscriptionTier, facilitiesIncluded: number) => {
   // The onboarding fee is deliberately left unsettled here: nothing was
   // collected, so the company still owes it on a real checkout.
@@ -512,10 +540,34 @@ export const createCheckout = async (companyId: string, tier: SubscriptionTier, 
         name: company.owner.name,
         email: company.owner.email,
         notes: { companyId },
+        // Look up before creating, in Razorpay's own terms: with
+        // fail_existing: 0 a matching customer is returned instead of
+        // rejected, so we recover the id we failed to persist earlier rather
+        // than dying on a duplicate. Done this way because the Fetch All
+        // Customers API has no email filter (only from/to/count/skip), so an
+        // explicit lookup would mean paging the entire customer list.
+        fail_existing: 0,
       });
       razorpayCustomerId = customer.id;
     } catch (err) {
-      throw razorpayCheckoutFailure("create a Razorpay customer", companyId, tier, err);
+      // A customer id is nice to have, not required to check out: Razorpay's
+      // Create Subscription API takes no customer_id — it links the customer
+      // itself at the authorisation payment. So this must never be the thing
+      // that stops someone paying us. Logged loudly, reported to Sentry, and
+      // the checkout continues without an id (the column is nullable).
+      if (isCustomerAlreadyExistsError(err)) {
+        logger.warn(
+          `[Billing] Razorpay says the customer already exists for company=${companyId} tier=${tier}, but no ` +
+            `subscription row carries its id and fail_existing: 0 did not return one. Continuing checkout without ` +
+            `a customer id — the subscription does not need one. Reconcile the id manually to restore reuse.`,
+        );
+        Sentry.captureException(err, {
+          tags: { area: "billing", action: "create a Razorpay customer" },
+          extra: { companyId, tier, recovered: true },
+        });
+      } else {
+        throw razorpayCheckoutFailure("create a Razorpay customer", companyId, tier, err);
+      }
     }
   }
 
