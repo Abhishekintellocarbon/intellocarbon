@@ -52,16 +52,43 @@ const complyInputsSchema = z.object({
     .default([]),
 });
 
+// Voluntary carbon market project screening — a different subject from the
+// three tools above, which all screen an entity's own *compliance* position.
+// This one screens a *project* that would generate credits, so it shares the
+// lead-capture contract and nothing else.
+const projectScreenerInputsSchema = z.object({
+  projectType: z.enum([
+    "RENEWABLE_ENERGY",
+    "FORESTRY_AFFORESTATION",
+    "BIOCHAR",
+    "BIOGAS_LANDFILL_GAS",
+    "ENHANCED_ROCK_WEATHERING",
+    "INDUSTRIAL_ENERGY_EFFICIENCY",
+    "OTHER",
+  ]),
+  // Free-text rather than an enum of states: the list is presented as a
+  // dropdown in the UI, but pinning 36 state names into a backend enum means
+  // any future reorganisation is a migration rather than a copy edit, and
+  // nothing here calculates from the value.
+  state: z.string().trim().min(2, "Select a project location").max(100),
+  scaleBand: z.enum(["MICRO", "SMALL", "MEDIUM", "LARGE"]),
+  stage: z.enum(["CONCEPT", "PLANNING", "UNDER_CONSTRUCTION", "OPERATIONAL"]),
+  /** Optional free-text description — the only way an "Other" project type can be understood. */
+  projectDescription: z.string().trim().max(2000).optional().or(z.literal("")),
+});
+
 export const leadCaptureSchema = z.discriminatedUnion("tool", [
   z.object({ tool: z.literal("BORDER"), ...contactFields, inputs: borderInputsSchema }),
   z.object({ tool: z.literal("INDIA"), ...contactFields, inputs: indiaInputsSchema }),
   z.object({ tool: z.literal("COMPLY"), ...contactFields, inputs: complyInputsSchema }),
+  z.object({ tool: z.literal("PROJECT_SCREENER"), ...contactFields, inputs: projectScreenerInputsSchema }),
 ]);
 
 export type LeadCaptureInput = z.infer<typeof leadCaptureSchema>;
 export type BorderInputs = z.infer<typeof borderInputsSchema>;
 export type IndiaInputs = z.infer<typeof indiaInputsSchema>;
 export type ComplyInputs = z.infer<typeof complyInputsSchema>;
+export type ProjectScreenerInputs = z.infer<typeof projectScreenerInputsSchema>;
 
 // Lightweight "Notify me" waitlist capture for not-yet-built /esg frameworks —
 // email only, tagged by framework via `tool`, kept separate from the
@@ -75,7 +102,9 @@ export const esgWaitlistSchema = z.object({
 export type EsgWaitlistInput = z.infer<typeof esgWaitlistSchema>;
 
 export const listLeadsQuerySchema = z.object({
-  tool: z.enum(["BORDER", "INDIA", "COMPLY", "ESG_GRI", "ESG_ISSB", "ESG_CSRD", "ESG_CDP"]).optional(),
+  tool: z
+    .enum(["BORDER", "INDIA", "COMPLY", "PROJECT_SCREENER", "ESG_GRI", "ESG_ISSB", "ESG_CSRD", "ESG_CDP"])
+    .optional(),
   sector: z.string().trim().optional(),
   from: z.string().trim().optional(),
   to: z.string().trim().optional(),

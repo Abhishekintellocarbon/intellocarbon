@@ -1,5 +1,6 @@
 import { prisma } from "../config/prisma";
 import { calculateBorder, calculateComply, calculateIndia } from "./intellocalcCalculations";
+import { calculateProjectScreener } from "./projectScreenerCalculations";
 import { sendLeadBorderEmail, sendLeadComplyEmail, sendLeadIndiaEmail } from "./email.service";
 import type { EsgWaitlistInput, LeadCaptureInput, ListLeadsQuery } from "../validators/leadCapture.validators";
 
@@ -25,6 +26,8 @@ export const createLead = async (input: LeadCaptureInput) => {
     results = calculateBorder(input.inputs);
   } else if (input.tool === "INDIA") {
     results = calculateIndia(input.inputs);
+  } else if (input.tool === "PROJECT_SCREENER") {
+    results = calculateProjectScreener(input.inputs);
   } else {
     results = calculateComply(input.inputs);
   }
@@ -42,6 +45,12 @@ export const createLead = async (input: LeadCaptureInput) => {
   });
 
   const sendEmail = async () => {
+    // PROJECT_SCREENER sends nothing. The other three each have a written
+    // result email behind them; the screener has no template, and routing it
+    // into one of theirs would send a lead a compliance-position email about a
+    // project screening they never asked for. Its results render on the page.
+    if (input.tool === "PROJECT_SCREENER") return;
+
     // `input.name` (not `lead.name`) — the column is nullable now to support
     // the email-only ESG waitlist below, but these three tools' validator
     // always requires a real name, so the pre-save input is the non-null source.

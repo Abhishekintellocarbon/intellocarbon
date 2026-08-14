@@ -7,7 +7,10 @@ import { useCookieConsent } from "@/hooks/use-cookie-consent";
 // Exact-match marketing routes — kept separate from the prefix list below so
 // adding a new authenticated top-level route (e.g. "/about-us-internal")
 // can't accidentally start matching as a marketing page.
-const MARKETING_ROUTES = new Set(["/", "/about", "/faq"]);
+// "/project-screener" is a marketing page in its own right rather than an
+// IntelloCalc sub-path, so it needs listing here explicitly — without it the
+// "Lead Captured" event fired by the screener would be a silent no-op.
+const MARKETING_ROUTES = new Set(["/", "/about", "/faq", "/project-screener"]);
 
 // Routes where any sub-path should also count as a marketing page —
 // /intellocalc/border, /intellocalc/comply, /intellocalc/india, and any

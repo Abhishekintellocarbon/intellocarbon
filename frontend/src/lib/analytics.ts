@@ -25,8 +25,13 @@ declare global {
  * to POST /api/leads — the ESG_* waitlist frameworks live on /esg, where
  * Plausible is not loaded at all (see plausible-analytics.tsx), so they are
  * intentionally absent.
+ *
+ * PROJECT_SCREENER is the Project Eligibility Screener at /project-screener.
+ * It is not an IntelloCalc tool, but it captures a lead through the same
+ * endpoint, so it belongs in the same goal — and /project-screener had to be
+ * added to plausible-analytics.tsx for this event to fire there at all.
  */
-export type LeadCapturedTool = "BORDER" | "INDIA" | "COMPLY";
+export type LeadCapturedTool = "BORDER" | "INDIA" | "COMPLY" | "PROJECT_SCREENER";
 
 /**
  * Fire a Plausible custom event. A no-op on the server, and a no-op in the

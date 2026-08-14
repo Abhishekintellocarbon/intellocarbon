@@ -19,6 +19,7 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/services",
   "/esg",
   "/ccts-obligated-entities",
+  "/project-screener",
   "/privacy",
   "/terms",
   // Pre-auth screens. A visitor can land on these first, so consent has to be

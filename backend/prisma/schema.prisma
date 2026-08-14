@@ -1314,6 +1314,11 @@ enum LeadTool {
   BORDER
   INDIA
   COMPLY
+  // Voluntary carbon market project screening (/project-screener). Shares the
+  // lead-capture contract with the three IntelloCalc tools above and nothing
+  // else: those screen an entity's own compliance position, this screens a
+  // project that would generate credits in a separate, voluntary market.
+  PROJECT_SCREENER
   // "Notify me" waitlist signups for not-yet-built ESG frameworks on /esg —
   // lightweight (email only, see name/company below), tagged per framework so
   // demand signal is visible per-framework before committing to build order.
