@@ -60,7 +60,7 @@ export function AppHeader() {
               treatment as the public site header — one logo size across every
               page. Both headers move together; change SIZE_STYLES.lg, not this. */}
           <Link href={(user && HOME_HREF[user.role]) || "/dashboard"}>
-            <Logo size="lg" />
+            <Logo size="lg" dimensional />
           </Link>
           <nav className="hidden items-center gap-1 sm:flex">
             {allNavLinks.map((link) => {

@@ -19,7 +19,7 @@ export function MarketingHeader() {
       <header className="relative z-30 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-8">
           <Link href="/">
-            <Logo size="lg" />
+            <Logo size="lg" dimensional />
           </Link>
           <nav className="hidden items-center gap-3 md:flex">
             <Link

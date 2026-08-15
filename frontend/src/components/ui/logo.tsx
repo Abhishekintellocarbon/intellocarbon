@@ -3,13 +3,15 @@
 import { useId } from "react";
 import { cn } from "@/lib/utils";
 import { IntellocarbonLogoFace } from "./intellocarbon-logo";
+import { HEADER_DEPTH_SCALE, IntellocarbonLogo3D, markBoxRatio } from "./intellocarbon-logo-3d";
 
 /**
  * The Intellocarbon lockup — mark plus wordmark.
  *
- * The mark is IntellocarbonLogoFace: the static gradient face, no extrusion
- * and no interaction. The 3D interactive treatment is a separate stage and is
- * not used at these sizes.
+ * The mark is IntellocarbonLogoFace by default: the static gradient face, no
+ * extrusion and no interaction. Pass `dimensional` for the full treatment —
+ * extrusion stack, gloss, speculars and hover parallax. Both headers opt in;
+ * everything else (auth shell, footers) stays flat.
  *
  * Accessibility: whenever the wordmark is visible the mark is decorative, so a
  * home link wrapping this lockup is announced once ("Intellocarbon") rather
@@ -49,10 +51,13 @@ export function Logo({
   className,
   iconOnly,
   size = "md",
+  dimensional = false,
 }: {
   className?: string;
   iconOnly?: boolean;
   size?: keyof typeof SIZE_STYLES;
+  /** Extrusion stack, gloss, speculars and hover parallax. Headers only. */
+  dimensional?: boolean;
 }) {
   const s = SIZE_STYLES[size];
   // Per-instance ids for the mark's gradients and mask. Several lockups can be
@@ -65,7 +70,19 @@ export function Logo({
 
   return (
     <div className={cn("flex items-center", s.wrapper, className)}>
-      <IntellocarbonLogoFace size={s.mark} decorative={!iconOnly} idScope={idScope} />
+      {dimensional ? (
+        // The svg box is enlarged so the *face* still reads at s.mark: the
+        // extrusion needs room inside the viewBox, so the assembly is scaled to
+        // fit and the box grows to compensate. Optical size is unchanged.
+        <IntellocarbonLogo3D
+          size={Math.round(s.mark / markBoxRatio(HEADER_DEPTH_SCALE))}
+          decorative={!iconOnly}
+          idScope={idScope}
+          depthScale={HEADER_DEPTH_SCALE}
+        />
+      ) : (
+        <IntellocarbonLogoFace size={s.mark} decorative={!iconOnly} idScope={idScope} />
+      )}
       {!iconOnly && (
         <span
           className={cn(
