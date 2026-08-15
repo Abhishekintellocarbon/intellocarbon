@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
  * Two components over one shared geometry: a flat single-colour mark for
  * favicons, app icons and anything under 28px, and a static gradient "face"
  * for the site header. The full 3D interactive treatment is a separate stage
- * and deliberately not built here — at 40px an extrusion stack is cost with
- * nothing to show for it.
+ * and deliberately not built here — at header size an extrusion stack is a
+ * per-page-load render cost with nothing to show for it.
  *
  * The geometry below is a spec, not a drawing. Do not adjust the coordinates
  * by eye: the band is a pointy-top hexagon broken into two open sub-paths with
@@ -55,6 +55,17 @@ interface MarkProps {
   decorative?: boolean;
 }
 
+interface FaceProps extends MarkProps {
+  /**
+   * Namespaces this instance's gradient and mask ids. Required, and with no
+   * default on purpose: a shared fallback value silently reintroduces the
+   * collision described on IntellocarbonLogoFace, and it does so invisibly at
+   * the call site. Render through `Logo`, which supplies one from useId(),
+   * rather than passing a literal here.
+   */
+  idScope: string;
+}
+
 /** role="img" + label, or fully hidden — never both, and never neither. */
 const a11yProps = (decorative: boolean) =>
   decorative ? ({ "aria-hidden": true } as const) : ({ role: "img", "aria-label": "Intellocarbon" } as const);
@@ -99,12 +110,20 @@ export function IntellocarbonLogoFlat({ size = 32, className, decorative = false
  * authoring time. Masking a filled rect with a stroked white path produces the
  * same shape with paint that survives everywhere.
  *
- * The gradient ids are fixed rather than generated per instance, as specified.
- * Two marks on one page therefore share ids, which is harmless here: every
- * instance defines identical paint, so whichever definition a `url(#id)`
- * reference resolves to is the same gradient either way.
+ * The ids MUST be unique per instance — `idScope` is how. Fixed ids look safe
+ * (every instance defines identical paint, so any `url(#id)` resolves to the
+ * same colours) but are not: `url(#id)` resolves to the *first* element with
+ * that id in document order, and if that first copy sits inside a
+ * `display:none` subtree — a responsive panel, a closed mobile nav — the
+ * reference resolves to nothing and the *visible* mark paints as empty. That
+ * is not theoretical; it is what the auth shell did, where the `hidden lg:flex`
+ * panel's lockup precedes the visible one below the lg breakpoint.
  */
-export function IntellocarbonLogoFace({ size = 40, className, decorative = false }: MarkProps) {
+export function IntellocarbonLogoFace({ size = 40, className, decorative = false, idScope }: FaceProps) {
+  const gradId = `${idScope}Grad`;
+  const monoGradId = `${idScope}MonoGrad`;
+  const maskId = `${idScope}BandMask`;
+
   return (
     <svg
       viewBox="0 0 120 120"
@@ -114,19 +133,19 @@ export function IntellocarbonLogoFace({ size = 40, className, decorative = false
       {...a11yProps(decorative)}
     >
       <defs>
-        <linearGradient id="icGrad" gradientUnits="userSpaceOnUse" x1="16" y1="10" x2="104" y2="110">
+        <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1="16" y1="10" x2="104" y2="110">
           <stop offset="0%" stopColor="#4BE895" />
           <stop offset="46%" stopColor="#15B9A4" />
           <stop offset="100%" stopColor="#2A78A6" />
         </linearGradient>
 
-        <linearGradient id="icMonoGrad" gradientUnits="userSpaceOnUse" x1="34" y1="36" x2="86" y2="84">
+        <linearGradient id={monoGradId} gradientUnits="userSpaceOnUse" x1="34" y1="36" x2="86" y2="84">
           <stop offset="0%" stopColor="#FDFEFE" />
           <stop offset="55%" stopColor="#DCE6E6" />
           <stop offset="100%" stopColor="#B4C2C4" />
         </linearGradient>
 
-        <mask id="icBandMask" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120">
+        <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120">
           <path
             d={BAND_PATH}
             fill="none"
@@ -140,9 +159,9 @@ export function IntellocarbonLogoFace({ size = 40, className, decorative = false
       </defs>
 
       {/* The band: gradient as fill, shaped by the stroked mask above. */}
-      <rect width="120" height="120" fill="url(#icGrad)" mask="url(#icBandMask)" />
+      <rect width="120" height="120" fill={`url(#${gradId})`} mask={`url(#${maskId})`} />
 
-      <g transform={MONOGRAM_TRANSFORM} fill="url(#icMonoGrad)">
+      <g transform={MONOGRAM_TRANSFORM} fill={`url(#${monoGradId})`}>
         <rect x="34" y="39" width="14" height="42" />
         <path d={MONOGRAM_C_PATH} />
       </g>

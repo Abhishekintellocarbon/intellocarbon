@@ -1,3 +1,6 @@
+"use client";
+
+import { useId } from "react";
 import { cn } from "@/lib/utils";
 import { IntellocarbonLogoFace } from "./intellocarbon-logo";
 
@@ -20,12 +23,27 @@ const SIZE_STYLES = {
     text: "text-lg",
   },
   lg: {
-    wrapper: "gap-3.5",
-    // The header mark, at the specified 40px.
-    mark: 40,
-    text: "text-2xl",
+    // The header mark. 40px was too quiet for a top-left primary brand mark,
+    // and it also cost the gradient: the band is 13/120 of the box, so at 40px
+    // it is ~4.3px wide and the green→teal→blue ramp has too little area to
+    // read — the mark looked like a flat teal outline even though the gradient
+    // was painting correctly. 54px is where the ramp becomes legible.
+    wrapper: "gap-4",
+    mark: 54,
+    text: "text-3xl",
   },
 } as const;
+
+/**
+ * The wordmark's gradient half. Same three tokens as the mark's band, running
+ * left-to-right so it tracks the band's top-left-to-bottom-right ramp.
+ *
+ * "carbon" only, not the whole word: at header weight a fully gradient wordmark
+ * loses its top-left anchor against the navy, and splitting at the compound
+ * boundary reads as deliberate rather than as a wash.
+ */
+const WORDMARK_GRADIENT =
+  "bg-gradient-to-r from-[#4BE895] via-[#15B9A4] to-[#2A78A6] bg-clip-text text-transparent";
 
 export function Logo({
   className,
@@ -37,18 +55,31 @@ export function Logo({
   size?: keyof typeof SIZE_STYLES;
 }) {
   const s = SIZE_STYLES[size];
+  // Per-instance ids for the mark's gradients and mask. Several lockups can be
+  // in one document at once (header + footer, or a responsive pair where one
+  // side is display:none) and shared ids let a hidden copy win the `url(#id)`
+  // lookup and blank the visible mark. useId is stable across SSR/hydration;
+  // the non-alphanumerics React puts in it are stripped so the value is safe
+  // in a fragment reference. This is also why the file is "use client".
+  const idScope = `ic${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
 
   return (
     <div className={cn("flex items-center", s.wrapper, className)}>
-      <IntellocarbonLogoFace size={s.mark} decorative={!iconOnly} />
+      <IntellocarbonLogoFace size={s.mark} decorative={!iconOnly} idScope={idScope} />
       {!iconOnly && (
         <span
           className={cn(
-            "font-wordmark font-extrabold uppercase leading-none tracking-[0.09em] text-foreground",
+            "font-wordmark font-extrabold uppercase tracking-[0.09em] text-foreground",
             s.text,
+            // After s.text: Tailwind's text-{size} utilities carry their own
+            // line-height, so this has to win the cascade order.
+            "leading-none",
           )}
         >
-          Intellocarbon
+          {/* No whitespace between the two spans — this is one word, and a
+              newline here would have assistive tech announce it as two. */}
+          <span>Intello</span>
+          <span className={WORDMARK_GRADIENT}>carbon</span>
         </span>
       )}
     </div>
