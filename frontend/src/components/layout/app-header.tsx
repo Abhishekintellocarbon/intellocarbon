@@ -56,8 +56,9 @@ export function AppHeader() {
     <header className="border-b border-surface-border bg-surface/60 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-8">
-          {/* size="lg" so the in-app header carries the same 40px mark as the
-              public site header — one logo size across every page. */}
+          {/* size="lg" so the in-app header carries the same mark and wordmark
+              treatment as the public site header — one logo size across every
+              page. Both headers move together; change SIZE_STYLES.lg, not this. */}
           <Link href={(user && HOME_HREF[user.role]) || "/dashboard"}>
             <Logo size="lg" />
           </Link>
