@@ -20,14 +20,14 @@ import { cn } from "@/lib/utils";
  * Two open sub-paths, not a closed hexagon — the two gaps are the design.
  * Stroked at 13 units with mitred joins and butt caps; nothing here is rounded.
  */
-const BAND_PATH =
+export const BAND_PATH =
   "M41.83,18.5 L60,8 L105.03,34 L105.03,86 L86.83,96.5 M78.17,101.5 L60,112 L14.97,86 L14.97,34 L33.17,23.5";
 
-const BAND_STROKE_WIDTH = 13;
-const BAND_MITER_LIMIT = 6;
+export const BAND_STROKE_WIDTH = 13;
+export const BAND_MITER_LIMIT = 6;
 
 /** The "C" of the monogram. The "I" is a plain rect beside it — see below. */
-const MONOGRAM_C_PATH =
+export const MONOGRAM_C_PATH =
   "M93,39 L84,39 L84,43.5 L78,43.5 L78,39 L62.5,39 L53,50 L53,70 L62.5,81 L93,81 L85,68.5 L69,68.5 L64.5,63.5 L64.5,56.5 L69,51.5 L85,51.5 Z";
 
 /**
@@ -35,7 +35,7 @@ const MONOGRAM_C_PATH =
  * band. The inner translate is -63.5,-60 rather than -60,-60: the monogram's
  * own optical centre is not its bounding-box centre.
  */
-const MONOGRAM_TRANSFORM = "translate(60,60) scale(0.81) translate(-63.5,-60)";
+export const MONOGRAM_TRANSFORM = "translate(60,60) scale(0.81) translate(-63.5,-60)";
 
 /** Single-colour mark colour — favicon, print, anything under 28px. */
 export const INTELLOCARBON_FLAT_COLOR = "#0A8A61";
