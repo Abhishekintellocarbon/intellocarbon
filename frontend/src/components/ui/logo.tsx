@@ -10,8 +10,8 @@ import { HEADER_DEPTH_SCALE, IntellocarbonLogo3D, markBoxRatio } from "./intello
  *
  * The mark is IntellocarbonLogoFace by default: the static gradient face, no
  * extrusion and no interaction. Pass `dimensional` for the full treatment —
- * extrusion stack, gloss, speculars and hover parallax. Both headers opt in;
- * everything else (auth shell, footers) stays flat.
+ * extrusion stack, gloss, speculars, hover parallax and idle float. Both
+ * headers opt in; everything else (auth shell, footers) stays flat.
  *
  * Accessibility: whenever the wordmark is visible the mark is decorative, so a
  * home link wrapping this lockup is announced once ("Intellocarbon") rather
@@ -56,7 +56,7 @@ export function Logo({
   className?: string;
   iconOnly?: boolean;
   size?: keyof typeof SIZE_STYLES;
-  /** Extrusion stack, gloss, speculars and hover parallax. Headers only. */
+  /** Extrusion stack, gloss, speculars, hover parallax and idle float. Headers only. */
   dimensional?: boolean;
 }) {
   const s = SIZE_STYLES[size];

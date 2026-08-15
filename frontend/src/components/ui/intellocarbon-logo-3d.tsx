@@ -12,7 +12,8 @@ import {
 
 /**
  * The Intellocarbon mark with the full dimensional treatment: extrusion stack,
- * gradient face, gloss overlay, specular highlights and hover parallax.
+ * gradient face, gloss overlay, specular highlights, hover parallax and a slow
+ * idle float.
  *
  * The depth is drawn, not computed. The stack is 30 offset copies of the same
  * geometry painted far-to-near, so the only real 3D is a CSS rotation on the
@@ -42,6 +43,26 @@ const MAX_YAW = 20;
 const MAX_PITCH = 15;
 
 const TRANSITION = "transform 220ms cubic-bezier(.2,.7,.3,1)";
+
+/**
+ * Idle float: a slow drift around the rest attitude when nothing is pointing
+ * at the mark.
+ *
+ * Amplitude is deliberately a fraction of the hover swing (±20°/±15°) — enough
+ * that the mark reads as a solid object catching the light rather than a flat
+ * sticker, without becoming something the eye tracks while reading the page it
+ * sits above. The two periods are incommensurate on purpose: equal or harmonic
+ * periods trace a closed figure and the loop point becomes visible within a
+ * few cycles.
+ */
+const FLOAT_YAW = 2.6;
+const FLOAT_PITCH = 1.5;
+const FLOAT_YAW_PERIOD = 7.3;
+const FLOAT_PITCH_PERIOD = 5.1;
+const TAU = Math.PI * 2;
+
+/** Slightly past TRANSITION, so the ease back to rest finishes before the drift resumes. */
+const FLOAT_RESUME_DELAY = 260;
 
 /**
  * The stack trails down and to the right, away from the top-left key light
@@ -171,6 +192,10 @@ export function IntellocarbonLogo3D({
   // explicitly and it is why this is affordable on a header that mounts on
   // every page — the only per-frame work is one style write on one element.
   const markRef = useRef<SVGSVGElement>(null);
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  /** Assigned by the effect below; the pointer handlers drive the float through it. */
+  const float = useRef<{ start: () => void; stop: () => void } | null>(null);
+  const hovering = useRef(false);
 
   const applyTilt = useCallback((pitch: number, yaw: number) => {
     const el = markRef.current;
@@ -179,21 +204,107 @@ export function IntellocarbonLogo3D({
   }, []);
 
   useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => {
-      const el = markRef.current;
-      // Parallax still tracks the pointer under reduced motion — it is
-      // pointer-driven, not autonomous — but it snaps rather than easing, so
-      // there is no motion the user did not directly cause.
-      if (el) el.style.transition = query.matches ? "none" : TRANSITION;
+    const el = markRef.current;
+    const wrap = wrapRef.current;
+    if (!el || !wrap) return;
+
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frame = 0;
+    let origin = 0;
+    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+    let onscreen = true;
+
+    const tick = (now: number) => {
+      if (!origin) origin = now;
+      const t = (now - origin) / 1000;
+      el.style.transform =
+        `rotateX(${(REST_PITCH + Math.sin((t / FLOAT_PITCH_PERIOD) * TAU) * FLOAT_PITCH).toFixed(2)}deg) ` +
+        `rotateY(${(REST_YAW + Math.sin((t / FLOAT_YAW_PERIOD) * TAU) * FLOAT_YAW).toFixed(2)}deg)`;
+      frame = requestAnimationFrame(tick);
     };
-    sync();
-    query.addEventListener("change", sync);
-    return () => query.removeEventListener("change", sync);
+
+    const stop = () => {
+      clearTimeout(resumeTimer);
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      origin = 0;
+    };
+
+    const start = () => {
+      clearTimeout(resumeTimer);
+      // Never autonomous under reduced motion, never while the pointer owns the
+      // tilt, and never while the header is scrolled off screen — a nav bar
+      // logo spends most of a long page out of view, and an rAF loop animating
+      // something nobody can see is pure cost. rAF already stops itself in a
+      // background tab, so that case needs nothing here.
+      if (frame || motion.matches || hovering.current || !onscreen) return;
+      // The drift writes every frame, so a transition would sit on top of it
+      // smoothing each write into the next and lagging the whole loop. Hover
+      // re-enables it for the ease in and out.
+      el.style.transition = "none";
+      frame = requestAnimationFrame(tick);
+    };
+
+    const restore = () => {
+      // Both leaving the mark and gaining focus land here: ease home under the
+      // transition, then hand back to the drift once it has settled.
+      el.style.transition = motion.matches ? "none" : TRANSITION;
+      el.style.transform = `rotateX(${REST_PITCH}deg) rotateY(${REST_YAW}deg)`;
+      clearTimeout(resumeTimer);
+      resumeTimer = setTimeout(start, FLOAT_RESUME_DELAY);
+    };
+
+    float.current = {
+      start: restore,
+      stop: () => {
+        stop();
+        // Parallax still tracks the pointer under reduced motion — it is
+        // pointer-driven, not autonomous — but it snaps rather than easing, so
+        // there is no motion the user did not directly cause.
+        el.style.transition = motion.matches ? "none" : TRANSITION;
+      },
+    };
+
+    const onMotionChange = () => {
+      if (motion.matches) {
+        stop();
+        restore();
+      } else {
+        start();
+      }
+    };
+    motion.addEventListener("change", onMotionChange);
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        onscreen = entry.isIntersecting;
+        if (onscreen) start();
+        else stop();
+      },
+      { threshold: 0 },
+    );
+    observer.observe(wrap);
+
+    // Set before the first start(): under reduced motion start() bails out
+    // immediately, and the element would otherwise keep the easing transition
+    // it was rendered with.
+    el.style.transition = motion.matches ? "none" : TRANSITION;
+    start();
+
+    return () => {
+      stop();
+      observer.disconnect();
+      motion.removeEventListener("change", onMotionChange);
+      float.current = null;
+    };
   }, []);
 
   const handlePointerMove = useCallback(
     (event: React.PointerEvent<HTMLSpanElement>) => {
+      if (!hovering.current) {
+        hovering.current = true;
+        float.current?.stop();
+      }
       const rect = event.currentTarget.getBoundingClientRect();
       const clamp = (v: number) => Math.max(-1, Math.min(1, v));
       const nx = clamp(((event.clientX - rect.left) / rect.width) * 2 - 1);
@@ -216,11 +327,13 @@ export function IntellocarbonLogo3D({
   }, []);
 
   const handlePointerLeave = useCallback(() => {
-    applyTilt(REST_PITCH, REST_YAW);
-  }, [applyTilt]);
+    hovering.current = false;
+    float.current?.start();
+  }, []);
 
   return (
     <span
+      ref={wrapRef}
       className={cn("inline-block shrink-0 leading-none", className)}
       style={{ perspective: `${size * 7}px`, width: size, height: size }}
       onPointerMove={handlePointerMove}
