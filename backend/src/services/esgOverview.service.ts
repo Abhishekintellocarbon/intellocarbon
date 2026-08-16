@@ -347,6 +347,11 @@ const buildEsgLivePosition = (options: {
   // right now"), not a countdown, so the distance-to-close cap that keeps
   // far-off dates out of the strip doesn't apply. A window that hasn't opened
   // yet is a countdown, and does go through the cap.
+  //
+  // There is deliberately no matching GRI window item. isGriReportWindowOpen
+  // currently delegates to the BRSR helper, so a GRI line would repeat these
+  // exact dates and add nothing. The helpers are kept separate so the two can
+  // diverge later; if they ever do, add the GRI window here.
   const brsrWindow = getBrsrReportPeriodStatus(now);
   if (brsrWindow.isOpen) {
     items.push({
@@ -654,6 +659,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     orderBy: { createdAt: "asc" },
   });
   const facilityIds = facilities.map((f) => f.id);
+  const facilityNameById = new Map(facilities.map((f) => [f.id, f.name]));
 
   const [brsr, brsrRows, issbReports, griReports, scope3All, relevance, waterRows, offsetPurchases] = await Promise.all([
     getCompanyBrsrAnalytics(facilities, company),
@@ -735,6 +741,14 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
       at: r.updatedAt,
       label: "ISSB IFRS S1/S2 disclosure updated",
       detail: `${r.facility.name} — ${r.reportingPeriod}`,
+    })),
+    // GRI reports are loaded without a facility join (GRI_REPORT_INCLUDE
+    // carries the disclosure relations, not the facility), so the name comes
+    // from the facilities array already in scope rather than a second query.
+    ...griReports.map((r) => ({
+      at: r.updatedAt,
+      label: "GRI Standards report updated",
+      detail: `${facilityNameById.get(r.facilityId) ?? "Facility"} — ${r.reportingPeriod}`,
     })),
     ...scope3All.map((e) => ({
       at: e.updatedAt,

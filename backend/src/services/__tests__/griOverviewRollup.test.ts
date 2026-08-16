@@ -224,6 +224,47 @@ describe("one non-compliant facility is not masked by a compliant one", () => {
   });
 });
 
+describe("GRI in recent activity", () => {
+  it("surfaces a GRI report as the latest update when it is the most recent change", async () => {
+    // The GRI reports were filed last in beforeAll, so GRI should hold the
+    // single "last update" slot the strip renders.
+    const overview = await getEsgOverview(userId);
+    const update = overview.livePosition.find((i) => i.id === "esg-last-update");
+
+    expect(update).toBeDefined();
+    expect(update!.label).toBe("GRI Standards report updated");
+  });
+
+  it("names the facility and period, not the report id", async () => {
+    const overview = await getEsgOverview(userId);
+    const update = overview.livePosition.find((i) => i.id === "esg-last-update")!;
+    // The facility name is looked up from the already-loaded facilities array
+    // rather than a join, so a broken lookup would silently print "Facility".
+    expect(update.detail).toMatch(/^(Plant A|Plant B) — FY2025-26$/);
+  });
+
+  it("loses the slot to a more recent change in another framework", async () => {
+    const scope3 = await prisma.scope3Data.create({
+      data: {
+        companyId,
+        facilityId: facilityA,
+        reportingPeriod: PERIOD,
+        category: "CAT1_PURCHASED_GOODS_SERVICES",
+        calculationMethod: "ACTIVITY_BASED",
+        inputData: { materialType: "STEEL", quantityKg: 1_000 },
+        calculatedEmissionsTco2e: 1.46,
+        emissionFactorSource: "Test fixture",
+        status: "SUBMITTED",
+      },
+    });
+
+    const overview = await getEsgOverview(userId);
+    expect(overview.livePosition.find((i) => i.id === "esg-last-update")!.label).toBe("Scope 3 entry updated");
+
+    await prisma.scope3Data.delete({ where: { id: scope3.id } });
+  });
+});
+
 describe("a company with no GRI reports", () => {
   let emptyUserId: string;
   let emptyCompanyId: string;
