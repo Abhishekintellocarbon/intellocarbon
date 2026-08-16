@@ -174,6 +174,24 @@ function EsgOverviewContent() {
                 </div>
               </div>
             </section>
+
+            {/* GRI has no summary card yet — unlike BRSR/ISSB its completeness
+                is per-facility and materiality-dependent, so a single
+                company-level figure would be misleading. Linking through to
+                the per-facility flow is the honest surface until
+                esgOverview.service.ts learns to roll GRI up. */}
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Sustainability reporting</h2>
+                <Link href="/esg/gri" className="text-sm font-medium text-teal-500 hover:text-teal-400">
+                  Open GRI Standards 2021
+                </Link>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Full GRI Standards 2021, per facility. Starts with a GRI 3 materiality assessment that determines
+                which Topic Standards the report covers, and produces the GRI content index GRI 1 requires.
+              </p>
+            </section>
           </div>
         )}
       </main>

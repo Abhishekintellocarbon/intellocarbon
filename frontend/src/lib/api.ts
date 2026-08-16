@@ -18,6 +18,12 @@ import type {
   BrsrCoreReport,
   BrsrCoreMetrics,
   IssbS1S2Report,
+  GriReport,
+  GriMetrics,
+  GriMaterialityAssessment,
+  GriMaterialTopic,
+  GriTopicRanking,
+  GriContentIndex,
   IssbS1S2Metrics,
   Scope3Data,
   Scope3CategoryCatalogEntry,
@@ -1246,5 +1252,81 @@ export const cctsObligatedEntitiesApi = {
     if (filters?.search) params.set("search", filters.search);
     const qs = params.toString();
     return apiFetch(`/api/ccts-obligated-entities${qs ? `?${qs}` : ""}`, { skipAuth: true });
+  },
+};
+
+// GRI Standards 2021. Two resources rather than one: the materiality
+// assessment (GRI 3) must be completed before disclosure data is accepted at
+// all, so they cannot share a save endpoint — see gri.service.ts.
+export const griApi = {
+  list: (facilityId: string): Promise<{ reports: GriReport[] }> =>
+    apiFetch(`/api/gri/facilities/${facilityId}/reports`),
+
+  getMateriality: (
+    facilityId: string,
+    reportingPeriod: string,
+  ): Promise<{
+    report: { id: string; reportingPeriod: string; status: string } | null;
+    assessment: GriMaterialityAssessment | null;
+    materialTopics: GriMaterialTopic[];
+    rankings: GriTopicRanking[];
+  }> => apiFetch(`/api/gri/facilities/${facilityId}/materiality/${encodeURIComponent(reportingPeriod)}`),
+
+  // `complete: true` is what flips completedAt and activates topic gating; it
+  // also switches the backend to the strict schema, same convention as
+  // `submit` on the disclosure endpoint.
+  saveMateriality: (
+    facilityId: string,
+    input: Record<string, unknown>,
+    complete: boolean,
+  ): Promise<{ assessment: GriMaterialityAssessment; rankings: GriTopicRanking[] }> =>
+    apiFetch(`/api/gri/facilities/${facilityId}/materiality`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, complete }),
+    }),
+
+  getData: (
+    facilityId: string,
+    reportingPeriod: string,
+  ): Promise<{ report: GriReport | null; metrics: GriMetrics | null }> =>
+    apiFetch(`/api/gri/facilities/${facilityId}/data/${encodeURIComponent(reportingPeriod)}`),
+
+  save: (facilityId: string, input: Record<string, unknown>, submit: boolean): Promise<{ report: GriReport }> =>
+    apiFetch(`/api/gri/facilities/${facilityId}/data`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, submit }),
+    }),
+
+  getReport: (
+    facilityId: string,
+    reportingPeriod: string,
+  ): Promise<{ report: GriReport; facility: Facility; metrics: GriMetrics; contentIndex: GriContentIndex }> =>
+    apiFetch(`/api/gri/facilities/${facilityId}/report/${encodeURIComponent(reportingPeriod)}`),
+
+  downloadPdf: async (reportId: string): Promise<void> => {
+    const reportUrl = `${API_URL}/api/gri/report/${reportId}/pdf`;
+    const fetchReport = () =>
+      fetch(reportUrl, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchReport();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchReport();
+    }
+    if (!res.ok) {
+      throw new ApiError("Couldn't generate the report. Please try again.", res.status);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `gri-report-${reportId.slice(-8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
   },
 };

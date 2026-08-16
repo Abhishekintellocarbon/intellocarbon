@@ -1852,3 +1852,200 @@ export interface GhgEngagementInput {
   scope2Entries: GhgScope2Entry[];
   scope3Entries: GhgScope3Entry[];
 }
+
+// --- GRI Standards 2021 ---
+
+export type GriImpactType =
+  | "NEGATIVE_ACTUAL"
+  | "NEGATIVE_POTENTIAL"
+  | "POSITIVE_ACTUAL"
+  | "POSITIVE_POTENTIAL";
+
+export type GriValueChainLocation = "OWN_OPERATIONS" | "UPSTREAM" | "DOWNSTREAM";
+
+export interface GriImpact {
+  id: string;
+  assessmentId: string;
+  topicCode: string;
+  description: string;
+  impactType: GriImpactType;
+  valueChainLocation: GriValueChainLocation;
+  scale: number;
+  scope: number;
+  irremediability: number | null;
+  likelihood: number | null;
+  /** Derived server-side by computeImpactSignificance — never sent by the client. */
+  significanceScore: number;
+}
+
+export interface GriMaterialityAssessment {
+  id: string;
+  griReportId: string;
+  stakeholderGroups: string[];
+  stakeholderEngagementApproach: string | null;
+  impactIdentificationProcess: string | null;
+  prioritisationProcess: string | null;
+  materialityThreshold: number;
+  /** Non-null once the assessment is complete — topic gating only applies from then. */
+  completedAt: string | null;
+  impacts?: GriImpact[];
+}
+
+export interface GriMaterialTopic {
+  id: string;
+  griReportId: string;
+  topicCode: string;
+  isMaterial: boolean;
+  significanceScore: number | null;
+  rank: number | null;
+  notMaterialRationale: string | null;
+  // GRI 3-3
+  impactsDescription: string | null;
+  involvementDescription: string | null;
+  policiesCommitments: string | null;
+  actionsTaken: string | null;
+  effectivenessTracking: string | null;
+  stakeholderEngagement: string | null;
+}
+
+export interface GriTopicRanking {
+  topicCode: string;
+  significanceScore: number;
+  impactCount: number;
+  meetsThreshold: boolean;
+  rank: number;
+}
+
+export interface GriTopicCompleteness {
+  topicCode: string;
+  label: string;
+  title: string;
+  isMaterial: boolean;
+  managementApproachComplete: boolean;
+  missingManagementApproachFields: string[];
+  disclosuresReported: number;
+  disclosuresTotal: number;
+  hasAnyData: boolean;
+}
+
+export interface GriAccordanceEvaluation {
+  inAccordance: boolean;
+  universalDisclosuresReported: number;
+  universalDisclosuresTotal: number;
+  missingUniversalDisclosures: string[];
+  materialityAssessmentComplete: boolean;
+  materialTopicCount: number;
+  unexplainedExclusions: string[];
+  topics: GriTopicCompleteness[];
+  blockers: string[];
+}
+
+export interface GriMetrics {
+  fyWindow: { start: string; end: string; label: string };
+  ghg: {
+    scope1Co2e: number;
+    scope2LocationBasedCo2e: number;
+    scope3Co2e: number | null;
+    scope3CategoryCount: number;
+    totalScope1And2Co2e: number;
+    productionQuantityT: number;
+    electricityAndSteamEnergyGj: number;
+    renewableElectricityGj: number;
+    activityDataCount: number;
+  };
+  water: {
+    hasData: boolean;
+    withdrawalTotalMl: number;
+    dischargeTotalMl: number;
+    consumptionTotalMl: number;
+    withdrawalFreshwaterMl: number;
+    entriesWithWater: number;
+  };
+  waste: {
+    hasData: boolean;
+    totalGeneratedT: number;
+    totalDivertedT: number;
+    totalDisposalT: number;
+    diversionRatePct: number | null;
+  };
+  safety: {
+    hasData: boolean;
+    rateBasisHours: number;
+    fatalityRate: number | null;
+    highConsequenceInjuryRate: number | null;
+    recordableInjuryRate: number | null;
+    totalFatalities: number;
+    totalRecordableInjuries: number;
+  };
+  intensity: {
+    emissionsPerTonneProduct: number | null;
+    emissionsPerRupeeTurnover: number | null;
+    energyPerTonneProduct: number | null;
+    energyPerRupeeTurnover: number | null;
+  };
+  rankings: GriTopicRanking[];
+  accordance: GriAccordanceEvaluation;
+}
+
+/** Disclosure rows are heterogeneous per topic — the form reads them by field name from the registry. */
+export type GriTopicRow = Record<string, string | number | boolean | null>;
+
+export interface GriReport {
+  id: string;
+  companyId: string;
+  facilityId: string;
+  reportingPeriod: string;
+  turnoverInr: number | null;
+  status: "DRAFT" | "SUBMITTED";
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  materialityAssessment?: GriMaterialityAssessment | null;
+  universalDisclosures?: GriTopicRow | null;
+  materialTopics: GriMaterialTopic[];
+  materialsDisclosure?: GriTopicRow | null;
+  energyDisclosure?: GriTopicRow | null;
+  waterDisclosure?: GriTopicRow | null;
+  biodiversityDisclosure?: GriTopicRow | null;
+  emissionsDisclosure?: GriTopicRow | null;
+  wasteDisclosure?: GriTopicRow | null;
+  supplierEnvDisclosure?: GriTopicRow | null;
+  employmentDisclosure?: GriTopicRow | null;
+  ohsDisclosure?: GriTopicRow | null;
+  trainingDisclosure?: GriTopicRow | null;
+  diversityDisclosure?: GriTopicRow | null;
+  nonDiscriminationDisclosure?: GriTopicRow | null;
+  localCommunitiesDisclosure?: GriTopicRow | null;
+  supplierSocialDisclosure?: GriTopicRow | null;
+  customerHsDisclosure?: GriTopicRow | null;
+  customerPrivacyDisclosure?: GriTopicRow | null;
+}
+
+export type GriOmissionReason =
+  | "NOT_APPLICABLE"
+  | "CONFIDENTIALITY_CONSTRAINTS"
+  | "LEGAL_PROHIBITIONS"
+  | "INFORMATION_UNAVAILABLE_INCOMPLETE";
+
+export interface GriContentIndexEntry {
+  standard: string;
+  disclosureNumber: string;
+  title: string;
+  pageNumber: number | null;
+  reported: boolean;
+  omissionReason: GriOmissionReason | null;
+  omissionExplanation: string | null;
+  derived: boolean;
+  section: "UNIVERSAL" | "MATERIAL_TOPICS" | "TOPIC";
+  topicCode: string | null;
+}
+
+export interface GriContentIndex {
+  entries: GriContentIndexEntry[];
+  claimLevel: "IN_ACCORDANCE" | "WITH_REFERENCE";
+  claimStatement: string;
+  gri1Version: string;
+  reportedCount: number;
+  omittedCount: number;
+  excludedTopics: { standard: string; title: string; rationale: string }[];
+}

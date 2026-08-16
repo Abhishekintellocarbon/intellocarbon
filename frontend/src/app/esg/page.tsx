@@ -9,9 +9,9 @@ import { NotifyMeCapture } from "@/components/esg/notify-me-capture";
 import type { EsgWaitlistFramework } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title: "ESG Disclosure Bundle — BRSR Core, ISSB, Scope 3, GRI, CSRD, CDP | Intellocarbon",
+  title: "ESG Disclosure Bundle — BRSR Core, ISSB, GRI, Scope 3, CSRD, CDP | Intellocarbon",
   description:
-    "One subscription for BRSR Core, ISSB IFRS S1/S2, and Scope 3 emissions — live today. GRI, CSRD, and CDP are in active development.",
+    "One subscription for BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, and Scope 3 emissions — live today. CSRD and CDP are in active development.",
 };
 
 interface BundleItem {
@@ -31,7 +31,7 @@ const BUNDLE_ITEMS: BundleItem[] = [
   { icon: Network, name: "Scope 3 Value Chain", status: "live" },
   { icon: Droplets, name: "Water Footprint (ISO 14046)", status: "live" },
   { icon: Leaf, name: "Voluntary Offsets Tracking", status: "live" },
-  { icon: Globe2, name: "GRI", status: "soon", waitlistTool: "ESG_GRI" },
+  { icon: Globe2, name: "GRI Standards 2021", status: "live" },
   { icon: Landmark, name: "CSRD", status: "soon", waitlistTool: "ESG_CSRD" },
   { icon: ScrollText, name: "CDP", status: "soon", waitlistTool: "ESG_CDP" },
 ];
@@ -47,6 +47,7 @@ interface MarketRow {
 const MARKET_ROWS: MarketRow[] = [
   { market: "India", framework: "BRSR Core (SEBI)", status: "live" },
   { market: "Global investors / IFRS jurisdictions", framework: "ISSB IFRS S1/S2", status: "live" },
+  { market: "Global stakeholders (voluntary, most widely used)", framework: "GRI Standards 2021", status: "live" },
   { market: "European Union", framework: "CSRD", status: "soon" },
   { market: "United States (SEC / state climate rules)", framework: "Climate disclosure rules", status: "soon" },
   { market: "Global supply chains (buyer-driven)", framework: "CDP", status: "soon" },
@@ -84,8 +85,8 @@ export default function EsgHub() {
           <span className="text-gradient">ESG</span> reporting on Intellocarbon
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-balance text-muted-foreground sm:text-lg">
-          BRSR Core, ISSB IFRS S1/S2, and Scope 3 emissions are live today, in one bundled subscription. GRI, CSRD,
-          and CDP are in active development.
+          BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, and Scope 3 emissions are live today, in one bundled
+          subscription. CSRD and CDP are in active development.
         </p>
 
         {/* Unified ESG Disclosure Bundle */}
@@ -129,14 +130,14 @@ export default function EsgHub() {
             <Link href="/login" className="font-medium text-teal-500 hover:underline">
               log in
             </Link>{" "}
-            to see pricing and start with BRSR Core — ISSB IFRS S1/S2 and Scope 3 are available from the same facility
-            dashboard.
+            to see pricing and start with BRSR Core — ISSB IFRS S1/S2, GRI, and Scope 3 are available from the same
+            facility dashboard.
           </p>
 
           <div className="mt-8 border-t border-surface-border pt-6">
-            <p className="text-sm font-medium">Want GRI, CSRD, or CDP first?</p>
+            <p className="text-sm font-medium">Want CSRD or CDP next?</p>
             <p className="mt-1 text-xs text-muted-foreground">Join the waitlist for whichever one you need.</p>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {BUNDLE_ITEMS.filter((i) => i.waitlistTool).map((item) => (
                 <div key={item.name}>
                   <p className="text-xs font-semibold text-muted-foreground">{item.name}</p>
