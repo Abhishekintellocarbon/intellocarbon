@@ -15,8 +15,12 @@ const TOOL_OPTIONS = [
   { value: "BORDER", label: "IntelloCalc Border" },
   { value: "INDIA", label: "IntelloCalc India" },
   { value: "COMPLY", label: "IntelloCalc Comply" },
-  { value: "ESG_GRI", label: "ESG waitlist — GRI" },
-  { value: "ESG_ISSB", label: "ESG waitlist — ISSB" },
+  // GRI and ISSB have since shipped, so these two collect nothing new — the
+  // /esg page no longer offers a waitlist for either. Kept so historical
+  // signups stay filterable, and labelled so an admin doesn't read them as
+  // live demand.
+  { value: "ESG_GRI", label: "ESG waitlist — GRI (shipped)" },
+  { value: "ESG_ISSB", label: "ESG waitlist — ISSB (shipped)" },
   { value: "ESG_CSRD", label: "ESG waitlist — CSRD" },
   { value: "ESG_CDP", label: "ESG waitlist — CDP" },
 ];

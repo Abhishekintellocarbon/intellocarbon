@@ -32,7 +32,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "Intellocarbon — CBAM, CCTS & ESG Compliance for Indian Industry",
   description:
-    "One platform for CBAM, CCTS and ESG disclosure. BRSR Core (SEBI BRSR software), ISSB IFRS S1/S2 and Scope 3 reporting generated from a single emissions data entry.",
+    "One platform for CBAM, CCTS and ESG disclosure. BRSR Core (SEBI BRSR software), ISSB IFRS S1/S2, GRI Standards 2021 and Scope 3 reporting generated from a single emissions data entry.",
 };
 
 function buildStats(nextDeadline: ComplianceEvent) {
@@ -62,20 +62,21 @@ const PILLARS = [
     icon: FileBarChart,
     title: "ESG Disclosure",
     description:
-      "One bundle covering the disclosure frameworks your investors and regulators ask for: SEBI BRSR Core, ISSB IFRS S1/S2, and Scope 3 value-chain emissions — all generated from the same emissions data. Reasonable assurance ready. GRI, CSRD and CDP on the roadmap.",
+      "One bundle covering the disclosure frameworks your investors and regulators ask for: SEBI BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, and Scope 3 value-chain emissions — all generated from the same emissions data. Reasonable assurance ready. CSRD and CDP on the roadmap.",
     cta: "Start ESG",
   },
 ];
 
 // Named frameworks inside the ESG pillar — kept visible (and searchable) as
 // sub-items rather than promoted to a fourth pillar alongside CBAM/CCTS/ESG.
-const ESG_FRAMEWORKS = ["BRSR Core (SEBI)", "ISSB IFRS S1/S2", "Scope 3 value chain"];
+const ESG_FRAMEWORKS = ["BRSR Core (SEBI)", "ISSB IFRS S1/S2", "GRI Standards 2021", "Scope 3 value chain"];
 
 const STANDARDS = [
   { label: "EU CBAM Regulation 2023/956", dot: "#00D4AA" },
   { label: "BEE CCTS S.O. 2825(E)", dot: "#4A9EFF" },
   { label: "GHG Protocol", dot: "#F5A623" },
   { label: "SEBI BRSR Framework", dot: "#4A9EFF" },
+  { label: "GRI Standards 2021", dot: "#00D4AA" },
   { label: "ISO 14064", dot: "#F5A623" },
 ];
 
@@ -93,7 +94,7 @@ const OFFERINGS = [
   {
     title: "ESG Disclosure Bundle",
     description:
-      "BRSR Core — nine SEBI attributes, reasonable assurance ready. ISSB IFRS S1/S2. Scope 3 value-chain disclosure. All three reuse your existing emissions data.",
+      "BRSR Core — nine SEBI attributes, reasonable assurance ready. ISSB IFRS S1/S2. GRI Standards 2021, with a materiality assessment that decides which topics you report. Scope 3 value-chain disclosure. All reuse your existing emissions data.",
   },
   {
     title: "IntelloCalc Free Tools",
@@ -450,7 +451,7 @@ export default function Home() {
             </span>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
               Compliance infrastructure for Indian industry — CBAM, CCTS and ESG (BRSR Core, ISSB
-              IFRS S1/S2, Scope 3) from one platform.
+              IFRS S1/S2, GRI, Scope 3) from one platform.
             </p>
             <p className="mt-4 text-xs text-muted">
               &copy; {new Date().getFullYear()} Intellocarbon Solutions. All rights reserved.

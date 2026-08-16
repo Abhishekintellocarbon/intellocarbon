@@ -82,8 +82,10 @@ export default function AboutPage() {
             </p>
             <p className="mt-4 max-w-2xl text-sm text-[#8AA0B4]">
               Under the ESG pillar,{" "}
-              <span className="font-medium text-teal-500">BRSR Core, ISSB IFRS S1/S2 and Scope 3 are live today</span>{" "}
-              on the platform. Broader ESG frameworks — GRI, CSRD, and CDP — are in active development.
+              <span className="font-medium text-teal-500">
+                BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021 and Scope 3 are live today
+              </span>{" "}
+              on the platform. Broader ESG frameworks — CSRD and CDP — are in active development.
             </p>
 
             <div className="mt-12 grid gap-8 sm:grid-cols-2 sm:items-start">

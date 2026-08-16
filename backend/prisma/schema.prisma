@@ -1323,9 +1323,13 @@ enum LeadTool {
   // else: those screen an entity's own compliance position, this screens a
   // project that would generate credits in a separate, voluntary market.
   PROJECT_SCREENER
-  // "Notify me" waitlist signups for not-yet-built ESG frameworks on /esg —
-  // lightweight (email only, see name/company below), tagged per framework so
-  // demand signal is visible per-framework before committing to build order.
+  // "Notify me" waitlist signups for ESG frameworks on /esg — lightweight
+  // (email only, see name/company below), tagged per framework so demand
+  // signal is visible per-framework before committing to build order.
+  //
+  // ESG_GRI and ESG_ISSB are retained for historical signups only: both
+  // frameworks have shipped and /esg no longer offers a waitlist for either.
+  // Do not remove the enum values — existing LeadCapture rows reference them.
   ESG_GRI
   ESG_ISSB
   ESG_CSRD

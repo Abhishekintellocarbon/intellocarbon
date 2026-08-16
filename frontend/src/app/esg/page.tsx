@@ -104,6 +104,16 @@ export default function EsgHub() {
             re-entering the same activity data per framework.
           </p>
 
+          {/* GRI is the only framework here whose scope isn't obvious from its
+              name, so it gets one sentence. Kept in the shared bundle copy
+              rather than as a per-item note, so no single framework in the
+              list above carries more visual weight than the others. */}
+          <p className="mt-3 text-sm text-muted-foreground">
+            GRI is the full 2021 Standards, not a subset: the Universal Standards, a materiality assessment that
+            determines which Topic Standards apply to each facility, and the content index GRI requires alongside
+            the report.
+          </p>
+
           <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {BUNDLE_ITEMS.map((item) => (
               <div

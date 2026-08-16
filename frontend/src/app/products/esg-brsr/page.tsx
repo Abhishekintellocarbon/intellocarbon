@@ -8,17 +8,15 @@ import {
 } from "@/components/marketing/product-page";
 
 export const metadata: Metadata = {
-  title: "ESG Disclosure — BRSR Core, ISSB IFRS S1/S2, Scope 3 | Intellocarbon",
+  title: "ESG Disclosure — BRSR Core, ISSB IFRS S1/S2, GRI, Scope 3 | Intellocarbon",
   description:
-    "BRSR Core, ISSB IFRS S1/S2 and full Scope 1-2-3 accounting engineered from a single data foundation, built to scale as global disclosure standards evolve.",
+    "BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021 and full Scope 1-2-3 accounting engineered from a single data foundation, built to scale as global disclosure standards evolve.",
 };
 
+// GRI shipped and has moved into `capabilities` below. Only frameworks that
+// are genuinely not built yet belong here — an "In engineering" badge on a
+// live framework is the one thing this section must never show.
 const HORIZON = [
-  {
-    name: "GRI",
-    detail:
-      "Universal and topic-specific disclosures mapped onto the same underlying data foundation, reusing the emissions and social metrics already captured.",
-  },
   {
     name: "CSRD",
     detail:
@@ -35,9 +33,9 @@ function BuiltForWhatsComing() {
   return (
     <ProductSection
       title="Built for What's Coming"
-      subtitle="Disclosure obligations are converging, not settling. GRI, CSRD and CDP are being engineered into the same data foundation that already powers BRSR Core and ISSB S1/S2 — so an expanding requirement becomes an extension of your existing data, not a new system."
+      subtitle="Disclosure obligations are converging, not settling. CSRD and CDP are being engineered into the same data foundation that already powers BRSR Core, ISSB S1/S2 and GRI — so an expanding requirement becomes an extension of your existing data, not a new system."
     >
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2">
         {HORIZON.map((framework) => (
           <Card key={framework.name} className="rounded-[12px] p-6">
             <div className="flex items-center justify-between gap-3">
@@ -151,7 +149,7 @@ export default function EsgBrsrPage() {
     <ProductPage
       eyebrow="ESG & Sustainability Disclosure"
       headline="One disclosure engine. Every framework investors and buyers ask for."
-      subhead="BRSR Core, ISSB IFRS S1/S2, and Scope 3 — engineered from a single data foundation, built to scale as global standards evolve."
+      subhead="BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, and Scope 3 — engineered from a single data foundation, built to scale as global standards evolve."
       primaryCta={{
         label: "Request a demo",
         href: demoMailto("Demo request — ESG & BRSR reporting"),
@@ -160,6 +158,7 @@ export default function EsgBrsrPage() {
       trustChips={[
         "SEBI BRSR Framework",
         "ISSB IFRS S1/S2",
+        "GRI Standards 2021",
         "GHG Protocol",
         "Data hosted securely in India",
       ]}
@@ -174,12 +173,17 @@ export default function EsgBrsrPage() {
         {
           title: "A single data foundation",
           description:
-            "One set of operational records powers BRSR Core's nine attributes, ISSB S1/S2 disclosures and full Scope 1-2-3 accounting — entered once, reconciled across every framework.",
+            "One set of operational records powers BRSR Core's nine attributes, ISSB S1/S2 disclosures, GRI Standards 2021 and full Scope 1-2-3 accounting — entered once, reconciled across every framework.",
         },
         {
           title: "Genuine Scope 3 modelling",
           description:
             "Value-chain emissions are modelled across the categories most relevant to Indian value chains, with methodology and factors cited per category — not a checkbox estimate.",
+        },
+        {
+          title: "Materiality-driven GRI reporting",
+          description:
+            "The full GRI Standards 2021. A GRI 3 materiality assessment records the impacts your operations actually have and decides which Topic Standards your report covers, so you disclose what matters at that facility instead of working through all of them. The report carries the Universal Standards, a management approach per material topic, and the content index GRI requires.",
         },
         {
           title: "Assurance-ready structure",

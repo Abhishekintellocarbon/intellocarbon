@@ -105,8 +105,9 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
   // in free as a beta scaffold. Repriced to ₹19,999/facility/mo as the "ESG
   // Disclosure Bundle" now that ISSB (Scope 1/2 reuse + Scope 3 calculation
   // engine, see scope3Calculation.service.ts) and BRSR Core are both a real,
-  // supported feature set — with GRI/CSRD/CDP as the natural next additions
-  // to this same bundle, per COMBINATION_RULES' comment below. The
+  // supported feature set. GRI Standards 2021 has since shipped into this same
+  // bundle at no extra cost, with CSRD/CDP the natural next additions, per
+  // COMBINATION_RULES' comment below. The
   // SubscriptionTier enum value stays BRSR_CORE_REPORTING (renaming it would
   // touch every existing Subscription row's FK-like enum reference) — only
   // this plan's marketing name/price/copy changed, which is exactly what a
@@ -123,14 +124,15 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
   BRSR_CORE_REPORTING: {
     tier: "BRSR_CORE_REPORTING",
     name: "ESG Disclosure Bundle",
-    forWhom: "Listed companies and their value chain partners required to disclose BRSR Core and/or ISSB IFRS S1/S2.",
+    forWhom: "Listed companies and their value chain partners required to disclose BRSR Core, ISSB IFRS S1/S2 and/or GRI.",
     facilityLimit: null,
     priceInr: 19999,
     priceLabel: "₹19,999/facility/mo",
-    description: "BRSR Core + ISSB IFRS S1/S2 — reusing your existing GHG calculation data, with GRI/CSRD/CDP planned next.",
+    description: "BRSR Core + ISSB IFRS S1/S2 + GRI Standards 2021 — reusing your existing GHG calculation data, with CSRD/CDP planned next.",
     features: [
       "All 9 BRSR Core attributes (GHG, water, waste, energy, workforce, diversity, inclusion, openness, fairness)",
       "ISSB IFRS S1 & S2 disclosure — Governance, Strategy, Risk Management, Metrics & Targets",
+      "GRI Standards 2021 — Universal Standards, a GRI 3 materiality assessment that determines which Topic Standards apply, and the required GRI content index",
       "Scope 3 calculation engine — 5 GHG Protocol value-chain categories (Purchased goods & services, Upstream transport & distribution, Business travel, Employee commuting, Use of sold products), spend-based or activity-based",
       "Water Footprint tracking (ISO 14046) — withdrawal, discharge and consumption per source",
       "Voluntary offsets tracking — registry, serial, vintage and category, logged against residual emissions",
@@ -139,7 +141,7 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
       "Reasonable-assurance verification workflow",
       "Standalone or bundled with any CBAM/CCTS plan",
       "7-year document retention",
-      "GRI, CSRD, and CDP disclosures planned as future additions to this bundle",
+      "CSRD and CDP disclosures planned as future additions to this bundle",
     ],
     razorpayPlanIdEnvVar: "RAZORPAY_PLAN_ID_BRSR_CORE",
   },
@@ -174,7 +176,7 @@ export interface PlanCombinationRule {
 // Extensible on purpose: the only combined tier that exists today is
 // CBAM_PLUS_CCTS. ISSB is already folded into the ESG Disclosure Bundle
 // (BRSR_CORE_REPORTING tier — see its plan definition above) rather than
-// needing its own combination rule; a future GRI/CSRD/CDP addition that
+// needing its own combination rule, as is GRI; a future CSRD/CDP addition that
 // ships its own combined tier just adds another entry here — nothing else
 // in the merge-detection logic (see billing.service.ts) needs to change.
 // Do not add speculative rules for frameworks/tiers that don't exist yet.

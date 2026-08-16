@@ -117,7 +117,22 @@ const ESG_FAQS = [
       "Yes, as a record of purchases made elsewhere. You log each credit against the facility it relates to — registry, serial number, tonnage, vintage year, and whether it is an avoidance or removal credit — and the platform shows those retirements against the emissions that remain after your reduction work. Intellocarbon does not issue, verify, rate or endorse carbon credits, and buying them through us is not possible: this is a tracking tool for credits you have sourced yourself, so that the claim and the footprint it refers to are recorded in one place.",
   },
   {
-    question: "When will GRI/ISSB/CSRD/CDP be available?",
+    question: "What ESG frameworks do you cover?",
+    answer:
+      "BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, Scope 3 value-chain emissions, water footprint to ISO 14046, and voluntary offset tracking — all in one ESG Disclosure Bundle, at one price per facility, generated from the same activity data you already enter. CSRD and CDP are in active development.",
+  },
+  {
+    question: "Does Intellocarbon support GRI reporting?",
+    answer:
+      "Yes — the full GRI Standards 2021, not a subset. You start with a GRI 3 materiality assessment: you record the actual and potential impacts your operations have, and that assessment determines which Topic Standards your report covers, so you disclose what is material to your facility rather than working through every topic. The report includes the GRI 2 General Disclosures, a management approach for each material topic, and the GRI content index required alongside it — with a stated reason recorded against anything not reported. Emissions, energy and water figures are reused from data you have already entered.",
+  },
+  {
+    question: "Can a GRI report claim to be 'in accordance' with the Standards?",
+    answer:
+      "Only when it genuinely qualifies. GRI allows the stronger 'in accordance' claim only if every one of its reporting requirements is met; otherwise a report may claim 'with reference to' the Standards. The platform checks this for you and shows exactly what is outstanding while you work, and the generated report carries whichever claim your disclosure actually supports — it will not assert full compliance on an incomplete report.",
+  },
+  {
+    question: "When will CSRD and CDP be available?",
     answer: "These are in active development — join the waitlist on the ESG page to be notified per framework.",
   },
 ];
