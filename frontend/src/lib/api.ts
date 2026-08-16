@@ -24,6 +24,12 @@ import type {
   GriMaterialTopic,
   GriTopicRanking,
   GriContentIndex,
+  CsrdReport,
+  CsrdMetrics,
+  CsrdMaterialityAssessment,
+  CsrdMaterialTopic,
+  CsrdStandardScore,
+  CsrdDisclosureIndex,
   IssbS1S2Metrics,
   Scope3Data,
   Scope3CategoryCatalogEntry,
@@ -1324,6 +1330,79 @@ export const griApi = {
     const link = document.createElement("a");
     link.href = objectUrl;
     link.download = `gri-report-${reportId.slice(-8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+};
+
+// CSRD / ESRS. Same two-resource shape as GRI: the double materiality
+// assessment must be completed before datapoint entry is accepted at all, so
+// they cannot share a save endpoint — see csrd.service.ts.
+export const csrdApi = {
+  list: (facilityId: string): Promise<{ reports: CsrdReport[] }> =>
+    apiFetch(`/api/csrd/facilities/${facilityId}/reports`),
+
+  getMateriality: (
+    facilityId: string,
+    reportingPeriod: string,
+  ): Promise<{
+    report: { id: string; reportingPeriod: string; status: string } | null;
+    assessment: CsrdMaterialityAssessment | null;
+    materialTopics: CsrdMaterialTopic[];
+    scores: CsrdStandardScore[];
+  }> => apiFetch(`/api/csrd/facilities/${facilityId}/materiality/${encodeURIComponent(reportingPeriod)}`),
+
+  saveMateriality: (
+    facilityId: string,
+    input: Record<string, unknown>,
+    complete: boolean,
+  ): Promise<{ assessment: CsrdMaterialityAssessment; scores: CsrdStandardScore[]; materialSetChanged: boolean }> =>
+    apiFetch(`/api/csrd/facilities/${facilityId}/materiality`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, complete }),
+    }),
+
+  getData: (
+    facilityId: string,
+    reportingPeriod: string,
+  ): Promise<{ report: CsrdReport | null; metrics: CsrdMetrics | null }> =>
+    apiFetch(`/api/csrd/facilities/${facilityId}/data/${encodeURIComponent(reportingPeriod)}`),
+
+  save: (facilityId: string, input: Record<string, unknown>, submit: boolean): Promise<{ report: CsrdReport }> =>
+    apiFetch(`/api/csrd/facilities/${facilityId}/data`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, submit }),
+    }),
+
+  getReport: (
+    facilityId: string,
+    reportingPeriod: string,
+  ): Promise<{ report: CsrdReport; facility: Facility; metrics: CsrdMetrics; disclosureIndex: CsrdDisclosureIndex }> =>
+    apiFetch(`/api/csrd/facilities/${facilityId}/report/${encodeURIComponent(reportingPeriod)}`),
+
+  downloadPdf: async (reportId: string): Promise<void> => {
+    const reportUrl = `${API_URL}/api/csrd/report/${reportId}/pdf`;
+    const fetchReport = () =>
+      fetch(reportUrl, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchReport();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchReport();
+    }
+    if (!res.ok) {
+      throw new ApiError("Couldn't generate the statement. Please try again.", res.status);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `csrd-statement-${reportId.slice(-8)}.pdf`;
     document.body.appendChild(link);
     link.click();
     link.remove();

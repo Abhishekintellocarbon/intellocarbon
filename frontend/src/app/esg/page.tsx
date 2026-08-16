@@ -9,9 +9,9 @@ import { NotifyMeCapture } from "@/components/esg/notify-me-capture";
 import type { EsgWaitlistFramework } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title: "ESG Disclosure Bundle — BRSR Core, ISSB, GRI, Scope 3, CSRD, CDP | Intellocarbon",
+  title: "ESG Disclosure Bundle — BRSR Core, ISSB, GRI, CSRD/ESRS, Scope 3 | Intellocarbon",
   description:
-    "One subscription for BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, and Scope 3 emissions — live today. CSRD and CDP are in active development.",
+    "One subscription for BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, CSRD/ESRS and Scope 3 emissions — live today. CDP is in active development.",
 };
 
 interface BundleItem {
@@ -32,7 +32,7 @@ const BUNDLE_ITEMS: BundleItem[] = [
   { icon: Droplets, name: "Water Footprint (ISO 14046)", status: "live" },
   { icon: Leaf, name: "Voluntary Offsets Tracking", status: "live" },
   { icon: Globe2, name: "GRI Standards 2021", status: "live" },
-  { icon: Landmark, name: "CSRD", status: "soon", waitlistTool: "ESG_CSRD" },
+  { icon: Landmark, name: "CSRD / ESRS", status: "live" },
   { icon: ScrollText, name: "CDP", status: "soon", waitlistTool: "ESG_CDP" },
 ];
 
@@ -48,7 +48,7 @@ const MARKET_ROWS: MarketRow[] = [
   { market: "India", framework: "BRSR Core (SEBI)", status: "live" },
   { market: "Global investors / IFRS jurisdictions", framework: "ISSB IFRS S1/S2", status: "live" },
   { market: "Global stakeholders (voluntary, most widely used)", framework: "GRI Standards 2021", status: "live" },
-  { market: "European Union", framework: "CSRD", status: "soon" },
+  { market: "European Union (above the Omnibus thresholds)", framework: "CSRD / ESRS", status: "live" },
   { market: "United States (SEC / state climate rules)", framework: "Climate disclosure rules", status: "soon" },
   { market: "Global supply chains (buyer-driven)", framework: "CDP", status: "soon" },
 ];
@@ -85,8 +85,8 @@ export default function EsgHub() {
           <span className="text-gradient">ESG</span> reporting on Intellocarbon
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-balance text-muted-foreground sm:text-lg">
-          BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, and Scope 3 emissions are live today, in one bundled
-          subscription. CSRD and CDP are in active development.
+          BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, CSRD/ESRS and Scope 3 emissions are live today, in one
+          bundled subscription. CDP is in active development.
         </p>
 
         {/* Unified ESG Disclosure Bundle */}
@@ -104,10 +104,20 @@ export default function EsgHub() {
             re-entering the same activity data per framework.
           </p>
 
-          {/* GRI is the only framework here whose scope isn't obvious from its
-              name, so it gets one sentence. Kept in the shared bundle copy
-              rather than as a per-item note, so no single framework in the
-              list above carries more visual weight than the others. */}
+          {/* Stated plainly wherever CSRD is offered: most companies reading
+              this are well below the Omnibus thresholds and must not take a
+              CSRD module as evidence of a filing obligation. */}
+          <p className="mt-3 text-sm text-muted-foreground">
+            CSRD is mandatory only above 1,000 employees and EUR 450 million net turnover, first reporting for
+            financial years beginning in 2027 (Omnibus I, Directive (EU) 2026/470). Below those thresholds you are
+            outside mandatory scope — the module is here for voluntary reporting and for answering a customer&apos;s
+            value-chain request, not because you are required to file.
+          </p>
+
+          {/* GRI and CSRD are the two frameworks here whose scope isn't
+              obvious from the name. Both notes live in the shared bundle copy
+              rather than as per-item annotations, so no single framework in
+              the list below carries more visual weight than the others. */}
           <p className="mt-3 text-sm text-muted-foreground">
             GRI is the full 2021 Standards, not a subset: the Universal Standards, a materiality assessment that
             determines which Topic Standards apply to each facility, and the content index GRI requires alongside
@@ -140,14 +150,14 @@ export default function EsgHub() {
             <Link href="/login" className="font-medium text-teal-500 hover:underline">
               log in
             </Link>{" "}
-            to see pricing and start with BRSR Core — ISSB IFRS S1/S2, GRI, and Scope 3 are available from the same
-            facility dashboard.
+            to see pricing and start with BRSR Core — ISSB IFRS S1/S2, GRI, CSRD/ESRS and Scope 3 are available from
+            the same facility dashboard.
           </p>
 
           <div className="mt-8 border-t border-surface-border pt-6">
-            <p className="text-sm font-medium">Want CSRD or CDP next?</p>
+            <p className="text-sm font-medium">Want CDP next?</p>
             <p className="mt-1 text-xs text-muted-foreground">Join the waitlist for whichever one you need.</p>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-4">
               {BUNDLE_ITEMS.filter((i) => i.waitlistTool).map((item) => (
                 <div key={item.name}>
                   <p className="text-xs font-semibold text-muted-foreground">{item.name}</p>

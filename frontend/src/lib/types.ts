@@ -2084,3 +2084,190 @@ export interface GriContentIndex {
   omittedCount: number;
   excludedTopics: { standard: string; title: string; rationale: string }[];
 }
+
+// --- CSRD / ESRS ---
+
+export type CsrdIroKind = "IMPACT" | "FINANCIAL" | "BOTH";
+export type CsrdImpactType =
+  | "NEGATIVE_ACTUAL"
+  | "NEGATIVE_POTENTIAL"
+  | "POSITIVE_ACTUAL"
+  | "POSITIVE_POTENTIAL";
+export type CsrdFinancialEffectType = "RISK" | "OPPORTUNITY";
+export type CsrdValueChainLocation = "OWN_OPERATIONS" | "UPSTREAM" | "DOWNSTREAM";
+
+export interface CsrdIro {
+  id: string;
+  assessmentId: string;
+  standardCode: string;
+  description: string;
+  kind: CsrdIroKind;
+  valueChainLocation: CsrdValueChainLocation;
+  impactType: CsrdImpactType | null;
+  scale: number | null;
+  scope: number | null;
+  irremediability: number | null;
+  impactLikelihood: number | null;
+  /** Derived server-side — never sent by the client. */
+  impactScore: number | null;
+  financialEffectType: CsrdFinancialEffectType | null;
+  magnitude: number | null;
+  financialLikelihood: number | null;
+  financialScore: number | null;
+}
+
+export interface CsrdMaterialityAssessment {
+  id: string;
+  csrdReportId: string;
+  stakeholderGroups: string[];
+  engagementApproach: string | null;
+  iroIdentificationProcess: string | null;
+  prioritisationProcess: string | null;
+  impactThreshold: number;
+  financialThreshold: number;
+  completedAt: string | null;
+  iros?: CsrdIro[];
+}
+
+export interface CsrdMaterialTopic {
+  id: string;
+  csrdReportId: string;
+  standardCode: string;
+  isMaterial: boolean;
+  impactMaterial: boolean;
+  financialMaterial: boolean;
+  impactScore: number | null;
+  financialScore: number | null;
+  notMaterialRationale: string | null;
+  policies: string | null;
+  actions: string | null;
+  targets: string | null;
+  metrics: string | null;
+}
+
+export interface CsrdStandardScore {
+  standardCode: string;
+  impactScore: number | null;
+  financialScore: number | null;
+  impactMaterial: boolean;
+  financialMaterial: boolean;
+  isMaterial: boolean;
+  iroCount: number;
+  rank: number;
+}
+
+export interface CsrdStandardCompleteness {
+  standardCode: string;
+  label: string;
+  title: string;
+  isMaterial: boolean;
+  minimumDisclosuresComplete: boolean;
+  missingMinimumDisclosures: string[];
+  datapointsReported: number;
+  datapointsTotal: number;
+  hasAnyData: boolean;
+}
+
+export interface CsrdConformityEvaluation {
+  conformant: boolean;
+  /** False until the datapoint definitions are reconciled with the adopted ESRS (2026) text. */
+  registryReconciled: boolean;
+  confirmedDatapoints: number;
+  totalDatapoints: number;
+  generalDisclosuresReported: number;
+  generalDisclosuresTotal: number;
+  missingGeneralDisclosures: string[];
+  materialityAssessmentComplete: boolean;
+  materialStandardCount: number;
+  unexplainedExclusions: string[];
+  standards: CsrdStandardCompleteness[];
+  blockers: string[];
+}
+
+export interface CsrdMetrics {
+  fyWindow: { start: string; end: string; label: string };
+  rollup: {
+    scope1Tco2e: number;
+    scope2LocationTco2e: number;
+    scope3Tco2e: number | null;
+    totalGhgTco2e: number;
+    totalEnergyMwh: number;
+    renewableEnergyMwh: number;
+    waterWithdrawalM3: number;
+    waterDischargeM3: number;
+    waterConsumptionM3: number;
+    waterRecycledM3: number;
+    hasWaterData: boolean;
+    wasteGeneratedTonnes: number | null;
+    wasteDivertedTonnes: number | null;
+    wasteDisposalTonnes: number | null;
+    hazardousWasteTonnes: number | null;
+    carbonCreditsCancelledTco2e: number | null;
+    productionQuantityT: number;
+    activityDataCount: number;
+  };
+  intensities: {
+    energyPerRevenue: number | null;
+    ghgPerRevenue: number | null;
+    waterPerRevenue: number | null;
+  };
+  scores: CsrdStandardScore[];
+  conformity: CsrdConformityEvaluation;
+}
+
+export type CsrdStandardRow = Record<string, string | number | boolean | null>;
+
+export interface CsrdReport {
+  id: string;
+  companyId: string;
+  facilityId: string;
+  reportingPeriod: string;
+  netRevenueEur: number | null;
+  status: "DRAFT" | "SUBMITTED";
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  materialityAssessment?: CsrdMaterialityAssessment | null;
+  materialTopics: CsrdMaterialTopic[];
+  generalDisclosures?: CsrdStandardRow | null;
+  climateDisclosure?: CsrdStandardRow | null;
+  pollutionDisclosure?: CsrdStandardRow | null;
+  waterDisclosure?: CsrdStandardRow | null;
+  biodiversityDisclosure?: CsrdStandardRow | null;
+  circularDisclosure?: CsrdStandardRow | null;
+  ownWorkforceDisclosure?: CsrdStandardRow | null;
+  valueChainWorkersDisclosure?: CsrdStandardRow | null;
+  communitiesDisclosure?: CsrdStandardRow | null;
+  consumersDisclosure?: CsrdStandardRow | null;
+  businessConductDisclosure?: CsrdStandardRow | null;
+}
+
+export type CsrdOmissionReason = "NOT_MATERIAL" | "PHASE_IN_RELIEF" | "DATA_UNAVAILABLE" | "CONFIDENTIALITY";
+
+export interface CsrdDisclosureIndexEntry {
+  standard: string;
+  code: string;
+  label: string;
+  pageNumber: number | null;
+  reported: boolean;
+  omissionReason: CsrdOmissionReason | null;
+  phaseIn: string | null;
+  derived: boolean;
+  status: "CONFIRMED" | "PENDING_SOURCE";
+  section: "GENERAL" | "STANDARD";
+  standardCode: string | null;
+}
+
+export interface CsrdDisclosureIndex {
+  entries: CsrdDisclosureIndexEntry[];
+  claimLevel: "ESRS_CONFORMANT" | "PREPARED_WITH_REFERENCE";
+  claimStatement: string;
+  applicabilityNotice: string;
+  registryReconciled: boolean;
+  confirmedDatapoints: number;
+  totalDatapoints: number;
+  reportedCount: number;
+  omittedCount: number;
+  phaseInCount: number;
+  excludedStandards: { standard: string; title: string; rationale: string }[];
+}
