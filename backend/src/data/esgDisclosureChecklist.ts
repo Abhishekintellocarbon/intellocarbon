@@ -84,3 +84,31 @@ export const ISSB_PILLARS: DisclosureRequirement<IssbS1S2Report>[] = [
 /** A requirement counts as met only when every one of its fields is present. */
 export const isRequirementMet = <T extends object>(row: T, requirement: DisclosureRequirement<T>): boolean =>
   requirement.fields.every((field) => row[field] !== null && row[field] !== undefined && row[field] !== "");
+
+/**
+ * GRI's reporting requirements, as the completeness strip expresses them.
+ *
+ * Deliberately NOT a DisclosureRequirement<GriReport>: unlike BRSR and ISSB,
+ * GRI has no fixed set of fields that constitute a complete disclosure. Which
+ * Topic Standards apply is decided per facility by its materiality assessment,
+ * so two facilities can both be fully compliant while reporting entirely
+ * different topics. Counting topic fields would therefore compare facilities
+ * against each other rather than against the standard.
+ *
+ * What IS fixed is GRI 1's reporting requirements, which every report must
+ * meet regardless of which topics it covers. Those are what this list scores,
+ * and they line up one-to-one with the blockers evaluateAccordance produces —
+ * so the strip and the "in accordance" claim can never disagree.
+ */
+export interface GriReportingRequirement {
+  key: string;
+  label: string;
+}
+
+export const GRI_REPORTING_REQUIREMENTS: GriReportingRequirement[] = [
+  { key: "materiality", label: "Materiality assessment (GRI 3-1)" },
+  { key: "materialTopics", label: "Material topics identified (GRI 3-2)" },
+  { key: "managementApproach", label: "Management approach per topic (GRI 3-3)" },
+  { key: "universal", label: "General disclosures (GRI 2)" },
+  { key: "topicData", label: "Disclosure data for every material topic" },
+];

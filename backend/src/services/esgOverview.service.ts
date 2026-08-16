@@ -5,10 +5,18 @@ import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { getCompanyBrsrAnalytics, type CompanyBrsrAnalytics } from "./companyDashboard.service";
 import { resolveScope3Relevance } from "./scope3Relevance.service";
 import { buildIssbS1S2Metrics } from "./issbCalculation.service";
+import {
+  buildGriMetrics,
+  GRI_REPORT_INCLUDE,
+  type GriAccordanceEvaluation,
+  type GriReportWithRelations,
+} from "./griCalculation.service";
 import { SCOPE3_CATEGORY_CATALOG } from "../data/scope3Categories";
+import { GRI_UNIVERSAL_DISCLOSURES, getGriTopic } from "../data/griStandards";
 import {
   BRSR_CORE_ATTRIBUTES,
   ISSB_PILLARS,
+  GRI_REPORTING_REQUIREMENTS,
   isRequirementMet,
   type DisclosureRequirement,
 } from "../data/esgDisclosureChecklist";
@@ -445,6 +453,176 @@ const buildEsgLivePosition = (options: {
 };
 
 // ---------------------------------------------------------------------------
+// GRI summary
+// ---------------------------------------------------------------------------
+
+// Read off the registry rather than hardcoded, so it cannot drift from what
+// the accordance evaluation actually counts.
+const GRI_UNIVERSAL_TOTAL = GRI_UNIVERSAL_DISCLOSURES.length;
+
+/**
+ * GRI rolled up across facilities.
+ *
+ * The hard part is that GRI has no company-level "X of Y disclosures" figure
+ * to report. Which Topic Standards a facility reports is decided by its own
+ * materiality assessment, so two facilities can both be fully compliant while
+ * covering entirely different topics — summing their topic counts would
+ * produce a number that means nothing, and averaging them would imply the
+ * topics are interchangeable.
+ *
+ * So this reports the union and the intersection instead: how many distinct
+ * topics are material somewhere, and how many are material everywhere. Those
+ * two together describe the real shape of a multi-facility GRI programme
+ * without inventing a total. The per-topic breakdown carries the "N of M
+ * facilities" detail behind them.
+ */
+export interface GriTopicSpread {
+  topicCode: string;
+  label: string;
+  title: string;
+  /** How many reporting facilities judged this topic material. */
+  facilities: number;
+}
+
+export interface GriOverviewSummary {
+  hasReports: boolean;
+  periodLabel: string | null;
+  facilitiesReporting: number;
+  /** Facilities whose report meets every GRI 1 requirement and can claim "in accordance". */
+  facilitiesInAccordance: number;
+  /** Distinct Topic Standards material at one or more facility — a union, never a sum. */
+  distinctMaterialTopics: number;
+  /** Topic Standards material at every reporting facility — the intersection. */
+  topicsMaterialEverywhere: number;
+  /** Ordered by how widely each topic was judged material. */
+  topicSpread: GriTopicSpread[];
+  /** Worst case across facilities, so the strip shows what is still outstanding somewhere. */
+  universalDisclosuresReported: number;
+  universalDisclosuresTotal: number;
+  /** Deduped across facilities, capped for display. */
+  outstandingRequirements: string[];
+}
+
+const EMPTY_GRI_SUMMARY: GriOverviewSummary = {
+  hasReports: false,
+  periodLabel: null,
+  facilitiesReporting: 0,
+  facilitiesInAccordance: 0,
+  distinctMaterialTopics: 0,
+  topicsMaterialEverywhere: 0,
+  topicSpread: [],
+  universalDisclosuresReported: 0,
+  universalDisclosuresTotal: GRI_UNIVERSAL_TOTAL,
+  outstandingRequirements: [],
+};
+
+/**
+ * Scores GRI against GRI 1's reporting requirements rather than against a
+ * field checklist — see GRI_REPORTING_REQUIREMENTS for why a field checklist
+ * cannot work here.
+ *
+ * A requirement counts as complete company-wide only when every reporting
+ * facility satisfies it, matching scoreCompleteness's strict reading: the
+ * point of the strip is to surface what is still outstanding, and one
+ * compliant facility should not mask a non-compliant one.
+ */
+const scoreGriCompleteness = (
+  evaluations: GriAccordanceEvaluation[],
+  periodLabel: string | null,
+): FrameworkCompleteness => {
+  if (evaluations.length === 0 || periodLabel == null) return EMPTY_COMPLETENESS(GRI_REPORTING_REQUIREMENTS);
+
+  const every = (predicate: (e: GriAccordanceEvaluation) => boolean) => evaluations.every(predicate);
+
+  const met: Record<string, boolean> = {
+    materiality: every((e) => e.materialityAssessmentComplete),
+    // An unexplained exclusion is a GRI 3-2 failure as much as having no
+    // material topic at all — the standard requires the determination to be
+    // stated, not merely made.
+    materialTopics: every((e) => e.materialTopicCount > 0 && e.unexplainedExclusions.length === 0),
+    managementApproach: every((e) => e.topics.filter((t) => t.isMaterial).every((t) => t.managementApproachComplete)),
+    universal: every((e) => e.missingUniversalDisclosures.length === 0),
+    topicData: every((e) => e.topics.filter((t) => t.isMaterial).every((t) => t.hasAnyData)),
+  };
+
+  const scored = GRI_REPORTING_REQUIREMENTS.map((requirement) => ({
+    key: requirement.key,
+    label: requirement.label,
+    complete: met[requirement.key] ?? false,
+  }));
+
+  return {
+    periodLabel,
+    complete: scored.filter((r) => r.complete).length,
+    total: GRI_REPORTING_REQUIREMENTS.length,
+    requirements: scored,
+  };
+};
+
+const buildGriSummary = async (
+  reports: GriReportWithRelations[],
+  company: { reportingFyStartMonth: number },
+): Promise<{ summary: GriOverviewSummary; completeness: FrameworkCompleteness }> => {
+  // Same latest-period selection as BRSR and ISSB: "FY2025-26" sorts
+  // lexicographically in chronological order.
+  const periodLabel = reports.map((r) => r.reportingPeriod).sort((a, b) => a.localeCompare(b)).at(-1) ?? null;
+  const periodReports = periodLabel ? reports.filter((r) => r.reportingPeriod === periodLabel) : [];
+
+  if (periodLabel == null || periodReports.length === 0) {
+    return { summary: EMPTY_GRI_SUMMARY, completeness: EMPTY_COMPLETENESS(GRI_REPORTING_REQUIREMENTS) };
+  }
+
+  const metrics = await Promise.all(
+    periodReports.map((report) => buildGriMetrics(report, { id: report.facilityId }, company)),
+  );
+  const evaluations = metrics.map((m) => m.accordance);
+
+  // Union and intersection across facilities, never a sum.
+  const facilityCountByTopic = new Map<string, number>();
+  for (const report of periodReports) {
+    for (const topic of report.materialTopics) {
+      if (!topic.isMaterial) continue;
+      facilityCountByTopic.set(topic.topicCode, (facilityCountByTopic.get(topic.topicCode) ?? 0) + 1);
+    }
+  }
+
+  const topicSpread: GriTopicSpread[] = Array.from(facilityCountByTopic.entries())
+    .map(([topicCode, facilities]) => {
+      const standard = getGriTopic(topicCode);
+      return {
+        topicCode,
+        label: standard?.label ?? topicCode,
+        title: standard?.title ?? topicCode,
+        facilities,
+      };
+    })
+    // Ties break on code so the ordering is stable between loads.
+    .sort((a, b) => b.facilities - a.facilities || a.topicCode.localeCompare(b.topicCode));
+
+  // Deduped: the same requirement outstanding at three facilities is one thing
+  // to fix, not three.
+  const outstandingRequirements = Array.from(new Set(evaluations.flatMap((e) => e.blockers))).slice(0, 8);
+
+  return {
+    summary: {
+      hasReports: true,
+      periodLabel,
+      facilitiesReporting: periodReports.length,
+      facilitiesInAccordance: evaluations.filter((e) => e.inAccordance).length,
+      distinctMaterialTopics: facilityCountByTopic.size,
+      topicsMaterialEverywhere: topicSpread.filter((t) => t.facilities === periodReports.length).length,
+      topicSpread,
+      // The weakest facility, not the average — the strip exists to show what
+      // is outstanding somewhere.
+      universalDisclosuresReported: Math.min(...evaluations.map((e) => e.universalDisclosuresReported)),
+      universalDisclosuresTotal: evaluations[0]?.universalDisclosuresTotal ?? GRI_UNIVERSAL_TOTAL,
+      outstandingRequirements,
+    },
+    completeness: scoreGriCompleteness(evaluations, periodLabel),
+  };
+};
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -454,12 +632,14 @@ export interface EsgOverview {
   currentFyLabel: string;
   brsr: CompanyBrsrAnalytics;
   issb: IssbOverviewSummary;
+  gri: GriOverviewSummary;
   scope3: Scope3OverviewSummary;
   water: WaterFootprintRollup;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
     issb: FrameworkCompleteness;
+    gri: FrameworkCompleteness;
     scope3: FrameworkCompleteness;
   };
   livePosition: LivePositionItem[];
@@ -475,7 +655,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
   });
   const facilityIds = facilities.map((f) => f.id);
 
-  const [brsr, brsrRows, issbReports, scope3All, relevance, waterRows, offsetPurchases] = await Promise.all([
+  const [brsr, brsrRows, issbReports, griReports, scope3All, relevance, waterRows, offsetPurchases] = await Promise.all([
     getCompanyBrsrAnalytics(facilities, company),
     facilityIds.length === 0
       ? Promise.resolve([])
@@ -488,6 +668,15 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
       : prisma.issbS1S2Report.findMany({
           where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
           include: { facility: true },
+        }),
+    // SUBMITTED only, like every other framework here. The full relation set
+    // is needed because GRI completeness is evaluated from the materiality
+    // assessment and per-topic rows, not from columns on the report itself.
+    facilityIds.length === 0
+      ? Promise.resolve([])
+      : prisma.griReport.findMany({
+          where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
+          include: GRI_REPORT_INCLUDE,
         }),
     facilityIds.length === 0
       ? Promise.resolve([])
@@ -516,6 +705,8 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     issbReports,
     company,
   );
+
+  const { summary: griSummary, completeness: griCompleteness } = await buildGriSummary(griReports, company);
 
   const relevanceByCategory = new Map(relevance.map((r) => [r.prismaCategory, r.relevance as string]));
   const scope3 = buildScope3Summary(scope3All, relevanceByCategory);
@@ -559,12 +750,14 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     currentFyLabel: currentBrsrFyLabel(now),
     brsr,
     issb: issbSummary,
+    gri: griSummary,
     scope3,
     water: rollUpWaterFootprints(waterRows),
     offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),
       issb: scoreCompleteness(issbPeriodReports, ISSB_PILLARS, issbPeriod),
+      gri: griCompleteness,
       scope3: {
         periodLabel: scope3.periodLabel,
         complete: scope3Requirements.filter((r) => r.complete).length,

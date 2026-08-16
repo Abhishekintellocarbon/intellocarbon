@@ -11,6 +11,7 @@ import { ChartSkeleton } from "@/components/dashboard/shared/chart-skeleton";
 import { DisclosureCompletenessStrip } from "@/components/dashboard/esg/disclosure-completeness-strip";
 import { LivePositionPanel } from "@/components/dashboard/esg/live-position-panel";
 import { IssbSummaryCard } from "@/components/dashboard/esg/issb-summary-card";
+import { GriSummaryCard } from "@/components/dashboard/esg/gri-summary-card";
 import { Scope3BreakdownChart } from "@/components/dashboard/esg/scope3-breakdown-chart";
 import { WaterFootprintCard } from "@/components/dashboard/esg/water-footprint-card";
 import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
@@ -25,8 +26,8 @@ import type { EsgOverview } from "@/lib/types";
 
 /**
  * Unified ESG Overview — the default landing view for a company on the ESG
- * Disclosure Bundle, compiling BRSR Core, ISSB IFRS S1/S2 and Scope 3 into
- * one command center.
+ * Disclosure Bundle, compiling BRSR Core, ISSB IFRS S1/S2, GRI Standards
+ * 2021 and Scope 3 into one command center.
  *
  * Every chart here is an existing component rendered against an existing
  * aggregate; this page adds composition and the cross-framework completeness
@@ -42,8 +43,8 @@ function NotSubscribed() {
       </span>
       <h3 className="font-medium">ESG Disclosure Bundle required</h3>
       <p className="max-w-sm text-sm text-muted-foreground">
-        BRSR Core, ISSB IFRS S1/S2 and Scope 3 reporting are covered by the ESG Disclosure Bundle. Subscribe to unlock
-        this overview.
+        BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021 and Scope 3 reporting are covered by the ESG Disclosure
+        Bundle. Subscribe to unlock this overview.
       </p>
       <Link href="/billing" className="mt-2">
         <Button size="sm">
@@ -85,7 +86,7 @@ function EsgOverviewContent() {
           <div>
             <h1 className="text-xl font-semibold">ESG Overview</h1>
             <p className="text-sm text-muted-foreground">
-              BRSR Core, ISSB IFRS S1/S2 and Scope 3 across all your facilities.
+              BRSR Core, ISSB IFRS S1/S2, GRI Standards and Scope 3 across all your facilities.
             </p>
           </div>
         </div>
@@ -175,11 +176,6 @@ function EsgOverviewContent() {
               </div>
             </section>
 
-            {/* GRI has no summary card yet — unlike BRSR/ISSB its completeness
-                is per-facility and materiality-dependent, so a single
-                company-level figure would be misleading. Linking through to
-                the per-facility flow is the honest surface until
-                esgOverview.service.ts learns to roll GRI up. */}
             <section>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="text-lg font-semibold">Sustainability reporting</h2>
@@ -188,9 +184,14 @@ function EsgOverviewContent() {
                 </Link>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Full GRI Standards 2021, per facility. Starts with a GRI 3 materiality assessment that determines
-                which Topic Standards the report covers, and produces the GRI content index GRI 1 requires.
+                Material topics and content-index status per facility. Topic counts are shown as a union across
+                facilities rather than a total — each facility&apos;s materiality assessment decides its own topics,
+                so they are not additive.
               </p>
+
+              <div className="mt-4">
+                <GriSummaryCard gri={overview.gri} />
+              </div>
             </section>
           </div>
         )}

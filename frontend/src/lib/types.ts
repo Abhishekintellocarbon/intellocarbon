@@ -1392,6 +1392,39 @@ export interface EsgIssbSummary {
   changeFromBaselinePct: number | null;
 }
 
+/**
+ * GRI rolled up across facilities.
+ *
+ * There is deliberately no company-level "X of Y topics" figure: which Topic
+ * Standards a facility reports is decided by its own materiality assessment,
+ * so two facilities can both be fully compliant while covering different
+ * topics. The union (distinctMaterialTopics) and intersection
+ * (topicsMaterialEverywhere) describe that honestly; a sum would not.
+ */
+export interface EsgGriTopicSpread {
+  topicCode: string;
+  label: string;
+  title: string;
+  /** How many reporting facilities judged this topic material. */
+  facilities: number;
+}
+
+export interface EsgGriSummary {
+  hasReports: boolean;
+  periodLabel: string | null;
+  facilitiesReporting: number;
+  facilitiesInAccordance: number;
+  /** Topics material at one or more facility — a union, never a sum. */
+  distinctMaterialTopics: number;
+  /** Topics material at every reporting facility. */
+  topicsMaterialEverywhere: number;
+  topicSpread: EsgGriTopicSpread[];
+  /** The weakest facility, not the average. */
+  universalDisclosuresReported: number;
+  universalDisclosuresTotal: number;
+  outstandingRequirements: string[];
+}
+
 export interface EsgScope3CategoryBreakdownEntry {
   category: number;
   name: string;
@@ -1417,6 +1450,7 @@ export interface EsgOverview {
   currentFyLabel: string;
   brsr: CompanyBrsrAnalytics;
   issb: EsgIssbSummary;
+  gri: EsgGriSummary;
   scope3: EsgScope3Summary;
   /** ISO 14046 water footprint rolled up from submitted ActivityData. */
   water: WaterFootprintRollup;
@@ -1424,6 +1458,7 @@ export interface EsgOverview {
   completeness: {
     brsr: EsgFrameworkCompleteness;
     issb: EsgFrameworkCompleteness;
+    gri: EsgFrameworkCompleteness;
     scope3: EsgFrameworkCompleteness;
   };
   livePosition: LivePositionItem[];

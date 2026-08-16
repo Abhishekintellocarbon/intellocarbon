@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, FileBarChart, Network } from "lucide-react";
+import { ArrowRight, BadgeCheck, FileBarChart, Globe2, Network } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { EsgFrameworkCompleteness } from "@/lib/types";
 
@@ -13,8 +13,10 @@ import type { EsgFrameworkCompleteness } from "@/lib/types";
  * the framework pages can't disagree about what "complete" means.
  */
 
+type FrameworkKey = "brsr" | "issb" | "gri" | "scope3";
+
 interface FrameworkCard {
-  key: "brsr" | "issb" | "scope3";
+  key: FrameworkKey;
   title: string;
   subtitle: string;
   icon: typeof FileBarChart;
@@ -39,6 +41,17 @@ const FRAMEWORKS: FrameworkCard[] = [
     icon: BadgeCheck,
     href: "/esg/issb",
     unitLabel: "core pillars",
+  },
+  {
+    key: "gri",
+    title: "GRI Standards",
+    subtitle: "Global Reporting Initiative",
+    icon: Globe2,
+    href: "/esg/gri",
+    // Not "topics": which Topic Standards apply is decided per facility by its
+    // materiality assessment, so the fixed thing to count is GRI 1's reporting
+    // requirements — see GRI_REPORTING_REQUIREMENTS on the backend.
+    unitLabel: "reporting requirements",
   },
   {
     key: "scope3",
@@ -67,7 +80,7 @@ export function DisclosureCompletenessStrip({
   completeness,
   currentFyLabel,
 }: {
-  completeness: Record<"brsr" | "issb" | "scope3", EsgFrameworkCompleteness>;
+  completeness: Record<FrameworkKey, EsgFrameworkCompleteness>;
   currentFyLabel: string;
 }) {
   return (
@@ -77,7 +90,7 @@ export function DisclosureCompletenessStrip({
         <p className="text-xs text-muted-foreground">Current financial year: {currentFyLabel}</p>
       </div>
 
-      <div className="mt-4 grid gap-5 sm:grid-cols-3">
+      <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {FRAMEWORKS.map((framework) => {
           const status = completeness[framework.key];
           const outstanding = status.requirements.filter((r) => !r.complete);
