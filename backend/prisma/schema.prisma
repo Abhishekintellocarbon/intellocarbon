@@ -190,6 +190,7 @@ model Company {
   notifications        Notification[]
   brsrCoreReports      BrsrCoreReport[]
   issbS1S2Reports      IssbS1S2Report[]
+  griReports           GriReport[]
   scope3Data           Scope3Data[]
   voluntaryOffsets     VoluntaryOffsetPurchase[]
   auditLogs            AuditLog[]
@@ -524,6 +525,8 @@ enum ReportType {
   // liability basis, and a facility can owe both in the same period — which
   // the (facility, reportType, period) uniqueness would otherwise collide on.
   UK_CBAM
+  // GRI Standards 2021 sustainability report — see data/griStandards.ts.
+  GRI
 }
 
 enum ReportStatus {
@@ -683,6 +686,7 @@ model Facility {
   notifications       Notification[]
   brsrCoreReports     BrsrCoreReport[]
   issbS1S2Reports     IssbS1S2Report[]
+  griReports          GriReport[]
   scope3Data          Scope3Data[]
   voluntaryOffsets    VoluntaryOffsetPurchase[]
   auditLogs           AuditLog[]
@@ -1511,4 +1515,813 @@ model CctsObligatedEntity {
   @@index([state])
   @@index([status])
   @@map("ccts_obligated_entities")
+}
+
+// ===========================================================================
+// GRI Standards 2021
+//
+// Full implementation: GRI 2 (General Disclosures), GRI 3 (Material Topics,
+// including the materiality assessment that determines which Topic Standards
+// are reported at all), and 16 Topic Standards.
+//
+// The controlling design decision is that GRI 3 comes FIRST. Unlike BRSR Core
+// (a fixed list of 9 attributes) or ISSB (a fixed 4 pillars), GRI does not
+// have a fixed set of topics: the materiality assessment output decides which
+// Topic Standards are in scope, and a topic that is not material is legitimately
+// omitted provided the omission is stated. GriMaterialTopic is therefore not a
+// convenience index — it is the gate. griContentIndex.service.ts reads it to
+// decide what appears in the mandatory content index, and gri.service.ts reads
+// it to decide what must be filled in before submit.
+//
+// Version notes (which edition of each standard, and why) live in
+// src/data/griStandards.ts, which is the registry every consumer reads.
+// In short: there is no GRI 307 model (withdrawn — folded into Disclosure
+// 2-27 on GriUniversalDisclosures) and biodiversity is GRI 101: Biodiversity
+// 2024, not the superseded GRI 304.
+//
+// As with BRSR and ISSB, emissions/energy/water figures are NOT stored on
+// these tables where the platform can already derive them — see
+// griCalculation.service.ts. Stored columns are manual disclosures the
+// calculation engines have no source for.
+// ===========================================================================
+
+model GriReport {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  // "FY2025-26" — resolved against Company.reportingFyStartMonth, same as BRSR/ISSB.
+  reportingPeriod String
+
+  // Shared denominator for the GRI 302-3 energy-intensity and GRI 305-4
+  // emissions-intensity ratios where the organization elects a revenue basis.
+  turnoverInr Float?
+
+  status DataEntryStatus @default(DRAFT)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  materialityAssessment GriMaterialityAssessment?
+  universalDisclosures  GriUniversalDisclosures?
+  materialTopics        GriMaterialTopic[]
+
+  materialsDisclosure         GriMaterialsDisclosure?
+  energyDisclosure            GriEnergyDisclosure?
+  waterDisclosure             GriWaterDisclosure?
+  biodiversityDisclosure      GriBiodiversityDisclosure?
+  emissionsDisclosure         GriEmissionsDisclosure?
+  wasteDisclosure             GriWasteDisclosure?
+  supplierEnvDisclosure       GriSupplierEnvDisclosure?
+  employmentDisclosure        GriEmploymentDisclosure?
+  ohsDisclosure               GriOhsDisclosure?
+  trainingDisclosure          GriTrainingDisclosure?
+  diversityDisclosure         GriDiversityDisclosure?
+  nonDiscriminationDisclosure GriNonDiscriminationDisclosure?
+  localCommunitiesDisclosure  GriLocalCommunitiesDisclosure?
+  supplierSocialDisclosure    GriSupplierSocialDisclosure?
+  customerHsDisclosure        GriCustomerHsDisclosure?
+  customerPrivacyDisclosure   GriCustomerPrivacyDisclosure?
+
+  // One GRI report per facility per financial year, matching BRSR/ISSB.
+  @@unique([facilityId, reportingPeriod])
+  @@index([companyId])
+  @@map("gri_reports")
+}
+
+// GRI 3-1: Process to determine material topics. Re-run each reporting period
+// (GRI expects material topics to evolve), which is why this hangs off
+// GriReport rather than off Facility.
+model GriMaterialityAssessment {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // Identified stakeholder groups, free-text so a facility isn't forced into
+  // a fixed taxonomy GRI itself doesn't impose.
+  stakeholderGroups             String[] @default([])
+  stakeholderEngagementApproach String?
+  impactIdentificationProcess   String?
+  prioritisationProcess         String?
+
+  // Significance score at or above which a topic is treated as material.
+  // Stored rather than constant: GRI requires the threshold to be disclosed,
+  // and a facility may justify a different one year to year.
+  materialityThreshold Float @default(3)
+
+  // Set when the user finishes the assessment. Topic gating only takes effect
+  // once this is non-null — a half-finished assessment must not silently
+  // exclude topics from the report.
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  impacts GriImpact[]
+
+  @@map("gri_materiality_assessments")
+}
+
+// Whether an impact has already occurred or could occur, and its direction.
+// GRI 3 scores the two directions differently — see GriImpact below.
+enum GriImpactType {
+  NEGATIVE_ACTUAL
+  NEGATIVE_POTENTIAL
+  POSITIVE_ACTUAL
+  POSITIVE_POTENTIAL
+}
+
+// Where in the value chain the impact sits. GRI 3 requires impacts to be
+// identified across activities and business relationships, not just own
+// operations.
+enum GriValueChainLocation {
+  OWN_OPERATIONS
+  UPSTREAM
+  DOWNSTREAM
+}
+
+// One actual or potential impact identified during the materiality assessment.
+//
+// Scoring follows GRI 3's actual methodology rather than the generic
+// "impact x likelihood" matrix. For NEGATIVE impacts, significance is the
+// SEVERITY of the impact, determined by scale, scope and irremediability. For
+// POSITIVE impacts, severity does not apply and significance is scale and
+// scope only. For POTENTIAL impacts of either direction, likelihood is also
+// factored in. irremediability is therefore meaningful only on negative
+// impacts, and likelihood only on potential ones — both are nullable for that
+// reason, and the score is computed in griCalculation.service.ts, never stored
+// as user input.
+model GriImpact {
+  id           String                   @id @default(cuid())
+  assessmentId String
+  assessment   GriMaterialityAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  // Which Topic Standard this impact rolls up into — validated against
+  // GRI_TOPIC_CODES at the app layer, a String rather than an enum so adding
+  // a Topic Standard is a code-only change (same rationale as
+  // Facility.productionRoute).
+  topicCode   String
+  description String
+
+  impactType         GriImpactType
+  valueChainLocation GriValueChainLocation @default(OWN_OPERATIONS)
+
+  // All 1-5. scale = how grave/beneficial, scope = how widespread,
+  // irremediability = how hard to counteract (negative only),
+  // likelihood = probability of occurring (potential only).
+  scale           Int
+  scope           Int
+  irremediability Int?
+  likelihood      Int?
+
+  // Derived from the above by computeImpactSignificance(). Persisted so the
+  // ranking shown in the UI, the matrix chart in the PDF, and the gating
+  // decision can never disagree with each other.
+  significanceScore Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assessmentId])
+  @@map("gri_impacts")
+}
+
+// GRI 3-2 (the list of material topics) and GRI 3-3 (management of each one).
+//
+// One row per Topic Standard the facility considered — INCLUDING topics judged
+// not material, because GRI requires the report to be explicit about what was
+// assessed and excluded rather than silently dropping it. isMaterial is what
+// gates the disclosure form and the PDF section.
+model GriMaterialTopic {
+  id          String    @id @default(cuid())
+  griReportId String
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  topicCode  String
+  isMaterial Boolean @default(false)
+
+  // Highest significance score among this topic's impacts, and its 1-based
+  // position once material topics are sorted by that score. Both derived.
+  significanceScore Float?
+  rank              Int?
+
+  // Required by app-layer validation when isMaterial is false — an unexplained
+  // exclusion is exactly what the content index must not contain.
+  notMaterialRationale String?
+
+  // --- GRI 3-3: Management of material topics (six sub-requirements a-f) ---
+  impactsDescription     String?
+  involvementDescription String?
+  policiesCommitments    String?
+  actionsTaken           String?
+  effectivenessTracking  String?
+  stakeholderEngagement  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // One judgement per topic per report.
+  @@unique([griReportId, topicCode])
+  @@index([griReportId])
+  @@map("gri_material_topics")
+}
+
+// GRI 2: General Disclosures 2021 — all 30 disclosures (2-1 to 2-30).
+// Always reported in full; never materiality-gated. Field names map 1:1 to
+// GRI_UNIVERSAL_DISCLOSURES in data/griStandards.ts, which is what the content
+// index walks.
+model GriUniversalDisclosures {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // --- 2-1 Organizational details (prefilled from Company/Facility) ---
+  legalName            String?
+  ownershipLegalForm   String?
+  headquartersLocation String?
+  countriesOfOperation String?
+
+  // --- 2-2 Entities included ---
+  entitiesIncluded String?
+
+  // --- 2-3 Reporting period, frequency, contact point ---
+  reportingFrequency String?
+  contactPoint       String?
+  publicationDate    DateTime?
+
+  // --- 2-4 Restatements ---
+  restatements String?
+
+  // --- 2-5 External assurance ---
+  externalAssurancePolicy String?
+  assuranceProvider       String?
+  assuranceLevel          String?
+
+  // --- 2-6 Activities, value chain, business relationships ---
+  sectorsServed                  String?
+  valueChainDescription          String?
+  significantChangesToValueChain String?
+
+  // --- 2-7 Employees (head count at end of reporting period) ---
+  employeesTotal          Int?
+  employeesFemale         Int?
+  employeesMale           Int?
+  employeesPermanent      Int?
+  employeesTemporary      Int?
+  employeesFullTime       Int?
+  employeesPartTime       Int?
+  employeeDataMethodology String?
+
+  // --- 2-8 Workers who are not employees ---
+  nonEmployeeWorkersTotal       Int?
+  nonEmployeeWorkersDescription String?
+
+  // --- 2-9 to 2-18 Governance ---
+  governanceStructure             String?
+  governanceCommittees            String?
+  governanceNominationProcess     String?
+  chairIsSeniorExecutive          Boolean?
+  chairRoleDescription            String?
+  governanceImpactOversight       String?
+  impactResponsibilityDelegation  String?
+  governanceReportingRole         String?
+  conflictsOfInterestProcess      String?
+  criticalConcernsProcess         String?
+  criticalConcernsCount           Int?
+  governanceCollectiveKnowledge   String?
+  governancePerformanceEvaluation String?
+
+  // --- 2-19 to 2-21 Remuneration ---
+  remunerationPolicies         String?
+  remunerationProcess          String?
+  // 2-21: ratio of the highest-paid individual's total annual compensation to
+  // the median for all other employees. A ratio, not a currency amount.
+  compensationRatio            Float?
+  compensationRatioIncreasePct Float?
+
+  // --- 2-22 to 2-26 Strategy, policies, practices ---
+  sustainableDevelopmentStatement String?
+  policyCommitments               String?
+  humanRightsPolicyCommitment     String?
+  policyEmbedding                 String?
+  remediationProcesses            String?
+  adviceAndConcernsMechanisms     String?
+
+  // --- 2-27 Compliance with laws and regulations ---
+  // Replaces the withdrawn GRI 307 (environmental) and GRI 419
+  // (socioeconomic) topic standards — see data/griStandards.ts. Covers both,
+  // which is why it is not scoped to environmental fines alone.
+  significantFinesCount          Int?
+  significantFinesValueInr       Float?
+  nonMonetarySanctionsCount      Int?
+  complianceIncidentsDescription String?
+
+  // --- 2-28 to 2-30 ---
+  membershipAssociations          String?
+  stakeholderEngagementApproach   String?
+  collectiveBargainingCoveragePct Float?
+  collectiveBargainingDescription String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_universal_disclosures")
+}
+
+// --- GRI 301: Materials 2016 ---
+model GriMaterialsDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 301-1
+  renewableMaterialsTonnes    Float?
+  nonRenewableMaterialsTonnes Float?
+  materialsMethodology        String?
+  // 301-2
+  recycledInputPct            Float?
+  // 301-3
+  reclaimedProductsPct        Float?
+  reclaimedByCategory         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_materials_disclosures")
+}
+
+// --- GRI 302: Energy 2016 ---
+// NOTE: superseded by GRI 103: Energy 2025 for reporting periods beginning on
+// or after 1 Jan 2027. See data/griStandards.ts before extending this model.
+model GriEnergyDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 302-1. Electricity and steam are derived from ActivityData where present
+  // (see griCalculation.service.ts); these columns capture what the platform
+  // cannot compute — notably fuel energy in GJ, since FUEL_LIBRARY carries
+  // emission factors but no calorific values.
+  nonRenewableFuelGj              Float?
+  renewableFuelGj                 Float?
+  electricityConsumedGj           Float?
+  heatingConsumedGj               Float?
+  coolingConsumedGj               Float?
+  steamConsumedGj                 Float?
+  electricitySoldGj               Float?
+  energyStandardsUsed             String?
+  // 302-2
+  energyOutsideOrgGj              Float?
+  // 302-3
+  intensityDenominatorDescription String?
+  intensityIncludesOutsideOrg     Boolean?
+  // 302-4
+  energyReductionGj               Float?
+  energyReductionBaseYear         Int?
+  energyReductionBasis            String?
+  // 302-5
+  productEnergyReductionGj        Float?
+  productEnergyReductionBasis     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_energy_disclosures")
+}
+
+// --- GRI 303: Water and Effluents 2018 ---
+// Volumes are MEGALITRES, per GRI 303's stated unit. The platform's own water
+// inventory (WaterEntry) is in m3; conversion happens in
+// griCalculation.service.ts (1 ML = 1000 m3), not here, so there is one place
+// the unit boundary is crossed.
+model GriWaterDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 303-1
+  interactionsNarrative       String?
+  waterStressAssessmentTool   String?
+  // 303-2
+  dischargeImpactManagement   String?
+  minimumEffluentStandards    String?
+  // 303-3 — totals are derived from WaterEntry when available; the
+  // water-stressed split never is, since no water-stress dataset is wired in.
+  withdrawalTotalMl           Float?
+  withdrawalWaterStressedMl   Float?
+  withdrawalFreshwaterMl      Float?
+  // 303-4
+  dischargeTotalMl            Float?
+  dischargeWaterStressedMl    Float?
+  dischargeFreshwaterMl       Float?
+  prioritySubstancesOfConcern String?
+  // 303-5
+  consumptionTotalMl          Float?
+  consumptionWaterStressedMl  Float?
+  storageChangeMl             Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_water_disclosures")
+}
+
+// --- GRI 101: Biodiversity 2024 ---
+// Replaces GRI 304: Biodiversity 2016, mandatory for reporting published on or
+// after 1 Jan 2026. Structured around GRI 101's five direct drivers of
+// biodiversity loss rather than GRI 304's protected-areas-only framing.
+model GriBiodiversityDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 101-1
+  policiesNarrative            String?
+  // 101-2
+  mitigationHierarchy          String?
+  landRestoredHa               Float?
+  // 101-3
+  accessBenefitSharing         String?
+  // 101-4
+  impactIdentificationProcess  String?
+  // 101-5
+  sitesTotalCount              Int?
+  sitesInProtectedAreasCount   Int?
+  sitesNearProtectedAreasCount Int?
+  siteLocationsDescription     String?
+  // 101-6 — the five direct drivers
+  driverLandUseChange          String?
+  driverResourceExploitation   String?
+  driverClimateChange          String?
+  driverPollution              String?
+  driverInvasiveSpecies        String?
+  landUseChangeHa              Float?
+  // 101-7
+  stateOfBiodiversityChanges   String?
+  // 101-8
+  ecosystemServicesAffected    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_biodiversity_disclosures")
+}
+
+// --- GRI 305: Emissions 2016 ---
+// Scope 1 and Scope 2 (location-based) are NOT stored — they are derived from
+// EmissionCalculationResult on the AR5/GHG-Protocol basis, which is the basis
+// GRI 305 follows (the same reasoning as ISSB, and deliberately not the
+// AR2/BUR3 basis BRSR Core uses). Scope 3 is rolled up from Scope3Data.
+// NOTE: superseded by GRI 102: Climate Change 2025 for reporting periods
+// beginning on or after 1 Jan 2027.
+model GriEmissionsDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 305-1 context
+  biogenicCo2Tonnes                 Float?
+  baseYear                          Int?
+  baseYearEmissionsTco2e            Float?
+  gasesIncluded                     String?
+  consolidationApproach             String?
+  emissionsStandardsUsed            String?
+  // 305-2 — market-based has no engine source (requires supplier contractual
+  // instruments the platform does not hold), so it is a manual disclosure
+  // alongside the derived location-based figure.
+  scope2MarketBasedTco2e            Float?
+  // 305-3
+  scope3CategoriesIncluded          String?
+  // 305-4
+  intensityDenominatorDescription   String?
+  intensityGasesIncluded            String?
+  // 305-5
+  reductionTco2e                    Float?
+  reductionBaseYear                 Int?
+  reductionScopesIncluded           String?
+  // 305-6
+  odsCfc11EquivalentTonnes          Float?
+  odsSubstancesIncluded             String?
+  // 305-7
+  noxTonnes                         Float?
+  soxTonnes                         Float?
+  vocTonnes                         Float?
+  particulateMatterTonnes           Float?
+  persistentOrganicPollutantsTonnes Float?
+  hazardousAirPollutantsTonnes      Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_emissions_disclosures")
+}
+
+// --- GRI 306: Waste 2020 ---
+// The 306-4/306-5 grid is hazardous x non-hazardous crossed with recovery and
+// disposal operations. Totals (306-3 waste generated, and the diverted/directed
+// subtotals) are deliberately NOT columns — they are sums of these, and storing
+// them too would let a facility submit a set that doesn't add up. Same
+// rationale as WaterEntry omitting consumption.
+model GriWasteDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 306-1 / 306-2
+  wasteImpactsNarrative       String?
+  wasteManagementNarrative    String?
+  thirdPartyWasteManagement   String?
+  // 306-3
+  wasteCompositionDescription String?
+
+  // 306-4 Diverted from disposal
+  hazardousDivertedReuseT            Float?
+  hazardousDivertedRecyclingT        Float?
+  hazardousDivertedOtherRecoveryT    Float?
+  nonHazardousDivertedReuseT         Float?
+  nonHazardousDivertedRecyclingT     Float?
+  nonHazardousDivertedOtherRecoveryT Float?
+
+  // 306-5 Directed to disposal
+  hazardousDisposalIncinerationWithRecoveryT    Float?
+  hazardousDisposalIncinerationNoRecoveryT      Float?
+  hazardousDisposalLandfillT                    Float?
+  hazardousDisposalOtherT                       Float?
+  nonHazardousDisposalIncinerationWithRecoveryT Float?
+  nonHazardousDisposalIncinerationNoRecoveryT   Float?
+  nonHazardousDisposalLandfillT                 Float?
+  nonHazardousDisposalOtherT                    Float?
+
+  // GRI 306 requires onsite/offsite to be distinguished; captured as narrative
+  // rather than doubling the 14-column grid to 28.
+  onsiteOffsiteBreakdown String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_waste_disclosures")
+}
+
+// --- GRI 308: Supplier Environmental Assessment 2016 ---
+model GriSupplierEnvDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 308-1
+  newSuppliersScreenedPct              Float?
+  newSuppliersTotalCount               Int?
+  screeningCriteria                    String?
+  // 308-2
+  suppliersAssessedCount               Int?
+  suppliersWithNegativeImpactsCount    Int?
+  suppliersWithImprovementsAgreedCount Int?
+  suppliersTerminatedCount             Int?
+  negativeImpactsDescription           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_supplier_env_disclosures")
+}
+
+// --- GRI 401: Employment 2016 ---
+model GriEmploymentDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 401-1 — GRI requires breakdown by age group, gender and region. Region is
+  // narrative since this is a single-facility disclosure.
+  newHiresTotal                  Int?
+  newHiresFemale                 Int?
+  newHiresUnder30                Int?
+  newHires30To50                 Int?
+  newHiresOver50                 Int?
+  turnoverTotal                  Int?
+  turnoverFemale                 Int?
+  turnoverUnder30                Int?
+  turnover30To50                 Int?
+  turnoverOver50                 Int?
+  hiresTurnoverRegionalBreakdown String?
+  // 401-2
+  benefitsDescription            String?
+  // 401-3
+  parentalLeaveEntitledMale      Int?
+  parentalLeaveEntitledFemale    Int?
+  parentalLeaveTookMale          Int?
+  parentalLeaveTookFemale        Int?
+  parentalLeaveReturnedMale      Int?
+  parentalLeaveReturnedFemale    Int?
+  parentalLeaveRetainedMale      Int?
+  parentalLeaveRetainedFemale    Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_employment_disclosures")
+}
+
+// --- GRI 403: Occupational Health and Safety 2018 ---
+model GriOhsDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 403-1 to 403-7 — narrative disclosures
+  managementSystemDescription         String?
+  managementSystemIsIso45001          Boolean?
+  hazardIdentificationProcess         String?
+  occupationalHealthServices          String?
+  workerParticipation                 String?
+  workerOhsTraining                   String?
+  workerHealthPromotion               String?
+  businessRelationshipOhsImpacts      String?
+  // 403-8
+  workersCoveredCount                 Int?
+  workersCoveredPct                   Float?
+  // 403-9 — rates are derived, not stored. rateBasisHours is 200000 or
+  // 1000000; GRI 403 permits either but requires the choice to be stated.
+  hoursWorked                         Float?
+  fatalitiesEmployees                 Int?
+  fatalitiesNonEmployees              Int?
+  highConsequenceInjuriesEmployees    Int?
+  highConsequenceInjuriesNonEmployees Int?
+  recordableInjuriesEmployees         Int?
+  recordableInjuriesNonEmployees      Int?
+  mainInjuryTypes                     String?
+  rateBasisHours                      Int?
+  // 403-10
+  illHealthFatalitiesEmployees        Int?
+  illHealthCasesEmployees             Int?
+  illHealthFatalitiesNonEmployees     Int?
+  illHealthCasesNonEmployees          Int?
+  illHealthHazards                    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_ohs_disclosures")
+}
+
+// --- GRI 404: Training and Education 2016 ---
+model GriTrainingDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 404-1
+  avgTrainingHoursPerEmployee     Float?
+  avgTrainingHoursMale            Float?
+  avgTrainingHoursFemale          Float?
+  avgTrainingHoursManagement      Float?
+  avgTrainingHoursNonManagement   Float?
+  // 404-2
+  skillsProgramsDescription       String?
+  transitionAssistanceDescription String?
+  // 404-3
+  performanceReviewPct            Float?
+  performanceReviewMalePct        Float?
+  performanceReviewFemalePct      Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_training_disclosures")
+}
+
+// --- GRI 405: Diversity and Equal Opportunity 2016 ---
+model GriDiversityDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 405-1
+  governanceBodyTotal      Int?
+  governanceBodyFemale     Int?
+  governanceBodyUnder30    Int?
+  governanceBody30To50     Int?
+  governanceBodyOver50     Int?
+  employeesFemalePct       Float?
+  employeesUnder30Pct      Float?
+  employees30To50Pct       Float?
+  employeesOver50Pct       Float?
+  otherDiversityIndicators String?
+  // 405-2 — ratio of women's to men's basic salary and remuneration.
+  // 1.0 means parity; below 1.0 means women are paid less.
+  salaryRatioOverall       Float?
+  salaryRatioManagement    Float?
+  salaryRatioNonManagement Float?
+  salaryRatioBasis         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_diversity_disclosures")
+}
+
+// --- GRI 406: Non-discrimination 2016 ---
+model GriNonDiscriminationDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 406-1
+  incidentsCount                        Int?
+  incidentsReviewedCount                Int?
+  remediationPlansImplementedCount      Int?
+  incidentsNoLongerSubjectToActionCount Int?
+  correctiveActionsDescription          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_non_discrimination_disclosures")
+}
+
+// --- GRI 413: Local Communities 2016 ---
+model GriLocalCommunitiesDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 413-1
+  operationsWithEngagementPct          Float?
+  operationsWithImpactAssessmentPct    Float?
+  operationsWithDevelopmentProgramsPct Float?
+  engagementDescription                String?
+  // 413-2
+  operationsWithNegativeImpactsCount   Int?
+  negativeImpactsDescription           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_local_communities_disclosures")
+}
+
+// --- GRI 414: Supplier Social Assessment 2016 ---
+model GriSupplierSocialDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 414-1
+  newSuppliersScreenedPct              Float?
+  newSuppliersTotalCount               Int?
+  screeningCriteria                    String?
+  // 414-2
+  suppliersAssessedCount               Int?
+  suppliersWithNegativeImpactsCount    Int?
+  suppliersWithImprovementsAgreedCount Int?
+  suppliersTerminatedCount             Int?
+  negativeImpactsDescription           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_supplier_social_disclosures")
+}
+
+// --- GRI 416: Customer Health and Safety 2016 ---
+model GriCustomerHsDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 416-1
+  productCategoriesAssessedPct     Float?
+  assessmentDescription            String?
+  // 416-2
+  nonComplianceFinesCount          Int?
+  nonComplianceWarningsCount       Int?
+  nonComplianceVoluntaryCodesCount Int?
+  nonComplianceDescription         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_customer_hs_disclosures")
+}
+
+// --- GRI 418: Customer Privacy 2016 ---
+model GriCustomerPrivacyDisclosure {
+  id          String    @id @default(cuid())
+  griReportId String    @unique
+  griReport   GriReport @relation(fields: [griReportId], references: [id], onDelete: Cascade)
+
+  // 418-1
+  complaintsFromThirdPartiesCount Int?
+  complaintsFromRegulatorsCount   Int?
+  dataBreachesCount               Int?
+  customersAffectedCount          Int?
+  breachDescription               String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gri_customer_privacy_disclosures")
 }

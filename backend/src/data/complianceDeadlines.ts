@@ -413,3 +413,26 @@ export const getIssbReportPeriodStatus = (now: Date): ReportPeriodStatus => {
   const status = getBrsrReportPeriodStatus(now);
   return { ...status };
 };
+
+// --- GRI Standards 2021 ---
+// A GRI report covers the same annual reporting period as BRSR Core and ISSB
+// and is keyed on the same "FY2025-26" convention, so the window math is
+// identical. Named separately for the same reason ISSB is: callers read
+// naturally, and GRI's publication cycle can diverge from India's BRSR cycle
+// later without unpicking shared helpers.
+
+/** Parses a "FY2025-26" style GRI reporting period into its start year (2025). */
+export const parseGriFyStartYear = parseBrsrFyStartYear;
+
+/** Same one-time-per-FY unlock model as BRSR Core (see isBrsrReportWindowOpen). */
+export const isGriReportWindowOpen = (reportingPeriod: string, now: Date): boolean =>
+  isBrsrReportWindowOpen(reportingPeriod, now);
+
+/** This reporting period's fixed unlock date (for the locked-state message). */
+export const griUnlockDate = (reportingPeriod: string): Date => brsrUnlockDate(reportingPeriod);
+
+/** Same 12-month-window model as BRSR Core above. */
+export const getGriReportPeriodStatus = (now: Date): ReportPeriodStatus => {
+  const status = getBrsrReportPeriodStatus(now);
+  return { ...status };
+};

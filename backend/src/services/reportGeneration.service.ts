@@ -32,6 +32,9 @@ const TIER_GRANTS: Record<ReportType, SubscriptionTier[]> = {
   UK_CBAM: ["CBAM_COMPLIANCE", "CBAM_PLUS_CCTS"],
   CCTS: ["CCTS_COMPLIANCE", "CBAM_PLUS_CCTS"],
   BRSR: ["BRSR_CORE_REPORTING"],
+  // GRI folds into the same ESG Disclosure Bundle as BRSR Core and ISSB — no
+  // separate tier, per the standing no-new-price-points rule.
+  GRI: ["BRSR_CORE_REPORTING"],
 };
 
 const hasAccess = async (companyId: string, reportType: ReportType): Promise<boolean> => {

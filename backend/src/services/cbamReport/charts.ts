@@ -417,3 +417,134 @@ export function horizontalGroupedBars(
 
   return rowY - gap + 6;
 }
+
+export interface ScatterPoint {
+  x: number;
+  y: number;
+  /** Short marker label, e.g. a topic code. Drawn beside the dot. */
+  label: string;
+  color: string;
+}
+
+/**
+ * Two-axis scatter with a shaded threshold region — built for the GRI 3
+ * materiality matrix (likelihood on x, severity on y), but kept generic.
+ *
+ * `thresholdY`, when given, shades the band at or above it and draws a rule,
+ * so the reader can see which points cleared the disclosed materiality
+ * threshold rather than having to compare numbers in a legend. Points are
+ * drawn after the shading so they are never obscured by it.
+ *
+ * Overlapping labels are a real hazard here (topics routinely share a score),
+ * so labels are offset alternately left and right of their dot by draw order.
+ */
+export function scatterMatrix(
+  doc: PDFKit.PDFDocument,
+  opts: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    points: ScatterPoint[];
+    xLabel: string;
+    yLabel: string;
+    /** Axis bounds — GRI's rating attributes are 1-5, so these default to that. */
+    axisMin?: number;
+    axisMax?: number;
+    thresholdY?: number;
+    thresholdLabel?: string;
+  },
+): number {
+  const { x, y, width, height, points, xLabel, yLabel } = opts;
+  const axisMin = opts.axisMin ?? 1;
+  const axisMax = opts.axisMax ?? 5;
+  const span = axisMax - axisMin || 1;
+
+  // Room for the y-axis tick labels on the left and the x-axis labels below.
+  const padLeft = 26;
+  const padBottom = 22;
+  const plotX = x + padLeft;
+  const plotY = y;
+  const plotW = width - padLeft;
+  const plotH = height - padBottom;
+
+  const toX = (v: number) => plotX + ((v - axisMin) / span) * plotW;
+  const toY = (v: number) => plotY + plotH - ((v - axisMin) / span) * plotH;
+
+  doc.rect(plotX, plotY, plotW, plotH).fillColor(WHITE).fill();
+
+  if (opts.thresholdY != null) {
+    const bandY = toY(Math.min(opts.thresholdY, axisMax));
+    doc.rect(plotX, plotY, plotW, Math.max(0, bandY - plotY)).fillColor(CHART_TEAL_BG).fill();
+  }
+
+  // Gridlines at each integer step.
+  doc.lineWidth(0.5).strokeColor(BORDER);
+  for (let v = axisMin; v <= axisMax; v += 1) {
+    doc.moveTo(plotX, toY(v)).lineTo(plotX + plotW, toY(v)).stroke();
+    doc.moveTo(toX(v), plotY).lineTo(toX(v), plotY + plotH).stroke();
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(7)
+      .text(String(v), x, toY(v) - 3.5, { width: padLeft - 6, align: "right", lineBreak: false });
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(7)
+      .text(String(v), toX(v) - 8, plotY + plotH + 4, { width: 16, align: "center", lineBreak: false });
+  }
+
+  if (opts.thresholdY != null) {
+    const ty = toY(opts.thresholdY);
+    doc.lineWidth(1).strokeColor(TEAL_DARK).dash(3, { space: 2 });
+    doc.moveTo(plotX, ty).lineTo(plotX + plotW, ty).stroke();
+    doc.undash();
+    if (opts.thresholdLabel) {
+      doc
+        .fillColor(TEAL_DARK)
+        .font("Helvetica-Bold")
+        .fontSize(6.5)
+        .text(opts.thresholdLabel, plotX + 4, ty - 9, { width: plotW - 8, lineBreak: false });
+    }
+  }
+
+  // Plot frame
+  doc.lineWidth(1).strokeColor(BORDER).rect(plotX, plotY, plotW, plotH).stroke();
+
+  points.forEach((point, index) => {
+    const px = toX(Math.max(axisMin, Math.min(axisMax, point.x)));
+    const py = toY(Math.max(axisMin, Math.min(axisMax, point.y)));
+    doc.circle(px, py, 3.5).fillColor(point.color).fill();
+
+    const labelWidth = 62;
+    const toLeft = index % 2 === 1;
+    doc
+      .fillColor(NAVY)
+      .font("Helvetica")
+      .fontSize(6.5)
+      .text(point.label, toLeft ? px - labelWidth - 6 : px + 6, py - 3, {
+        width: labelWidth,
+        align: toLeft ? "right" : "left",
+        lineBreak: false,
+      });
+  });
+
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica-Bold")
+    .fontSize(7.5)
+    .text(xLabel, plotX, plotY + plotH + 13, { width: plotW, align: "center", lineBreak: false });
+
+  // Rotated y-axis title, restored immediately so the caller's cursor state is untouched.
+  doc.save();
+  doc.rotate(-90, { origin: [x - 2, plotY + plotH / 2] });
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica-Bold")
+    .fontSize(7.5)
+    .text(yLabel, x - 2 - plotH / 2, plotY + plotH / 2 - 8, { width: plotH, align: "center", lineBreak: false });
+  doc.restore();
+
+  return plotY + height + 8;
+}
