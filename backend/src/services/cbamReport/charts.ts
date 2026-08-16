@@ -453,6 +453,9 @@ export function scatterMatrix(
     axisMax?: number;
     thresholdY?: number;
     thresholdLabel?: string;
+    /** Vertical threshold, for a genuinely two-axis matrix such as CSRD double materiality. */
+    thresholdX?: number;
+    thresholdXLabel?: string;
   },
 ): number {
   const { x, y, width, height, points, xLabel, yLabel } = opts;
@@ -476,6 +479,18 @@ export function scatterMatrix(
   if (opts.thresholdY != null) {
     const bandY = toY(Math.min(opts.thresholdY, axisMax));
     doc.rect(plotX, plotY, plotW, Math.max(0, bandY - plotY)).fillColor(CHART_TEAL_BG).fill();
+  }
+
+  // With both thresholds set the shaded regions overlap in the top-right
+  // quadrant, which is exactly the read a double materiality matrix wants:
+  // material on either axis is shaded, material on both is shaded twice and
+  // reads darker without needing a third colour.
+  if (opts.thresholdX != null) {
+    const bandX = toX(Math.min(opts.thresholdX, axisMax));
+    doc
+      .rect(bandX, plotY, Math.max(0, plotX + plotW - bandX), plotH)
+      .fillColor(CHART_TEAL_BG)
+      .fill();
   }
 
   // Gridlines at each integer step.
@@ -506,6 +521,23 @@ export function scatterMatrix(
         .font("Helvetica-Bold")
         .fontSize(6.5)
         .text(opts.thresholdLabel, plotX + 4, ty - 9, { width: plotW - 8, lineBreak: false });
+    }
+  }
+
+  if (opts.thresholdX != null) {
+    const tx = toX(opts.thresholdX);
+    doc.lineWidth(1).strokeColor(TEAL_DARK).dash(3, { space: 2 });
+    doc.moveTo(tx, plotY).lineTo(tx, plotY + plotH).stroke();
+    doc.undash();
+    if (opts.thresholdXLabel) {
+      doc.save();
+      doc.rotate(-90, { origin: [tx, plotY + plotH] });
+      doc
+        .fillColor(TEAL_DARK)
+        .font("Helvetica-Bold")
+        .fontSize(6.5)
+        .text(opts.thresholdXLabel, tx + 4, plotY + plotH - 10, { lineBreak: false });
+      doc.restore();
     }
   }
 
