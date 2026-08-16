@@ -302,11 +302,17 @@ export const saveCsrdData = async (userId: string, facilityId: string, input: Cs
   const report = await upsertReportShell(facility.companyId, facilityId, input.reportingPeriod);
   const materialByCode = new Map(existing.materialTopics.map((t) => [t.standardCode, t.isMaterial]));
 
+  // Only written when the key is actually present. The draft convention is
+  // that an autosave carries every field with null meaning "cleared", so a
+  // full payload still clears correctly — but a partial call (one section, or
+  // an API client sending only what it changed) must not silently wipe the
+  // fields it did not mention. Writing unconditionally does exactly that, and
+  // it is invisible until someone notices a number has vanished.
   await prisma.csrdReport.update({
     where: { id: report.id },
     data: {
-      netRevenueEur: normalise(input.netRevenueEur) as number | null,
-      notes: (normalise(input.notes) as string | null) ?? null,
+      ...("netRevenueEur" in input ? { netRevenueEur: normalise(input.netRevenueEur) as number | null } : {}),
+      ...("notes" in input ? { notes: (normalise(input.notes) as string | null) ?? null } : {}),
       status: submit ? "SUBMITTED" : "DRAFT",
     },
   });
