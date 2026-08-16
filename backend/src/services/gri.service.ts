@@ -95,7 +95,22 @@ export const saveMaterialityAssessment = async (
   const existingReport = await prisma.griReport.findUnique({
     where: { facilityId_reportingPeriod: { facilityId, reportingPeriod: input.reportingPeriod } },
   });
-  requireDraft(existingReport, false);
+
+  /**
+   * A submitted report accepts a completed re-run, but not a background
+   * autosave.
+   *
+   * Blocking both outright would mean a facility that submits and then spots a
+   * mis-scored impact can never correct its material topics — there is no
+   * resubmit path for the assessment the way there is for disclosure data, so
+   * the report would be wrong permanently. Allowing a silent draft save on a
+   * submitted report is the opposite problem: it would let a half-edited
+   * assessment quietly change the published set of material topics.
+   *
+   * So `complete: true` is the escape hatch, and if it moves the material set
+   * the report drops back to DRAFT (see the end of this function).
+   */
+  requireDraft(existingReport, input.complete === true);
 
   const report = await upsertReportShell(facility.companyId, facilityId, input.reportingPeriod);
 
@@ -143,12 +158,46 @@ export const saveMaterialityAssessment = async (
   const rankings = rankTopicsByImpacts(scoredImpacts, threshold);
   const rankingByTopic = new Map(rankings.map((r) => [r.topicCode, r]));
 
+  const existingTopics = new Map(
+    (await prisma.griMaterialTopic.findMany({ where: { griReportId: report.id } })).map((t) => [t.topicCode, t]),
+  );
+
+  const autoRationale = (ranking: { significanceScore: number } | undefined): string =>
+    ranking
+      ? `Assessed with a highest impact significance of ${ranking.significanceScore.toFixed(2)}, below the disclosed materiality threshold of ${threshold.toFixed(2)}.`
+      : "No actual or potential impacts were identified for this topic during the materiality assessment.";
+
   // Write a GriMaterialTopic row for every topic in the registry, not only the
   // ones with impacts: a topic nobody raised an impact against is still a
   // topic that was assessed and excluded, and the content index has to say so.
   for (const standard of GRI_TOPIC_STANDARDS) {
     const ranking = rankingByTopic.get(standard.code);
     const isMaterial = ranking?.meetsThreshold ?? false;
+    const significanceScore = ranking?.significanceScore ?? null;
+    const existing = existingTopics.get(standard.code);
+
+    /**
+     * The rationale has to describe the CURRENT determination.
+     *
+     * A topic that gains impacts on a re-run but still falls below the
+     * threshold would otherwise keep its original "no impacts were
+     * identified" line — which is now false, and prints verbatim in the
+     * content index. So the auto rationale is regenerated whenever the
+     * determination moved.
+     *
+     * It is preserved only when the determination is genuinely unchanged
+     * (same topic, same score, still not material), because the stored text
+     * may have been rewritten by the user via the disclosure form and there
+     * is nothing stale about it in that case.
+     */
+    const determinationUnchanged =
+      existing != null && existing.isMaterial === false && existing.significanceScore === significanceScore;
+
+    const notMaterialRationale = isMaterial
+      ? null
+      : determinationUnchanged && existing?.notMaterialRationale
+        ? existing.notMaterialRationale
+        : autoRationale(ranking);
 
     await prisma.griMaterialTopic.upsert({
       where: { griReportId_topicCode: { griReportId: report.id, topicCode: standard.code } },
@@ -156,27 +205,40 @@ export const saveMaterialityAssessment = async (
         griReportId: report.id,
         topicCode: standard.code,
         isMaterial,
-        significanceScore: ranking?.significanceScore ?? null,
+        significanceScore,
         rank: isMaterial ? (ranking?.rank ?? null) : null,
-        notMaterialRationale: isMaterial
-          ? null
-          : ranking
-            ? `Assessed with a highest impact significance of ${ranking.significanceScore.toFixed(2)}, below the disclosed materiality threshold of ${threshold.toFixed(2)}.`
-            : "No actual or potential impacts were identified for this topic during the materiality assessment.",
+        notMaterialRationale,
       },
       update: {
         isMaterial,
-        significanceScore: ranking?.significanceScore ?? null,
+        significanceScore,
         rank: isMaterial ? (ranking?.rank ?? null) : null,
-        // Clearing the rationale when a topic becomes material keeps a stale
-        // "not material because..." from surviving into a report that now
-        // discloses the topic in full.
-        ...(isMaterial ? { notMaterialRationale: null } : {}),
+        // Always written, never conditional: clearing it when a topic becomes
+        // material stops a stale "not material because..." surviving into a
+        // report that now discloses the topic in full, and rewriting it when
+        // the score moved stops a stale explanation of a superseded result.
+        notMaterialRationale,
       },
     });
   }
 
-  return { assessment, rankings };
+  // Re-running the assessment on an already-submitted report is allowed (see
+  // the guard at the top of this function), but it can change which topics are
+  // material — and a submitted report whose material set has moved no longer
+  // matches the disclosure data behind it. Dropping it back to DRAFT forces an
+  // explicit resubmit, which re-runs the "material topic has no data" check
+  // and keeps the report body and the content index from diverging.
+  const materialSetChanged = GRI_TOPIC_STANDARDS.some((standard) => {
+    const before = existingTopics.get(standard.code)?.isMaterial ?? false;
+    const after = rankingByTopic.get(standard.code)?.meetsThreshold ?? false;
+    return before !== after;
+  });
+
+  if (materialSetChanged && existingReport?.status === "SUBMITTED") {
+    await prisma.griReport.update({ where: { id: report.id }, data: { status: "DRAFT" } });
+  }
+
+  return { assessment, rankings, materialSetChanged };
 };
 
 export const getMaterialityAssessment = async (userId: string, facilityId: string, reportingPeriod: string) => {
