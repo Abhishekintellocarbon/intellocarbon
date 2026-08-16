@@ -1,6 +1,8 @@
 import { asyncHandler } from "../utils/asyncHandler";
 import * as leadCaptureService from "../services/leadCapture.service";
-import { listLeadsQuerySchema } from "../validators/leadCapture.validators";
+import { listLeadsQuerySchema, unsubscribeSchema } from "../validators/leadCapture.validators";
+import { suppressEmail, verifyUnsubscribeToken } from "../services/emailSuppression.service";
+import { logger } from "../utils/logger";
 import { AppError } from "../utils/AppError";
 import { buildComplyPdf } from "../services/complyPdf.service";
 import type { ComplyResults } from "../services/intellocalcCalculations";
@@ -35,4 +37,31 @@ export const downloadComplyPdf = asyncHandler(async (req, res) => {
   res.setHeader("Content-Disposition", `attachment; filename="intellocalc-comply-map-${lead.id.slice(-8)}.pdf"`);
   doc.pipe(res);
   doc.end();
+});
+
+/**
+ * Public unsubscribe. POST, not GET, per RFC 8058 — mail clients and security
+ * scanners prefetch links, so a GET that mutates would let a scanner
+ * unsubscribe a recipient who never clicked anything.
+ *
+ * Always reports success, even for a bad token or an address that was already
+ * suppressed. The endpoint is unauthenticated, so distinguishing "wrong
+ * token" from "right token, already unsubscribed" would turn it into an
+ * oracle for probing which addresses are on the list. The real outcome is
+ * logged server-side instead.
+ */
+export const unsubscribe = asyncHandler(async (req, res) => {
+  const parsed = unsubscribeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw AppError.badRequest(parsed.error.issues[0]?.message ?? "Invalid request body", "VALIDATION_ERROR");
+  }
+
+  const { email, token } = parsed.data;
+  if (verifyUnsubscribeToken(email, token)) {
+    await suppressEmail(email, "Unsubscribed via email link");
+  } else {
+    logger.warn(`Unsubscribe attempted with an invalid token for ${email}`);
+  }
+
+  res.status(200).json({ unsubscribed: true });
 });

@@ -22,6 +22,9 @@ const PUBLIC_EXACT_ROUTES = new Set([
   "/project-screener",
   "/privacy",
   "/terms",
+  // Reached from a link in an email, by someone who may have no account at
+  // all — public by necessity.
+  "/unsubscribe",
   // Pre-auth screens. A visitor can land on these first, so consent has to be
   // obtainable here too — these are not "inside the authenticated app".
   "/login",

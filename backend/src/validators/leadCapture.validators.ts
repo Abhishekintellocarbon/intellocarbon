@@ -111,3 +111,16 @@ export const listLeadsQuerySchema = z.object({
 });
 
 export type ListLeadsQuery = z.infer<typeof listLeadsQuerySchema>;
+
+/**
+ * Unsubscribe payload. The email is carried in the request rather than
+ * recovered from the token because the token is an HMAC *of* the email — it
+ * is a signature, not an identifier, and there is nothing to look the address
+ * up from. Both must be present and must agree.
+ */
+export const unsubscribeSchema = z.object({
+  email: z.string().trim().email("Enter a valid email address").max(200),
+  token: z.string().trim().min(1, "Missing unsubscribe token").max(64),
+});
+
+export type UnsubscribeInput = z.infer<typeof unsubscribeSchema>;

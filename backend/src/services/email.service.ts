@@ -3,6 +3,7 @@ import { env, isProd } from "../config/env";
 import { logger } from "../utils/logger";
 import type { BorderResults, ComplyResults, IndiaResults } from "./intellocalcCalculations";
 import { buildComplyPdf } from "./complyPdf.service";
+import { isEmailSuppressed, unsubscribeUrl } from "./emailSuppression.service";
 import { CBAM_CERTIFICATE_PRICE_EUR, CBAM_CERTIFICATE_PRICE_QUARTER } from "../data/intellocalcConstants";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
@@ -65,6 +66,63 @@ const pdfToBuffer = (doc: PDFKit.PDFDocument): Promise<Buffer> =>
     doc.on("error", reject);
     doc.end();
   });
+
+/**
+ * Marketing email — a launch announcement, a campaign, anything the recipient
+ * did not directly trigger.
+ *
+ * This is the ONLY path that consults the suppression list, and every
+ * marketing send must go through it. sendEmail() above deliberately does not
+ * check: everything currently using it is transactional (password reset,
+ * verification decided, payment failed, deadline warning), and a person who
+ * unsubscribed from launch announcements has not asked to be locked out of
+ * resetting their password. Putting the check in sendEmail() would silently
+ * break account recovery for anyone who ever clicked unsubscribe — so the
+ * split is the safety property, not a stylistic one.
+ *
+ * Returns false when the send was skipped, so a campaign runner can report
+ * how many were suppressed rather than counting them as delivered.
+ *
+ * The List-Unsubscribe headers implement RFC 8058 one-click: mail clients
+ * surface a native unsubscribe control, and the POST target means a link
+ * scanner cannot unsubscribe someone by prefetching a URL.
+ */
+export const sendMarketingEmail = async ({
+  to,
+  subject,
+  html,
+}: Omit<SendEmailParams, "attachments">): Promise<boolean> => {
+  if (await isEmailSuppressed(to)) {
+    logger.info(`Marketing email skipped — ${to} is suppressed`, { subject });
+    return false;
+  }
+
+  if (!resend) {
+    if (isProd) {
+      logger.error("RESEND_API_KEY missing in production — marketing email not sent", { subject });
+    } else {
+      logger.info(`[email:dev] Would send marketing email to ${to}`, { subject });
+    }
+    return false;
+  }
+
+  const { error } = await resend.emails.send({
+    from: env.RESEND_FROM,
+    to,
+    subject,
+    html,
+    replyTo: env.RESEND_REPLY_TO,
+    headers: {
+      "List-Unsubscribe": `<${unsubscribeUrl(to)}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+  if (error) {
+    logger.error(`Resend failed to send marketing email to ${to}`, error);
+    throw new Error(`Failed to send marketing email: ${error.message}`);
+  }
+  return true;
+};
 
 const emailShell = (title: string, bodyHtml: string) => `
   <div style="background:#0F1923;padding:32px;font-family:Inter,Arial,sans-serif;">

@@ -2329,3 +2329,44 @@ model GriCustomerPrivacyDisclosure {
 
   @@map("gri_customer_privacy_disclosures")
 }
+
+// Email addresses that must never receive marketing email again.
+//
+// Keyed on the email itself, NOT on a LeadCapture row: one person can hold
+// several rows (a GRI waitlist signup, an ISSB one, an IntelloCalc lead), and
+// "unsubscribe" means the person, not the row that happened to carry the link
+// they clicked. Suppressing per-row would let the next campaign mail them
+// again through a different row and turn one unsubscribe into a complaint.
+//
+// This governs MARKETING mail only. Transactional mail — password resets,
+// verification decisions, payment failures — is sent through a path that
+// never consults this table, because a person who opted out of launch
+// announcements has not opted out of being able to reset their password.
+// See sendMarketingEmail vs sendEmail in services/email.service.ts.
+//
+// Rows are never deleted on resubscribe; re-consent should create a fresh
+// signal rather than erase the record that consent was once withdrawn.
+model EmailSuppression {
+  id String @id @default(cuid())
+
+  // Stored lowercased and trimmed — normaliseEmail() in
+  // emailSuppression.service.ts is the only writer, so the unique constraint
+  // actually holds across "A@x.com" and "a@x.com".
+  email String @unique
+
+  // Free text rather than an enum: the useful values here ("unsubscribed via
+  // one-click", "hard bounce", "spam complaint", a support-desk note) come
+  // from operational reality and a migration per new reason would guarantee
+  // the column just gets stuffed with OTHER.
+  reason String
+
+  // Null for an unsubscribe the recipient performed themselves; set when a
+  // human suppressed on their behalf, so the two are distinguishable in an
+  // audit.
+  suppressedBy String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("email_suppressions")
+}

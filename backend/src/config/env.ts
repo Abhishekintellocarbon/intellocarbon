@@ -1,6 +1,10 @@
 import "dotenv/config";
 import { z } from "zod";
 
+// Exported so the production guard below and the dev-mode tests can compare
+// against the literal rather than restating it.
+export const DEV_UNSUBSCRIBE_SECRET = "dev-only-unsubscribe-secret-not-for-production-use";
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(4000),
@@ -17,6 +21,22 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional().default(""),
   RESEND_FROM: z.string().default("Intellocarbon <notifications@intellocarbon.com>"),
   RESEND_REPLY_TO: z.string().default("abhishek@intellocarbon.com"),
+
+  // Signs the unsubscribe links embedded in marketing email. Separate from the
+  // JWT secrets on purpose: those are rotated when a session-security incident
+  // demands it, and rotating this one silently breaks the unsubscribe link in
+  // every email already sitting in a recipient's inbox — which is both a
+  // deliverability problem and, in several jurisdictions, a compliance one.
+  //
+  // TREAT AS NEVER-ROTATE. If it must change, keep the old value readable and
+  // verify against both (see verifyUnsubscribeToken) until the old campaigns
+  // have aged out.
+  EMAIL_UNSUBSCRIBE_SECRET: z
+    .string()
+    .min(32, "EMAIL_UNSUBSCRIBE_SECRET must be at least 32 characters")
+    // Dev-only fallback so a local checkout boots without another secret to
+    // set. Production refuses to start on this value — see the guard below.
+    .default(DEV_UNSUBSCRIBE_SECRET),
 
   // Comma-separated list of emails allowed to view the IntelloCalc leads admin
   // dashboard. Checked against the authenticated user's email, independent of
@@ -60,6 +80,18 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === "production";
+
+// Unlike the two warnings below, this exits. Those are benign misconfigurations
+// (a broken link, a redundant TLS flag); this one is not. The unsubscribe
+// secret signs the tokens that authorise suppressing an address, so a value
+// anyone can read out of the repo lets a stranger forge a valid unsubscribe
+// for any email they like and suppress the entire marketing list in a loop.
+if (isProd && env.EMAIL_UNSUBSCRIBE_SECRET === DEV_UNSUBSCRIBE_SECRET) {
+  console.error(
+    "EMAIL_UNSUBSCRIBE_SECRET is still the development default in production — unsubscribe tokens would be forgeable by anyone with the repo. Set a real secret.",
+  );
+  process.exit(1);
+}
 
 // CORS itself doesn't depend on this (production origins are hardcoded in
 // config/cors.ts), but CLIENT_URL is baked into every transactional email
