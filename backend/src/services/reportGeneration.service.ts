@@ -35,6 +35,10 @@ const TIER_GRANTS: Record<ReportType, SubscriptionTier[]> = {
   // GRI folds into the same ESG Disclosure Bundle as BRSR Core and ISSB — no
   // separate tier, per the standing no-new-price-points rule.
   GRI: ["BRSR_CORE_REPORTING"],
+  // Same bundle again. CSRD's mandatory scope under Omnibus I is far above
+  // this customer base, so it is sold as part of the ESG bundle for voluntary
+  // and value-chain-request use rather than priced as a premium tier.
+  CSRD: ["BRSR_CORE_REPORTING"],
 };
 
 const hasAccess = async (companyId: string, reportType: ReportType): Promise<boolean> => {

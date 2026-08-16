@@ -191,6 +191,7 @@ model Company {
   brsrCoreReports      BrsrCoreReport[]
   issbS1S2Reports      IssbS1S2Report[]
   griReports           GriReport[]
+  csrdReports          CsrdReport[]
   scope3Data           Scope3Data[]
   voluntaryOffsets     VoluntaryOffsetPurchase[]
   auditLogs            AuditLog[]
@@ -527,6 +528,8 @@ enum ReportType {
   UK_CBAM
   // GRI Standards 2021 sustainability report — see data/griStandards.ts.
   GRI
+  // CSRD/ESRS sustainability statement — see data/esrsStandards.ts.
+  CSRD
 }
 
 enum ReportStatus {
@@ -687,6 +690,7 @@ model Facility {
   brsrCoreReports     BrsrCoreReport[]
   issbS1S2Reports     IssbS1S2Report[]
   griReports          GriReport[]
+  csrdReports         CsrdReport[]
   scope3Data          Scope3Data[]
   voluntaryOffsets    VoluntaryOffsetPurchase[]
   auditLogs           AuditLog[]
@@ -2369,4 +2373,510 @@ model EmailSuppression {
 
   @@index([createdAt])
   @@map("email_suppressions")
+}
+
+// ===========================================================================
+// CSRD / ESRS
+//
+// Full European Sustainability Reporting Standards module: ESRS 2 general
+// disclosures, the ten topical standards (E1-E5, S1-S4, G1), and the double
+// materiality assessment that decides which of the ten are reported at all.
+//
+// The controlling design decision mirrors GRI's: the materiality assessment
+// comes FIRST and gates everything. What differs is that ESRS materiality has
+// two independent axes — impact (the undertaking's effect on people and the
+// environment, looking outwards) and financial (a sustainability matter's
+// effect on the undertaking, looking inwards) — and a topic is material if
+// EITHER axis clears its threshold, not both. See csrdCalculation.service.ts.
+//
+// Version and provenance live in data/esrsStandards.ts. In short: the revised
+// ESRS (2026) delegated act applies to FY2027 onward, which is the only period
+// CSRD's Omnibus I scope covers, and every datapoint in the registry carries a
+// CONFIRMED / PENDING_SOURCE flag recording whether it has been reconciled
+// against that adopted text. Until the registry is fully reconciled, no report
+// from this module may claim ESRS conformity.
+//
+// As with GRI and BRSR, figures the platform can already derive — Scope 1/2/3,
+// the ISO 14046 water inventory, waste, energy — are NOT stored on these
+// tables. Stored columns are datapoints the calculation engines have no source
+// for.
+// ===========================================================================
+
+model CsrdReport {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  // "FY2025-26" — resolved against Company.reportingFyStartMonth, same as every
+  // other framework here.
+  reportingPeriod String
+
+  // Denominator for the per-revenue intensity datapoints ESRS specifies
+  // (E1-5d energy intensity, E1-6e GHG intensity, E3-4e water intensity).
+  // Held in EUR because ESRS expresses them per net revenue in euro, unlike
+  // BRSR's rupee turnover — storing the rupee figure and converting would need
+  // an FX rate this platform deliberately does not hold.
+  netRevenueEur Float?
+
+  status DataEntryStatus @default(DRAFT)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  materialityAssessment       CsrdMaterialityAssessment?
+  materialTopics              CsrdMaterialTopic[]
+  generalDisclosures          CsrdGeneralDisclosures?
+  climateDisclosure           CsrdClimateDisclosure?
+  pollutionDisclosure         CsrdPollutionDisclosure?
+  waterDisclosure             CsrdWaterDisclosure?
+  biodiversityDisclosure      CsrdBiodiversityDisclosure?
+  circularDisclosure          CsrdCircularDisclosure?
+  ownWorkforceDisclosure      CsrdOwnWorkforceDisclosure?
+  valueChainWorkersDisclosure CsrdValueChainWorkersDisclosure?
+  communitiesDisclosure       CsrdCommunitiesDisclosure?
+  consumersDisclosure         CsrdConsumersDisclosure?
+  businessConductDisclosure   CsrdBusinessConductDisclosure?
+
+  @@unique([facilityId, reportingPeriod])
+  @@index([companyId])
+  @@map("csrd_reports")
+}
+
+// The double materiality assessment. Re-run each reporting period, so it hangs
+// off CsrdReport rather than off Facility.
+model CsrdMaterialityAssessment {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  stakeholderGroups        String[] @default([])
+  engagementApproach       String?
+  // ESRS 2 IRO-1 — the process by which impacts, risks and opportunities were
+  // identified and assessed.
+  iroIdentificationProcess String?
+  prioritisationProcess    String?
+
+  // Separate thresholds per axis, because the two are scored on different
+  // things and an undertaking may legitimately set them differently. Both are
+  // disclosed in the report.
+  impactThreshold    Float @default(3)
+  financialThreshold Float @default(3)
+
+  // Topic gating only takes effect once this is set — a half-finished
+  // assessment must not silently exclude standards from the report.
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  iros CsrdIro[]
+
+  @@map("csrd_materiality_assessments")
+}
+
+// Which side of double materiality an entry is scored on. A single
+// sustainability matter frequently qualifies on both — a climate transition
+// impact that is also a financial risk — which is why these are not exclusive
+// and both score blocks below are independently nullable.
+enum CsrdIroKind {
+  IMPACT
+  FINANCIAL
+  BOTH
+}
+
+enum CsrdImpactType {
+  NEGATIVE_ACTUAL
+  NEGATIVE_POTENTIAL
+  POSITIVE_ACTUAL
+  POSITIVE_POTENTIAL
+}
+
+enum CsrdFinancialEffectType {
+  RISK
+  OPPORTUNITY
+}
+
+enum CsrdValueChainLocation {
+  OWN_OPERATIONS
+  UPSTREAM
+  DOWNSTREAM
+}
+
+// One impact, risk or opportunity identified during the assessment.
+//
+// Scored on up to two independent axes:
+//
+//  - IMPACT materiality follows the same severity construction as GRI 3 —
+//    scale, scope and irremediability, weighted by likelihood for potential
+//    impacts — because ESRS deliberately aligned its impact materiality with
+//    GRI's. computeImpactSeverity is shared logic, not a coincidence.
+//  - FINANCIAL materiality is magnitude of the financial effect weighted by
+//    likelihood of occurrence. It has no severity construction: a financial
+//    risk has a size and a probability, not a scope or an irremediability.
+//
+// Fields for an axis are null when the entry is not scored on it, which is why
+// `kind` exists rather than being inferred — an entry with no financial score
+// is different from one assessed as financially immaterial.
+model CsrdIro {
+  id           String                    @id @default(cuid())
+  assessmentId String
+  assessment   CsrdMaterialityAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  // Validated against ESRS_STANDARD_CODES at the app layer — a String rather
+  // than an enum so adding a standard is a code-only change, same rationale as
+  // GriImpact.topicCode.
+  standardCode String
+  description  String
+
+  kind               CsrdIroKind
+  valueChainLocation CsrdValueChainLocation @default(OWN_OPERATIONS)
+
+  // --- Impact materiality (outward) ---
+  impactType       CsrdImpactType?
+  scale            Int?
+  scope            Int?
+  irremediability  Int?
+  impactLikelihood Int?
+  impactScore      Float?
+
+  // --- Financial materiality (inward) ---
+  financialEffectType CsrdFinancialEffectType?
+  magnitude           Int?
+  financialLikelihood Int?
+  financialScore      Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assessmentId])
+  @@map("csrd_iros")
+}
+
+// The materiality determination per ESRS topical standard, and the ESRS 2
+// minimum disclosure requirements that attach to each material one.
+//
+// A row exists for every standard in the registry, including those judged not
+// material — ESRS requires the statement to explain what was assessed and
+// excluded, so a silently absent standard is not an option.
+model CsrdMaterialTopic {
+  id           String     @id @default(cuid())
+  csrdReportId String
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  standardCode String
+
+  // Derived from the assessment. `isMaterial` is the OR of the two axes —
+  // ESRS makes a matter material if it passes either, and storing the axes
+  // separately is what lets the report say which one carried it.
+  isMaterial        Boolean @default(false)
+  impactMaterial    Boolean @default(false)
+  financialMaterial Boolean @default(false)
+  impactScore       Float?
+  financialScore    Float?
+
+  // Required by app-layer validation when the standard is not material.
+  notMaterialRationale String?
+
+  // ESRS 2 minimum disclosure requirements, restated per material standard.
+  policies String?
+  actions  String?
+  targets  String?
+  metrics  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([csrdReportId, standardCode])
+  @@index([csrdReportId])
+  @@map("csrd_material_topics")
+}
+
+// ESRS 2 General disclosures — reported by every undertaking, never gated by
+// materiality. Columns generated from ESRS_2_DATAPOINTS in data/esrsStandards.ts.
+model CsrdGeneralDisclosures {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  basisOfPreparation            String? // BP-1
+  specificCircumstances         String? // BP-2
+  governanceBodiesRole          String? // GOV-1
+  governanceExecutiveMembers    Int? // GOV-1b
+  governanceNonExecutiveMembers Int? // GOV-1c
+  governanceIndependentPct      Float? // GOV-1d (%)
+  governanceGenderDiversityPct  Float? // GOV-1e (%)
+  governanceInformationFlow     String? // GOV-2
+  incentiveSchemes              String? // GOV-3
+  dueDiligenceStatement         String? // GOV-4
+  riskManagementControls        String? // GOV-5
+  strategyBusinessModel         String? // SBM-1
+  stakeholderInterests          String? // SBM-2
+  materialIroInteraction        String? // SBM-3
+  iroIdentificationProcess      String? // IRO-1
+  minimumPolicies               String? // MDR-P
+  minimumActions                String? // MDR-A
+  minimumTargets                String? // MDR-T
+  minimumMetrics                String? // MDR-M
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_general_disclosures")
+}
+
+// ESRS E1 Climate change — gated by the double materiality assessment.
+// Columns generated from the registry; derived datapoints (E1-5, E1-5c, E1-5d, E1-6, E1-6a, E1-6c, E1-6d, E1-6e, E1-7b) are
+// computed at report-build time and deliberately have no column.
+model CsrdClimateDisclosure {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  transitionPlan              String? // E1-1
+  climatePolicies             String? // E1-2
+  climateActions              String? // E1-3
+  climateTargets              String? // E1-4
+  targetBaseYear              Int? // E1-4a
+  targetReductionPct          Float? // E1-4b (%)
+  targetYear                  Int? // E1-4c
+  energyFossilMwh             Float? // E1-5a (MWh)
+  energyNuclearMwh            Float? // E1-5b (MWh)
+  scope2MarketTco2e           Float? // E1-6b (tCO2e)
+  biogenicCo2Tonnes           Float? // E1-6f (t CO2)
+  removalsAndCredits          String? // E1-7
+  removalsOwnOperationsTco2e  Float? // E1-7a (tCO2e)
+  internalCarbonPricing       String? // E1-8
+  internalCarbonPricePerTonne Float? // E1-8a (EUR/tCO2e)
+  anticipatedFinancialEffects String? // E1-9
+  assetsAtPhysicalRiskPct     Float? // E1-9a (%)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_climate_disclosure")
+}
+
+// ESRS E2 Pollution — gated by the double materiality assessment.
+// Columns generated from the registry; derived datapoints (none) are
+// computed at report-build time and deliberately have no column.
+model CsrdPollutionDisclosure {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  pollutionPolicies         String? // E2-1
+  pollutionActions          String? // E2-2
+  pollutionTargets          String? // E2-3
+  pollutionNarrative        String? // E2-4
+  airPollutantsTonnes       Float? // E2-4a (t)
+  waterPollutantsTonnes     Float? // E2-4b (t)
+  soilPollutantsTonnes      Float? // E2-4c (t)
+  substancesOfConcern       String? // E2-5
+  svhcTonnes                Float? // E2-5a (t)
+  pollutionFinancialEffects String? // E2-6
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_pollution_disclosure")
+}
+
+// ESRS E3 Water and marine resources — gated by the double materiality assessment.
+// Columns generated from the registry; derived datapoints (E3-4, E3-4a, E3-4b, E3-4d, E3-4e) are
+// computed at report-build time and deliberately have no column.
+model CsrdWaterDisclosure {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  waterPolicies            String? // E3-1
+  waterActions             String? // E3-2
+  waterTargets             String? // E3-3
+  waterConsumptionStressM3 Float? // E3-4c (m3)
+  waterFinancialEffects    String? // E3-5
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_water_disclosure")
+}
+
+// ESRS E4 Biodiversity and ecosystems — gated by the double materiality assessment.
+// Columns generated from the registry; derived datapoints (none) are
+// computed at report-build time and deliberately have no column.
+model CsrdBiodiversityDisclosure {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  biodiversityTransitionPlan   String? // E4-1
+  biodiversityPolicies         String? // E4-2
+  biodiversityActions          String? // E4-3
+  biodiversityTargets          String? // E4-4
+  biodiversityImpactMetrics    String? // E4-5
+  sitesNearSensitiveAreas      Int? // E4-5a
+  landUseChangeHa              Float? // E4-5b (ha)
+  landRestoredHa               Float? // E4-5c (ha)
+  biodiversityFinancialEffects String? // E4-6
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_biodiversity_disclosure")
+}
+
+// ESRS E5 Resource use and circular economy — gated by the double materiality assessment.
+// Columns generated from the registry; derived datapoints (E5-5a, E5-5b, E5-5c, E5-5d) are
+// computed at report-build time and deliberately have no column.
+model CsrdCircularDisclosure {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  circularPolicies         String? // E5-1
+  circularActions          String? // E5-2
+  circularTargets          String? // E5-3
+  resourceInflows          String? // E5-4
+  materialsUsedTonnes      Float? // E5-4a (t)
+  secondaryMaterialsPct    Float? // E5-4b (%)
+  resourceOutflows         String? // E5-5
+  nonRecycledWasteTonnes   Float? // E5-5e (t)
+  circularFinancialEffects String? // E5-6
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_circular_disclosure")
+}
+
+// ESRS S1 Own workforce — gated by the double materiality assessment.
+// Columns generated from the registry; derived datapoints (none) are
+// computed at report-build time and deliberately have no column.
+model CsrdOwnWorkforceDisclosure {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  workforcePolicies               String? // S1-1
+  workerEngagement                String? // S1-2
+  workerRemediation               String? // S1-3
+  workforceActions                String? // S1-4
+  workforceTargets                String? // S1-5
+  employeesTotal                  Int? // S1-6
+  employeesFemale                 Int? // S1-6a
+  employeesMale                   Int? // S1-6b
+  employeeTurnoverPct             Float? // S1-6c (%)
+  nonEmployeeWorkers              Int? // S1-7
+  collectiveBargainingPct         Float? // S1-8 (%)
+  genderDiversityTopManagementPct Float? // S1-9 (%)
+  adequateWagesAllEmployees       Boolean? // S1-10
+  socialProtection                String? // S1-11
+  employeesWithDisabilitiesPct    Float? // S1-12 (%)
+  avgTrainingHours                Float? // S1-13 (hours)
+  healthSafetyNarrative           String? // S1-14
+  healthSafetyCoveragePct         Float? // S1-14a (%)
+  fatalities                      Int? // S1-14b
+  recordableAccidents             Int? // S1-14c
+  recordableAccidentRate          Float? // S1-14d
+  familyLeaveEntitledPct          Float? // S1-15 (%)
+  genderPayGapPct                 Float? // S1-16 (%)
+  remunerationRatio               Float? // S1-16a
+  humanRightsIncidents            Int? // S1-17
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_own_workforce_disclosure")
+}
+
+// ESRS S2 Workers in the value chain — gated by the double materiality assessment.
+// Columns generated from the registry; derived datapoints (none) are
+// computed at report-build time and deliberately have no column.
+model CsrdValueChainWorkersDisclosure {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  valueChainWorkerPolicies     String? // S2-1
+  valueChainWorkerEngagement   String? // S2-2
+  valueChainWorkerRemediation  String? // S2-3
+  valueChainWorkerActions      String? // S2-4
+  valueChainWorkerTargets      String? // S2-5
+  suppliersAssessed            Int? // S2-5a
+  suppliersWithNegativeImpacts Int? // S2-5b
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_value_chain_workers_disclosure")
+}
+
+// ESRS S3 Affected communities — gated by the double materiality assessment.
+// Columns generated from the registry; derived datapoints (none) are
+// computed at report-build time and deliberately have no column.
+model CsrdCommunitiesDisclosure {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  communityPolicies           String? // S3-1
+  communityEngagement         String? // S3-2
+  communityRemediation        String? // S3-3
+  communityActions            String? // S3-4
+  communityTargets            String? // S3-5
+  operationsWithEngagementPct Float? // S3-5a (%)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_communities_disclosure")
+}
+
+// ESRS S4 Consumers and end-users — gated by the double materiality assessment.
+// Columns generated from the registry; derived datapoints (none) are
+// computed at report-build time and deliberately have no column.
+model CsrdConsumersDisclosure {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  consumerPolicies    String? // S4-1
+  consumerEngagement  String? // S4-2
+  consumerRemediation String? // S4-3
+  consumerActions     String? // S4-4
+  consumerTargets     String? // S4-5
+  consumerComplaints  Int? // S4-5a
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_consumers_disclosure")
+}
+
+// ESRS G1 Business conduct — gated by the double materiality assessment.
+// Columns generated from the registry; derived datapoints (none) are
+// computed at report-build time and deliberately have no column.
+model CsrdBusinessConductDisclosure {
+  id           String     @id @default(cuid())
+  csrdReportId String     @unique
+  csrdReport   CsrdReport @relation(fields: [csrdReportId], references: [id], onDelete: Cascade)
+
+  conductPolicies           String? // G1-1
+  supplierRelationships     String? // G1-2
+  corruptionPrevention      String? // G1-3
+  antiCorruptionTrainingPct Float? // G1-3a (%)
+  corruptionIncidents       Int? // G1-4
+  corruptionFinesEur        Float? // G1-4a (EUR)
+  politicalInfluence        String? // G1-5
+  politicalContributionsEur Float? // G1-5a (EUR)
+  paymentPractices          String? // G1-6
+  averageDaysToPay          Int? // G1-6a (days)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("csrd_business_conduct_disclosure")
 }
