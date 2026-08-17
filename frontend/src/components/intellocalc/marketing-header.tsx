@@ -54,8 +54,14 @@ export function MarketingHeader() {
             <FaqNavLink />
           </nav>
         </div>
-        <div className="flex items-center gap-4 pl-6 sm:pl-10">
-          <LiveClock />
+        <div className="flex items-center gap-4 pl-4 sm:pl-10">
+          {/* Hidden on the narrowest phones. At 375px the lockup, the clock and
+              the menu button do not all fit on one row, and the clock is the
+              only one of the three that is not navigation — below sm it was
+              already degraded to a bare date with no time, so little is lost. */}
+          <span className="hidden sm:block">
+            <LiveClock />
+          </span>
           <MobileNav isAuthenticated={isAuthenticated} />
           <div className="hidden items-center gap-5 md:flex">
             {isAuthenticated ? (

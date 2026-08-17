@@ -23,6 +23,9 @@ const SIZE_STYLES = {
     wrapper: "gap-2.5",
     mark: 32,
     text: "text-lg",
+    // Small enough to fit at every width; no responsive override needed.
+    markResponsive: "",
+    markResponsive3d: "",
   },
   lg: {
     // The header mark. 40px was too quiet for a top-left primary brand mark,
@@ -30,9 +33,26 @@ const SIZE_STYLES = {
     // it is ~4.3px wide and the green→teal→blue ramp has too little area to
     // read — the mark looked like a flat teal outline even though the gradient
     // was painting correctly. 54px is where the ramp becomes legible.
-    wrapper: "gap-4",
+    //
+    // That sizing is md-and-up only. The full lockup measures 379px, which is
+    // wider than a 375px phone on its own: below md it overflowed the header
+    // and pushed the mobile menu button off the right edge entirely. Mobile
+    // therefore keeps the pre-scale-up 40px mark, where the gradient argument
+    // above does not apply — there is no room for 54px regardless.
+    //
+    // Three wordmark steps rather than two. text-2xl still left the lockup at
+    // 303px against the 275px a 375px phone can spare once the menu button is
+    // reserved; text-xl brings it to 262px. Measured at 375/390/414 — the
+    // narrowest is the one that binds, so the base step is sized for it and
+    // sm/md step back up.
+    wrapper: "gap-3.5 md:gap-4",
     mark: 54,
-    text: "text-3xl",
+    text: "text-xl sm:text-2xl md:text-3xl",
+    // The mark's px size is an attribute, not a class, so the responsive half
+    // has to come from CSS that overrides it. Written out in full because
+    // Tailwind only sees class strings that exist literally in the source.
+    markResponsive: "w-10 md:w-[54px] h-10 md:h-[54px]",
+    markResponsive3d: "[&>svg]:w-[41px] [&>svg]:h-[41px] md:[&>svg]:w-[55px] md:[&>svg]:h-[55px]",
   },
 } as const;
 
@@ -79,9 +99,15 @@ export function Logo({
           decorative={!iconOnly}
           idScope={idScope}
           depthScale={HEADER_DEPTH_SCALE}
+          className={s.markResponsive3d}
         />
       ) : (
-        <IntellocarbonLogoFace size={s.mark} decorative={!iconOnly} idScope={idScope} />
+        <IntellocarbonLogoFace
+          size={s.mark}
+          decorative={!iconOnly}
+          idScope={idScope}
+          className={s.markResponsive}
+        />
       )}
       {!iconOnly && (
         <span
