@@ -335,7 +335,14 @@ export function IntellocarbonLogo3D({
     <span
       ref={wrapRef}
       className={cn("inline-block shrink-0 leading-none", className)}
-      style={{ perspective: `${size * 7}px`, width: size, height: size }}
+      // Only perspective is set here. The box used to be pinned to `size` as
+      // well, which meant a caller resizing the svg through CSS — as the header
+      // does responsively — left the span at the original size with the smaller
+      // svg anchored in its top-left corner: the mark rode high against the
+      // wordmark and carried dead space in front of it. The span is
+      // inline-block, so with no dimensions of its own it shrink-wraps the svg
+      // and tracks whatever size the svg actually renders at.
+      style={{ perspective: `${size * 7}px` }}
       onPointerMove={handlePointerMove}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}

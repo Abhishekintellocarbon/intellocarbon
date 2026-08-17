@@ -40,19 +40,29 @@ const SIZE_STYLES = {
     // therefore keeps the pre-scale-up 40px mark, where the gradient argument
     // above does not apply — there is no room for 54px regardless.
     //
-    // Three wordmark steps rather than two. text-2xl still left the lockup at
-    // 303px against the 275px a 375px phone can spare once the menu button is
-    // reserved; text-xl brings it to 262px. Measured at 375/390/414 — the
-    // narrowest is the one that binds, so the base step is sized for it and
-    // sm/md step back up.
+    // Four wordmark steps. Each is the largest that fits the width below it,
+    // measured against the space the lockup actually has: viewport, less the
+    // 24px header padding on both sides, less the 36px menu button and the
+    // 16px before it. The 400px stop is not a device — it is where 22px stops
+    // overflowing a 390px phone, which is the most common width in the range.
+    //
+    //   375px -> 275px for the lockup   text-xl   (20px) -> lockup 111 + word
+    //   400px -> 300px                  22px
+    //   640px -> sm, clock returns      text-2xl  (24px)
+    //   768px -> md, full desktop nav   text-3xl  (30px)
     wrapper: "gap-3.5 md:gap-4",
     mark: 54,
-    text: "text-xl sm:text-2xl md:text-3xl",
+    text: "text-xl min-[400px]:text-[22px] sm:text-2xl md:text-3xl",
     // The mark's px size is an attribute, not a class, so the responsive half
     // has to come from CSS that overrides it. Written out in full because
     // Tailwind only sees class strings that exist literally in the source.
-    markResponsive: "w-10 md:w-[54px] h-10 md:h-[54px]",
-    markResponsive3d: "[&>svg]:w-[41px] [&>svg]:h-[41px] md:[&>svg]:w-[55px] md:[&>svg]:h-[55px]",
+    //
+    // 48px rather than the 40px this first shrank to. That number was chosen
+    // when the mark's wrapper was still padding the lockup with 14px of dead
+    // space; with the box tight against the svg the width is available, and it
+    // buys back some of the gradient legibility 54px exists for.
+    markResponsive: "w-12 md:w-[54px] h-12 md:h-[54px]",
+    markResponsive3d: "[&>svg]:w-[49px] [&>svg]:h-[49px] md:[&>svg]:w-[55px] md:[&>svg]:h-[55px]",
   },
 } as const;
 
