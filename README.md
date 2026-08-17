@@ -213,6 +213,16 @@ wired up; the steps below are what's needed to stand one up.
    `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`,
    `RAZORPAY_PLAN_ID_CCTS_COMPLIANCE`, `RAZORPAY_PLAN_ID_CBAM_COMPLIANCE`,
    `RAZORPAY_PLAN_ID_CBAM_PLUS_CCTS`, `NODE_ENV=production`.
+
+   `EMAIL_UNSUBSCRIBE_SECRET` is **required in production and the process exits
+   without it** — `config/env.ts` refuses to start on the development default,
+   because a secret readable from the repo lets anyone forge an unsubscribe for
+   any address. It is the one variable here whose absence looks like a deploy
+   failure rather than a degraded feature: migrations apply, then the container
+   exits 1, the host retries, marks the deploy failed and keeps serving the
+   previous release. If a deploy dies ~75s in with no build error, check this
+   first. **Treat it as never-rotate** — it signs the unsubscribe link in every
+   email already delivered; see the note in `config/env.ts`.
 3. Note the deployed URL (e.g. `https://api-intellocarbon.up.railway.app`) —
    you'll need it for the frontend's `NEXT_PUBLIC_API_URL`.
 4. **CORS is a hardcoded allowlist**, not just `CLIENT_URL` — see

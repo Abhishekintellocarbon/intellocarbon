@@ -10,8 +10,14 @@ FROM base AS deps
 # ONLY the manifests here. Do not add `COPY prisma ./prisma` back: it puts the
 # schema into this layer's cache key, so every schema edit invalidates the
 # layer and forces a full `npm ci` on the next build. That install is ~78% of
-# total build time, and the churn is what pushed builds past Render's timeout
-# once the schema started changing on most commits.
+# total build time on a cold build (148s of 189s); with the layer cached it is
+# ~5s on Render.
+#
+# The commit that made this change claimed the cache churn was pushing builds
+# past Render's timeout. That was wrong — see the follow-up commit. Those
+# deploys were failing in ~75s at container start on a missing env var, not
+# timing out. Keep the ordering anyway; it is a real speedup, just not a fix
+# for anything that was actually broken.
 #
 # The schema is not needed to install. @prisma/client's postinstall generates a
 # client when it finds one, but the build stage below runs `npx prisma generate`
