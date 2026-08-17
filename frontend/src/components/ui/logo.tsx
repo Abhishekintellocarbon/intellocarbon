@@ -46,13 +46,18 @@ const SIZE_STYLES = {
     // 16px before it. The 400px stop is not a device — it is where 22px stops
     // overflowing a 390px phone, which is the most common width in the range.
     //
-    //   375px -> 275px for the lockup   text-xl   (20px) -> lockup 111 + word
+    //   375px -> 275px for the lockup   text-xl   (20px)
     //   400px -> 300px                  22px
-    //   640px -> sm, clock returns      text-2xl  (24px)
-    //   768px -> md, full desktop nav   text-3xl  (30px)
+    //   640px -> sm, clock appears      text-2xl  (24px)
+    //
+    // It stops at 24px. text-3xl used to apply from md up, but the header is
+    // capped at max-w-6xl, so past that cap a bigger wordmark does not use
+    // spare viewport — it takes 64px straight out of the nav's budget and
+    // wrapped "Project Screener" and "About Us" onto second lines. The nav
+    // needs the width more than the wordmark does.
     wrapper: "gap-3.5 md:gap-4",
     mark: 54,
-    text: "text-xl min-[400px]:text-[22px] sm:text-2xl md:text-3xl",
+    text: "text-xl min-[400px]:text-[22px] sm:text-2xl",
     // The mark's px size is an attribute, not a class, so the responsive half
     // has to come from CSS that overrides it. Written out in full because
     // Tailwind only sees class strings that exist literally in the source.

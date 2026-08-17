@@ -17,21 +17,26 @@ export function MarketingHeader() {
     <>
       <IntelloCalcToolsPanel />
       <header className="relative z-30 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-6">
           <Link href="/">
             <Logo size="lg" dimensional />
           </Link>
-          <nav className="hidden items-center gap-3 md:flex">
+          {/* 1360px, not a Tailwind stop. The nav needs 1085px of header, and
+              at lg and up the IntelloCalc panel takes a fixed 240px gutter out
+              of the viewport first, so the row only fits from ~1330px. md
+              (768px) switched a nav that needs 1085px into a 720px box, which
+              is what cut it off in phone landscape and tablet portrait. */}
+          <nav className="hidden items-center gap-1 min-[1360px]:flex">
             <Link
               href="/"
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+              className="whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
             >
               Home
             </Link>
             <ServicesNavDropdown />
             <Link
               href="/esg"
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+              className="whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
             >
               ESG
             </Link>
@@ -41,29 +46,33 @@ export function MarketingHeader() {
                 compliance position. */}
             <Link
               href="/project-screener"
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+              className="whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
             >
               Project Screener
             </Link>
             <Link
               href="/about"
-              className="rounded-lg px-3 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+              className="whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
             >
               About Us
             </Link>
             <FaqNavLink />
           </nav>
         </div>
-        <div className="flex items-center gap-4 pl-4 sm:pl-10">
-          {/* Hidden on the narrowest phones. At 375px the lockup, the clock and
+        <div className="flex items-center gap-4 pl-4 sm:pl-10 min-[1360px]:pl-6">
+          {/* Visible only between sm and xl. At 375px the lockup, the clock and
               the menu button do not all fit on one row, and the clock is the
               only one of the three that is not navigation — below sm it was
-              already degraded to a bare date with no time, so little is lost. */}
-          <span className="hidden sm:block">
+              already degraded to a bare date with no time, so little is lost.
+              At 1360px the full nav arrives and the same argument applies from
+              the other end: the row is 126px over budget with the clock in it,
+              and the clock is still the only part that is not navigation. It
+              has the whole tablet range to itself. */}
+          <span className="hidden sm:block min-[1360px]:hidden">
             <LiveClock />
           </span>
           <MobileNav isAuthenticated={isAuthenticated} />
-          <div className="hidden items-center gap-5 md:flex">
+          <div className="hidden items-center gap-4 min-[1360px]:flex">
             {isAuthenticated ? (
               <Link href="/dashboard">
                 <Button

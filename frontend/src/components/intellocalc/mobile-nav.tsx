@@ -16,7 +16,7 @@ export function MobileNav({ isAuthenticated }: { isAuthenticated: boolean }) {
   };
 
   return (
-    <div className="md:hidden">
+    <div className="min-[1360px]:hidden">
       <button
         type="button"
         aria-label="Open menu"
