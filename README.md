@@ -234,6 +234,28 @@ wired up; the steps below are what's needed to stand one up.
    browser silently block every API response, which the frontend surfaces as
    a generic "Something went wrong" with no useful error.
 
+5. **Confirm a deploy actually landed** by checking the commit the API reports,
+   rather than that it merely responds:
+   ```bash
+   curl -s https://<your-api-host>/api/health
+   # {"status":"ok","service":"intellocarbon-api","commit":"7a7136a","time":"..."}
+   ```
+   Compare `commit` against the SHA you pushed (`git rev-parse --short=7
+   HEAD`). A 200 on its own proves nothing — the host keeps serving the
+   *previous* release when a deploy fails, so a healthy response is exactly
+   what a failed deploy looks like from outside. Without this field, confirming
+   a release meant finding some externally visible behaviour that differed
+   between the two builds, which works when the change adds a route and not at
+   all when it only alters, say, a generated PDF sitting behind auth.
+
+   The value comes from `RENDER_GIT_COMMIT`, which Render sets on every service
+   automatically — no configuration needed. On a host that doesn't, pass the
+   commit as the `GIT_COMMIT` build arg declared in `backend/Dockerfile`. Two
+   values mean something specific: `"unknown"` is the field working but neither
+   source available (check the build arg), and the field being **absent
+   entirely** means the running build predates commit `7a7136a`, which is
+   itself a useful signal. See `backend/src/config/version.ts`.
+
 **Free-tier sleep**: Render's (and some other hosts') free plans spin the
 service down after ~15 minutes idle, so the first request after a lull pays a
 slow cold start. `.github/workflows/keep-backend-awake.yml` pings
