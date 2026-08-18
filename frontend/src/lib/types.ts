@@ -295,6 +295,26 @@ export interface WaterFootprint {
   hasDischargeExceedingWithdrawal: boolean;
 }
 
+export type CircularitySource = "GRI_306" | "BRSR_CORE";
+
+/**
+ * Waste circularity. `source` and `approximated` are not decoration — the two
+ * backing disclosures define diversion differently, so the rate is only
+ * meaningful alongside them. See wasteCircularity.service.ts.
+ */
+export interface CircularityRollup {
+  hasData: boolean;
+  source: CircularitySource | null;
+  periodLabel: string | null;
+  generatedTonnes: number;
+  divertedTonnes: number;
+  disposalTonnes: number;
+  hazardousTonnes: number | null;
+  circularityRatePct: number | null;
+  facilityCount: number;
+  approximated: boolean;
+}
+
 export interface WaterFootprintRollup extends WaterFootprint {
   entriesWithWater: number;
   facilitiesReporting: number;
@@ -1454,6 +1474,7 @@ export interface EsgOverview {
   scope3: EsgScope3Summary;
   /** ISO 14046 water footprint rolled up from submitted ActivityData. */
   water: WaterFootprintRollup;
+  circularity: CircularityRollup;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;

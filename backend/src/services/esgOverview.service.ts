@@ -1,5 +1,6 @@
 import type { Facility, IssbS1S2Report, Scope3Data } from "@prisma/client";
 import { prisma } from "../config/prisma";
+import { buildCircularityRollup, type CircularityRollup } from "./wasteCircularity.service";
 import { requireMyCompany } from "./company.service";
 import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { getCompanyBrsrAnalytics, type CompanyBrsrAnalytics } from "./companyDashboard.service";
@@ -640,6 +641,7 @@ export interface EsgOverview {
   gri: GriOverviewSummary;
   scope3: Scope3OverviewSummary;
   water: WaterFootprintRollup;
+  circularity: CircularityRollup;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
@@ -758,6 +760,20 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
   ];
   const lastUpdate = lastUpdateCandidates.sort((a, b) => b.at.getTime() - a.at.getTime())[0] ?? null;
 
+  // Waste circularity. Built from the GRI 306 rows already loaded above and
+  // the BRSR waste columns, so it adds no query — see wasteCircularity for why
+  // the two sources are kept apart rather than blended.
+  const circularity = buildCircularityRollup(
+    griReports
+      .filter((r) => r.wasteDisclosure != null)
+      .map((r) => ({ ...r.wasteDisclosure!, reportingPeriod: r.reportingPeriod })),
+    brsrRows.map((r) => ({
+      reportingPeriod: r.reportingPeriod,
+      wasteGeneratedTonnes: r.wasteGeneratedTonnes,
+      wasteRecoveredTonnes: r.wasteRecoveredTonnes,
+    })),
+  );
+
   return {
     companyName: company.name,
     facilityCount: facilities.length,
@@ -767,6 +783,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     gri: griSummary,
     scope3,
     water: rollUpWaterFootprints(waterRows),
+    circularity,
     offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),

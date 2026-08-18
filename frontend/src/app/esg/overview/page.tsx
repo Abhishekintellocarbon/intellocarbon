@@ -14,6 +14,7 @@ import { IssbSummaryCard } from "@/components/dashboard/esg/issb-summary-card";
 import { GriSummaryCard } from "@/components/dashboard/esg/gri-summary-card";
 import { Scope3BreakdownChart } from "@/components/dashboard/esg/scope3-breakdown-chart";
 import { WaterFootprintCard } from "@/components/dashboard/esg/water-footprint-card";
+import { CircularityCard } from "@/components/dashboard/esg/circularity-card";
 import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
@@ -153,6 +154,21 @@ function EsgOverviewContent() {
 
               <div className="mt-4">
                 <WaterFootprintCard water={overview.water} />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Waste and circularity</h2>
+                <span className="text-xs text-muted-foreground">GRI 306 / BRSR Core</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                How much of your waste is kept out of disposal, reused from the waste figures you have already
+                disclosed. The card states which disclosure the rate was computed from.
+              </p>
+
+              <div className="mt-4">
+                <CircularityCard circularity={overview.circularity} />
               </div>
             </section>
 
