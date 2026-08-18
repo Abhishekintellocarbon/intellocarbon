@@ -196,6 +196,7 @@ model Company {
   targets              CompanyTarget[]
   recPurchases         RecPurchase[]
   suppliers            Supplier[]
+  productSkus          ProductSku[]
   scope3Data           Scope3Data[]
   voluntaryOffsets     VoluntaryOffsetPurchase[]
   auditLogs            AuditLog[]
@@ -697,6 +698,7 @@ model Facility {
   csrdReports         CsrdReport[]
   cdpReports          CdpReport[]
   recPurchases        RecPurchase[]
+  productSkus         ProductSku[]
   scope3Data          Scope3Data[]
   voluntaryOffsets    VoluntaryOffsetPurchase[]
   auditLogs           AuditLog[]
@@ -3577,4 +3579,60 @@ model Supplier {
 
   @@index([companyId])
   @@map("suppliers")
+}
+
+// ===========================================================================
+// Product carbon footprint per SKU
+//
+// Allocates a facility's own emissions across the products it makes, giving an
+// indicative per-unit figure.
+//
+// THIS IS NOT AN LCA, AND THE GAP IS LARGE. A life cycle assessment traces a
+// product from raw material extraction through manufacture, distribution, use
+// and end of life, with allocation rules chosen per process. This divides one
+// facility's Scope 1 and 2 by production share. It therefore excludes the
+// embodied emissions of everything bought in, all transport, the use phase and
+// end of life — which for most products is the majority of the true footprint.
+//
+// The larger weakness is the allocation itself: splitting by production volume
+// assumes every SKU is equally emissions-intensive per unit. That is usually
+// false. A complex or thin-gauge product can take several times the energy per
+// tonne of a simple one, and volume allocation will understate the first and
+// overstate the second. ISO 14067 and the GHG Protocol Product Standard both
+// prefer physical causality where it can be established.
+//
+// So the output is labelled indicative everywhere it appears, and must never
+// be presented as a product carbon footprint suitable for a customer
+// declaration, an EPD or a CBAM submission. A real LCA is a separate build.
+// ===========================================================================
+
+model ProductSku {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  name    String
+  skuCode String?
+
+  // "FY2025-26" — the allocation is per period, because both the facility's
+  // emissions and its product mix change year to year.
+  reportingPeriod String
+
+  // Output in this period. The unit is free text because a facility may track
+  // tonnes, units, square metres or litres, and forcing tonnes would make the
+  // per-unit figure meaningless for anyone who does not.
+  productionQuantity Float
+  unit               String
+
+  status DataEntryStatus @default(DRAFT)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([facilityId, reportingPeriod])
+  @@map("product_skus")
 }

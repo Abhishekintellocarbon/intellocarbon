@@ -34,6 +34,7 @@ import type {
   CdpMetrics,
   CdpMaturityAssessment,
   CdpResponseIndex,
+  ProductFootprintAllocation,
   IssbS1S2Metrics,
   Scope3Data,
   Scope3CategoryCatalogEntry,
@@ -1412,6 +1413,19 @@ export const csrdApi = {
     link.remove();
     URL.revokeObjectURL(objectUrl);
   },
+};
+
+export const productSkuApi = {
+  getAllocation: (
+    facilityId: string,
+    period: string,
+  ): Promise<{ allocation: ProductFootprintAllocation; skus: unknown[] }> =>
+    apiFetch(`/api/product-skus/facilities/${facilityId}/allocation/${encodeURIComponent(period)}`),
+
+  create: (input: Record<string, unknown>, submit: boolean): Promise<{ sku: unknown }> =>
+    apiFetch(`/api/product-skus`, { method: "POST", body: JSON.stringify({ ...input, submit }) }),
+
+  remove: (skuId: string): Promise<void> => apiFetch(`/api/product-skus/${skuId}`, { method: "DELETE" }),
 };
 
 export const cdpApi = {

@@ -295,6 +295,30 @@ export interface WaterFootprint {
   hasDischargeExceedingWithdrawal: boolean;
 }
 
+export interface SkuFootprint {
+  skuId: string;
+  name: string;
+  skuCode: string | null;
+  productionQuantity: number;
+  unit: string;
+  allocationSharePct: number;
+  allocatedTco2e: number;
+  /** Indicative only — allocation of facility Scope 1+2, never an LCA figure. */
+  perUnitKgCo2e: number;
+}
+
+export interface ProductFootprintAllocation {
+  hasData: boolean;
+  periodLabel: string | null;
+  facilityEmissionsTco2e: number;
+  allocatedQuantity: number;
+  facilityProductionQuantity: number | null;
+  /** Null when SKU units differ from the facility's, so the comparison is meaningless. */
+  productionCoveragePct: number | null;
+  skus: SkuFootprint[];
+  unavailableReason: string | null;
+}
+
 export interface TrajectoryPoint {
   year: number;
   /** Null for every year without submitted data, including all future years. */
