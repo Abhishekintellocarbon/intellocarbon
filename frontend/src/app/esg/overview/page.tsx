@@ -22,6 +22,7 @@ import { GovernanceCard } from "@/components/dashboard/esg/governance-card";
 import { SupplierScorecardCard } from "@/components/dashboard/esg/supplier-scorecard-card";
 import { SectorBenchmarkCard } from "@/components/dashboard/esg/sector-benchmark-card";
 import { NetZeroTrajectoryCard } from "@/components/dashboard/esg/net-zero-trajectory-card";
+import { EcovadisReadinessCard } from "@/components/dashboard/esg/ecovadis-readiness-card";
 import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
@@ -283,6 +284,21 @@ function EsgOverviewContent() {
 
               <div className="mt-4">
                 <SectorBenchmarkCard benchmarks={overview.benchmarks} />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">EcoVadis readiness</h2>
+                <span className="text-xs text-muted-foreground">Preparation, not a score</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                How much of each EcoVadis theme you could already evidence from data you have given us. EcoVadis
+                scores and awards medals on its own platform using its own methodology — nothing here predicts that.
+              </p>
+
+              <div className="mt-4">
+                <EcovadisReadinessCard ecovadis={overview.ecovadis} />
               </div>
             </section>
 

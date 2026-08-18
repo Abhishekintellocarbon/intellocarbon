@@ -1728,6 +1728,7 @@ export interface EsgOverview {
   suppliers: SupplierScorecard;
   benchmarks: BenchmarkSet;
   trajectory: NetZeroTrajectory;
+  ecovadis: EcovadisReadiness;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;
@@ -2737,4 +2738,39 @@ export interface RegulatoryWatchEntry {
   nextMilestone: string | null;
   lastVerifiedAt: string;
   stale: boolean;
+}
+
+export type EcovadisThemeKey = "ENVIRONMENT" | "LABOUR_HUMAN_RIGHTS" | "ETHICS" | "SUSTAINABLE_PROCUREMENT";
+export type ReadinessBand = "NOT_STARTED" | "DEVELOPING" | "ESTABLISHED" | "STRONG";
+
+export interface ReadinessIndicator {
+  key: string;
+  label: string;
+  sourcedFrom: string;
+  met: boolean;
+}
+
+export interface EcovadisTheme {
+  key: EcovadisThemeKey;
+  label: string;
+  band: ReadinessBand;
+  metCount: number;
+  totalCount: number;
+  coveragePct: number;
+  indicators: ReadinessIndicator[];
+}
+
+/**
+ * Readiness only. Never a score or a medal — EcoVadis awards those on its own
+ * platform. See ecovadisReadiness.service.ts.
+ */
+export interface EcovadisReadiness {
+  themes: EcovadisTheme[];
+  overallBand: ReadinessBand;
+  metCount: number;
+  totalCount: number;
+  coveragePct: number;
+  gaps: string[];
+  notScoreNotice: string;
+  notSubmissionNotice: string;
 }

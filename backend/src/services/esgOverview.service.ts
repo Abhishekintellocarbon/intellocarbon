@@ -8,6 +8,7 @@ import { buildGovernanceSummary, type GovernanceSummary } from "./governanceSumm
 import { buildSupplierScorecard, type SupplierScorecard } from "./supplierScorecard.service";
 import { buildBenchmarkSet, type BenchmarkSet } from "./sectorBenchmark.service";
 import { buildNetZeroTrajectory, type NetZeroTrajectory } from "./netZeroTrajectory.service";
+import { buildEcovadisReadiness, type EcovadisReadiness } from "./ecovadisReadiness.service";
 import { requireMyCompany } from "./company.service";
 import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { getCompanyBrsrAnalytics, type CompanyBrsrAnalytics } from "./companyDashboard.service";
@@ -656,6 +657,7 @@ export interface EsgOverview {
   suppliers: SupplierScorecard;
   benchmarks: BenchmarkSet;
   trajectory: NetZeroTrajectory;
+  ecovadis: EcovadisReadiness;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
@@ -919,6 +921,45 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     })),
   );
 
+
+  // EcoVadis readiness. Every input is something already assembled above —
+  // this collects nothing new and predicts no score. See
+  // ecovadisReadiness.service.
+  const griUniversalRow = latestGriUniversal as Record<string, unknown> | null;
+  const brsrLatest = brsrRows
+    .slice()
+    .sort((a, b) => a.reportingPeriod.localeCompare(b.reportingPeriod))
+    .at(-1);
+  const governancePolicy = (key: string) =>
+    governance.policies.find((p) => p.key === key)?.state === "DISCLOSED";
+
+  const ecovadis = buildEcovadisReadiness({
+    hasScope12: (brsr.hasReports || waterRows.length > 0) && energyMix.hasData,
+    hasScope3: scope3All.length > 0,
+    hasEnergySplit: energyMix.hasData,
+    hasRenewableProcurement: recCoverage.totalRecsMwh > 0,
+    hasWaterData: rollUpWaterFootprints(waterRows).hasData,
+    hasWasteData: circularity.hasData,
+    hasEmissionsTarget: targets.targets.length > 0,
+
+    hasEmployeeHeadcount: griUniversalRow?.employeesTotal != null || brsrLatest?.employeeCountTotal != null,
+    hasGenderDiversity: brsrLatest?.womenInWorkforcePct != null,
+    hasSafetyIncidents: brsrLatest?.safetyIncidentsCount != null,
+    hasHumanRightsPolicy: governancePolicy("humanRights"),
+    hasCollectiveBargaining: griUniversalRow?.collectiveBargainingCoveragePct != null,
+
+    hasCodeOfConduct: governancePolicy("conductPolicies"),
+    hasAntiCorruption: governancePolicy("antiCorruption"),
+    hasWhistleblowing: governancePolicy("whistleblowing"),
+    hasConflictsOfInterest: governancePolicy("conflictsOfInterest"),
+    hasBoardOversight: governancePolicy("boardClimateOversight"),
+
+    hasSupplierList: suppliers.supplierCount > 0,
+    hasSupplierDisclosures: suppliers.withDisclosureCount > 0,
+    hasSupplierScreening: suppliers.gri.hasData,
+    hasSupplierRiskAssessment: suppliers.riskBreakdown.LOW + suppliers.riskBreakdown.MEDIUM + suppliers.riskBreakdown.HIGH > 0,
+  });
+
   return {
     companyName: company.name,
     facilityCount: facilities.length,
@@ -936,6 +977,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     suppliers,
     benchmarks,
     trajectory,
+    ecovadis,
     offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),
