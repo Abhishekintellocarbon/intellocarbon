@@ -34,6 +34,15 @@ RUN npm prune --omit=dev
 
 FROM base AS runner
 ENV NODE_ENV=production
+
+# Stamped into /api/health so a deploy can be verified from outside without
+# probing for behaviour that differs between builds. Optional: Render injects
+# RENDER_GIT_COMMIT on its own, which config/version.ts falls back to, so this
+# only matters on hosts that don't. Declared in the runner stage rather than
+# earlier so a new commit doesn't invalidate the dependency and build layers —
+# the npm ci layer above is ~78% of a cold build.
+ARG GIT_COMMIT=""
+ENV GIT_COMMIT=$GIT_COMMIT
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma

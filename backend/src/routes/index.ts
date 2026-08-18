@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { COMMIT_SHA } from "../config/version";
 import authRoutes from "./auth.routes";
 import companyRoutes from "./company.routes";
 import facilityRoutes from "./facility.routes";
@@ -22,8 +23,16 @@ import cctsObligatedEntityRoutes from "./cctsObligatedEntity.routes";
 
 const router = Router();
 
+// `commit` makes a deploy verifiable from outside: curl this after a push and
+// compare against the SHA you pushed, rather than hunting for some behaviour
+// that differs between the old build and the new one. See config/version.ts.
 router.get("/health", (_req, res) => {
-  res.status(200).json({ status: "ok", service: "intellocarbon-api", time: new Date().toISOString() });
+  res.status(200).json({
+    status: "ok",
+    service: "intellocarbon-api",
+    commit: COMMIT_SHA,
+    time: new Date().toISOString(),
+  });
 });
 
 router.use("/auth", authRoutes);
