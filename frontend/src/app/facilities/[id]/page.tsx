@@ -15,6 +15,7 @@ import { FACILITY_TYPE_OPTIONS, PRODUCTION_ROUTE_OPTIONS } from "@/lib/constants
 import { GriSection } from "@/components/gri/gri-section";
 import { CsrdSection } from "@/components/csrd/csrd-section";
 import { CdpSection } from "@/components/cdp/cdp-section";
+import { ProductSkuSection } from "@/components/esg/product-sku-section";
 import { VoluntaryOffsetsSection } from "@/components/offsets/voluntary-offsets-section";
 
 const labelFor = (options: readonly { value: string; label: string }[], value: string) =>
@@ -257,6 +258,8 @@ function FacilityDetailContent() {
         <CsrdSection facilityId={facility.id} />
 
         <CdpSection facilityId={facility.id} />
+
+        <ProductSkuSection facilityId={facility.id} />
         <VoluntaryOffsetsSection facilityId={facility.id} />
       </main>
     </div>

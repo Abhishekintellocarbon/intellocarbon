@@ -125,7 +125,7 @@ export function SupplierScorecardCard({ suppliers }: { suppliers: SupplierScorec
           icon={Network}
           title="No suppliers listed"
           description="Add your key suppliers and whether you hold an ESG disclosure for each, and coverage is tracked here."
-          ctaHref="/esg/overview"
+          ctaHref="/esg/data"
           ctaLabel="Add a supplier"
         />
       )}

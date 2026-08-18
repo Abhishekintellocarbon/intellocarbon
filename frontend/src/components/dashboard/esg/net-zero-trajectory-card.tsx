@@ -123,7 +123,7 @@ export function NetZeroTrajectoryCard({ trajectory }: { trajectory: NetZeroTraje
           icon={TrendingDown}
           title="No trajectory to plot"
           description={trajectory.unavailableReason ?? "Set a reduction target to see your emissions plotted against it."}
-          ctaHref="/esg/overview"
+          ctaHref="/esg/data"
           ctaLabel="Add a target"
         />
       )}

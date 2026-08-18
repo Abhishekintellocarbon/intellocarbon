@@ -117,7 +117,7 @@ export function RecCoverageCard({ coverage }: { coverage: RecCoverage }) {
           icon={BadgeCheck}
           title="No certificates recorded"
           description="Log renewable energy certificates and their coverage of your grid electricity is tracked here, matched by vintage year."
-          ctaHref="/esg/overview"
+          ctaHref="/esg/data"
           ctaLabel="Add a certificate"
         />
       )}

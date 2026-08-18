@@ -36,6 +36,12 @@ import type {
   CdpResponseIndex,
   ProductFootprintAllocation,
   RegulatoryWatchEntry,
+  CompanyTarget,
+  CompanyTargetsSummary,
+  RecPurchase,
+  RecCoverage,
+  Supplier,
+  SupplierScorecard,
   IssbS1S2Metrics,
   Scope3Data,
   Scope3CategoryCatalogEntry,
@@ -1425,6 +1431,39 @@ export const csrdApi = {
     link.remove();
     URL.revokeObjectURL(objectUrl);
   },
+};
+
+export const targetApi = {
+  list: (): Promise<CompanyTargetsSummary> => apiFetch(`/api/targets`),
+
+  create: (input: Record<string, unknown>, submit: boolean): Promise<{ target: CompanyTarget }> =>
+    apiFetch(`/api/targets`, { method: "POST", body: JSON.stringify({ ...input, submit }) }),
+
+  update: (targetId: string, input: Record<string, unknown>, submit: boolean): Promise<{ target: CompanyTarget }> =>
+    apiFetch(`/api/targets/${targetId}`, { method: "PUT", body: JSON.stringify({ ...input, submit }) }),
+
+  remove: (targetId: string): Promise<void> => apiFetch(`/api/targets/${targetId}`, { method: "DELETE" }),
+};
+
+export const recApi = {
+  list: (): Promise<{ purchases: RecPurchase[]; coverage: RecCoverage }> => apiFetch(`/api/recs`),
+
+  create: (input: Record<string, unknown>, submit: boolean): Promise<{ purchase: RecPurchase }> =>
+    apiFetch(`/api/recs`, { method: "POST", body: JSON.stringify({ ...input, submit }) }),
+
+  remove: (recId: string): Promise<void> => apiFetch(`/api/recs/${recId}`, { method: "DELETE" }),
+};
+
+export const supplierApi = {
+  list: (): Promise<{ suppliers: Supplier[]; scorecard: SupplierScorecard }> => apiFetch(`/api/suppliers`),
+
+  create: (input: Record<string, unknown>, submit: boolean): Promise<{ supplier: Supplier }> =>
+    apiFetch(`/api/suppliers`, { method: "POST", body: JSON.stringify({ ...input, submit }) }),
+
+  update: (supplierId: string, input: Record<string, unknown>, submit: boolean): Promise<{ supplier: Supplier }> =>
+    apiFetch(`/api/suppliers/${supplierId}`, { method: "PUT", body: JSON.stringify({ ...input, submit }) }),
+
+  remove: (supplierId: string): Promise<void> => apiFetch(`/api/suppliers/${supplierId}`, { method: "DELETE" }),
 };
 
 export const productSkuApi = {

@@ -119,7 +119,7 @@ export function TargetProgressCard({ targets }: { targets: CompanyTargetsSummary
           icon={Target}
           title="No reduction target set"
           description="Add a target — baseline year, target year and percentage — and progress against it is tracked automatically from your submitted emissions."
-          ctaHref="/esg/overview"
+          ctaHref="/esg/data"
           ctaLabel="Add a target"
         />
       )}
