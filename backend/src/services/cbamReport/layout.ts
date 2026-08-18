@@ -269,13 +269,21 @@ export class PageBuilder {
     // Confidentiality strip
     const footY = PAGE_HEIGHT - 90;
     doc.moveTo(MARGIN_X, footY).lineTo(PAGE_RIGHT, footY).strokeColor(BORDER).lineWidth(1).stroke();
-    doc
-      .fillColor(MUTED)
-      .font("Helvetica-Oblique")
-      .fontSize(7.5)
-      .text(opts.confidentialityText, MARGIN_X, footY + 12, { width: CONTENT_WIDTH, align: "center" });
+
+    const textY = footY + 12;
+    const textOpts = { width: CONTENT_WIDTH, align: "center" as const };
+    doc.fillColor(MUTED).font("Helvetica-Oblique").fontSize(7.5).text(opts.confidentialityText, MARGIN_X, textY, textOpts);
+
+    // The badge flows below the text it follows rather than sitting at a fixed
+    // offset. Every confidentiality string in use today wraps to two lines and
+    // cleared a hardcoded footY+34 by 4.7pt — so a single extra sentence would
+    // have run the text through the badge, silently, on a customer-facing
+    // cover. Measuring costs nothing and removes the cliff. Two-line text puts
+    // the badge within a third of a point of where it has always been, so
+    // existing covers are unchanged.
+    const textHeight = doc.heightOfString(opts.confidentialityText, textOpts);
     const badgeWidth = doc.font("Helvetica-Bold").fontSize(8).widthOfString(opts.docIdBadge) + 20;
-    drawPill(doc, opts.docIdBadge, MARGIN_X + (CONTENT_WIDTH - badgeWidth) / 2, footY + 34, {
+    drawPill(doc, opts.docIdBadge, MARGIN_X + (CONTENT_WIDTH - badgeWidth) / 2, textY + textHeight + 5, {
       bg: ROW_ALT,
       color: NAVY,
       fontSize: 8,
@@ -648,7 +656,27 @@ export class PageBuilder {
     }
   }
 
-  /** Finalize: draw the TOC rows and stamp header/footer/page-numbers on every page now that total page count is known. */
+  /**
+   * Finalize: draw the TOC rows and stamp header/footer/page-numbers on every
+   * page now that total page count is known.
+   *
+   * The cover gets neither band. The header band was always skipped; the
+   * footer has to be too, and for a stronger reason than symmetry — it
+   * collided. coverShell anchors its confidentiality strip and DOC ID pill to
+   * the foot of the page (the pill spans y 786-804), and drawFooter writes at
+   * height-46 and height-34 (y 796 and 808), so the generic footer was drawn
+   * straight through the pill on every branded cover.
+   *
+   * Skipping is the right fix rather than moving either block, because there
+   * is nothing to preserve: FOOTER_NOTE names the company and says
+   * "Confidential", and the cover's own strip already gives both, more
+   * precisely ("classified Confidential — Regulatory Submission … © 2026
+   * Intellocarbon Solutions Private Limited"). Covers also conventionally
+   * carry no page number. Nothing is lost and the collision cannot recur.
+   *
+   * Page numbering is unaffected: `total` still counts the cover and interior
+   * pages still number from it, so page 2 remains "Page 2 of N".
+   */
   finalize() {
     const range = this.doc.bufferedPageRange();
     const total = range.count;
@@ -659,10 +687,9 @@ export class PageBuilder {
     }
 
     for (let i = range.start; i < range.start + range.count; i++) {
+      if (i === this.coverPageIndex) continue;
       this.doc.switchToPage(i);
-      if (i !== this.coverPageIndex) {
-        this.drawHeaderBand();
-      }
+      this.drawHeaderBand();
       this.drawFooter(i + 1, total);
     }
   }

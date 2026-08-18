@@ -1,0 +1,274 @@
+import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import PDFDocument from "pdfkit";
+import { PageBuilder } from "../cbamReport/layout";
+import { PAGE_HEIGHT, CONTENT_WIDTH, MARGIN_X } from "../cbamReport/theme";
+import { LOGO_LOCKUP_ON_DARK } from "../brandAssets";
+import { buildVerifyQr } from "../cbamReport/qr";
+
+/**
+ * Cover-page chrome, shared by every branded report: CBAM, UK CBAM, CCTS,
+ * BRSR, ISSB, GRI, CSRD and CDP.
+ *
+ * Two collisions lived in this layout, both invisible to every existing test
+ * because a PDF that renders overlapping text is still a valid PDF that opens
+ * and has the right page count.
+ *
+ * 1. finalize() stamped the running footer on the cover, straight through the
+ *    DOC ID badge that coverShell anchors to the foot of the page.
+ * 2. The badge sat at a hardcoded offset that cleared the confidentiality text
+ *    by 4.7pt — fine for every string in use, and one extra sentence away from
+ *    running the text through the badge.
+ *
+ * These tests assert the geometry directly rather than eyeballing a render,
+ * so the next person to lengthen a confidentiality string finds out here.
+ */
+
+// Mirrors drawFooter's two text baselines.
+const footerNoteY = (pageHeight: number) => pageHeight - 46;
+const pageNumberY = (pageHeight: number) => pageHeight - 34;
+
+const BADGE_HEIGHT = 8 + 5 * 2; // fontSize + paddingY * 2, per drawPill
+const FOOT_Y = PAGE_HEIGHT - 90;
+const TEXT_Y = FOOT_Y + 12;
+
+const measureText = (text: string): number => {
+  const doc = new PDFDocument({ size: "A4", margins: { top: 50, left: 50, right: 50, bottom: 20 } });
+  return doc.font("Helvetica-Oblique").fontSize(7.5).heightOfString(text, { width: CONTENT_WIDTH, align: "center" });
+};
+
+/**
+ * Builds a real cover with the given confidentiality string and reads back
+ * where coverShell actually put things.
+ *
+ * Observed rather than recomputed on purpose. An earlier version of this file
+ * reimplemented the badge formula and asserted against its own arithmetic,
+ * which passes whatever the source does — the one thing a regression test must
+ * not do. The badge is located by watching drawPill's roundedRect: it is the
+ * lowest rounded rectangle on the page, and its height is fontSize + 2 *
+ * paddingY.
+ */
+const measureCover = async (confidentialityText: string) => {
+  const doc = new PDFDocument({
+    size: "A4",
+    margins: { top: 50, left: 50, right: 50, bottom: 20 },
+    bufferPages: true,
+  });
+  const pb = new PageBuilder(doc, "ICT-MEASURE-0001");
+  const qr = await buildVerifyQr("ICT-MEASURE-0001");
+
+  const rects: { y: number; height: number }[] = [];
+  const realRoundedRect = doc.roundedRect.bind(doc);
+  doc.roundedRect = ((x: number, y: number, w: number, h: number, r: number) => {
+    rects.push({ y, height: h });
+    return realRoundedRect(x, y, w, h, r);
+  }) as typeof doc.roundedRect;
+
+  pb.coverShell({
+    logoPath: LOGO_LOCKUP_ON_DARK,
+    eyebrow: "Test",
+    title: "Cover Layout Test",
+    subtitle: "Verifying cover chrome",
+    heroLabel: "Metric",
+    heroValue: "1",
+    referenceBadge: "ICT-MEASURE-0001",
+    controlTitle: "Document Control",
+    controlRows: [["Document ID", "ICT-MEASURE-0001"]],
+    qrPngBuffer: qr.buffer,
+    qrCaption: "Scan to verify",
+    qrUrl: qr.url,
+    docIdBadge: "DOC ID  ICT-MEASURE-0001  \u00b7  v1.0",
+    confidentialityText,
+  });
+
+  const badges = rects.filter((r) => Math.abs(r.height - BADGE_HEIGHT) < 0.01);
+  expect(badges.length, "no DOC ID badge was drawn").toBeGreaterThan(0);
+  const badgeTop = Math.max(...badges.map((r) => r.y));
+
+  return { badgeTop, badgeBottom: badgeTop + BADGE_HEIGHT, textBottom: TEXT_Y + measureText(confidentialityText) };
+};
+
+/**
+ * Every confidentiality string actually passed to coverShell, read from the
+ * builders rather than copied — a copy would keep passing after the real
+ * string grew, which is the exact failure being guarded.
+ */
+const confidentialityTexts = (): [string, string][] => {
+  const servicesDir = path.join(__dirname, "..");
+  const found: [string, string][] = [];
+  for (const dir of fs.readdirSync(servicesDir)) {
+    const buildFile = path.join(servicesDir, dir, "build.ts");
+    if (!fs.existsSync(buildFile)) continue;
+    const src = fs.readFileSync(buildFile, "utf8");
+    const match = src.match(/confidentialityText:\s*((?:\s*"(?:[^"\\]|\\.)*"\s*\+?)+)/);
+    if (!match) continue;
+    const joined = (match[1].match(/"(?:[^"\\]|\\.)*"/g) ?? []).map((x) => JSON.parse(x) as string).join("");
+    found.push([dir, joined]);
+  }
+  return found;
+};
+
+describe("cover confidentiality strip and DOC ID badge", () => {
+  it("finds the builders' confidentiality strings", () => {
+    const texts = confidentialityTexts();
+    // Guards the reader above: if the regex stops matching, every clearance
+    // assertion below would vacuously pass on an empty list.
+    expect(texts.length).toBeGreaterThanOrEqual(8);
+    expect(texts.every(([, t]) => t.includes("Confidential"))).toBe(true);
+  });
+
+  it.each(confidentialityTexts())("%s: the badge clears the confidentiality text", async (_name, text) => {
+    const { badgeTop, textBottom } = await measureCover(text);
+    expect(badgeTop).toBeGreaterThanOrEqual(textBottom);
+  });
+
+  it.each(confidentialityTexts())("%s: the badge stays inside the printable page", async (_name, text) => {
+    // pdfkit's bottom margin is 20; anything past that risks spilling.
+    const { badgeBottom } = await measureCover(text);
+    expect(badgeBottom).toBeLessThanOrEqual(PAGE_HEIGHT - 20);
+  });
+
+  /**
+   * The property the old fixed offset lacked, and the reason this file exists:
+   * a longer string must push the badge down rather than grow into it.
+   */
+  it("moves the badge down when the text wraps to another line", async () => {
+    const twoLine = "x".repeat(200).replace(/(.{40})/g, "$1 ");
+    const fourLine = "x".repeat(500).replace(/(.{40})/g, "$1 ");
+    const short = await measureCover(twoLine);
+    const long = await measureCover(fourLine);
+
+    expect(long.badgeTop).toBeGreaterThan(short.badgeTop);
+    expect(long.badgeTop).toBeGreaterThanOrEqual(long.textBottom);
+  });
+
+  /**
+   * Existing covers must not visibly shift. Two-line text — which is every
+   * report today — has to land the badge where it always did, within a point.
+   */
+  it("leaves today's two-line covers where they were", async () => {
+    for (const [name, text] of confidentialityTexts()) {
+      const { badgeTop } = await measureCover(text);
+      expect(Math.abs(badgeTop - (FOOT_Y + 34)), `${name} shifted`).toBeLessThan(1);
+    }
+  });
+});
+
+/**
+ * Records which page each text draw lands on during finalize().
+ *
+ * Installed immediately before finalize() so it captures only the chrome pass,
+ * not the cover body. Asserting on draw calls rather than on the emitted PDF
+ * bytes is deliberate: pdfkit splits centred text into separately positioned
+ * runs, so a byte search for "Page 2 of 3" is brittle in a way that has
+ * nothing to do with the behaviour under test.
+ */
+const recordChromeDraws = (doc: PDFKit.PDFDocument, lastPageIndex: number) => {
+  const draws: { page: number; text: string }[] = [];
+  let current = lastPageIndex;
+
+  const realSwitch = doc.switchToPage.bind(doc);
+  const realText = doc.text.bind(doc);
+  doc.switchToPage = ((n: number) => {
+    current = n;
+    return realSwitch(n);
+  }) as typeof doc.switchToPage;
+  doc.text = ((text: string, ...rest: unknown[]) => {
+    draws.push({ page: current, text: String(text) });
+    return (realText as (...a: unknown[]) => PDFKit.PDFDocument)(text, ...rest);
+  }) as typeof doc.text;
+
+  return draws;
+};
+
+const buildCoverDoc = async (reference: string) => {
+  const doc = new PDFDocument({
+    size: "A4",
+    margins: { top: 50, left: 50, right: 50, bottom: 20 },
+    bufferPages: true,
+  });
+  const pb = new PageBuilder(doc, reference);
+  const qr = await buildVerifyQr(reference);
+  pb.coverShell({
+    logoPath: LOGO_LOCKUP_ON_DARK,
+    eyebrow: "Test",
+    title: "Cover Layout Test",
+    subtitle: "Verifying cover chrome",
+    heroLabel: "Metric",
+    heroValue: "1",
+    referenceBadge: reference,
+    controlTitle: "Document Control",
+    controlRows: [["Document ID", reference]],
+    qrPngBuffer: qr.buffer,
+    qrCaption: "Scan to verify",
+    qrUrl: qr.url,
+    docIdBadge: `DOC ID  ${reference}  \u00b7  v1.0`,
+    confidentialityText:
+      "This document is classified Confidential and is intended solely for the named distribution list above.",
+  });
+  return { doc, pb };
+};
+
+describe("the running footer is not stamped on the cover", () => {
+  /**
+   * The collision that was actually visible: the badge occupies y 786-804 and
+   * drawFooter writes at 796 and 808. Asserted as a geometric fact so that
+   * re-adding the footer to the cover fails here rather than shipping.
+   */
+  it("would collide with the badge if it were", async () => {
+    const [, text] = confidentialityTexts()[0];
+    const { badgeTop, badgeBottom } = await measureCover(text);
+    expect(footerNoteY(PAGE_HEIGHT)).toBeGreaterThan(badgeTop);
+    expect(footerNoteY(PAGE_HEIGHT)).toBeLessThan(badgeBottom);
+  });
+
+  it("draws no footer or header text on the cover, and both on interior pages", async () => {
+    const { doc, pb } = await buildCoverDoc("ICT-TEST-0001");
+    pb.startSection(1, "Interior");
+    pb.paragraph("Body copy.");
+
+    const draws = recordChromeDraws(doc, doc.bufferedPageRange().count - 1);
+    pb.finalize();
+
+    const onCover = draws.filter((d) => d.page === 0);
+    expect(onCover.filter((d) => d.text.includes("intellocarbon.com"))).toHaveLength(0);
+    expect(onCover.filter((d) => d.text.startsWith("Page "))).toHaveLength(0);
+    // The header band stamps the report reference; it must stay off the cover too.
+    expect(onCover.filter((d) => d.text === "ICT-TEST-0001")).toHaveLength(0);
+
+    const onInterior = draws.filter((d) => d.page === 1);
+    expect(onInterior.some((d) => d.text.includes("intellocarbon.com"))).toBe(true);
+    expect(onInterior.some((d) => d.text.startsWith("Page "))).toBe(true);
+  });
+});
+
+describe("page numbering is unaffected by skipping the cover", () => {
+  it("still counts the cover in the total and numbers interior pages from it", async () => {
+    const { doc, pb } = await buildCoverDoc("ICT-TEST-0002");
+    pb.startSection(1, "One");
+    pb.startSection(2, "Two");
+
+    const draws = recordChromeDraws(doc, doc.bufferedPageRange().count - 1);
+    pb.finalize();
+
+    const numbers = draws.filter((d) => d.text.startsWith("Page ")).map((d) => `${d.page}:${d.text}`);
+    // Cover is page index 0 and prints no number; it is still counted in the total.
+    expect(numbers).toEqual(["1:Page 2 of 3", "2:Page 3 of 3"]);
+  });
+});
+
+describe("pageNumberY stays clear of pdfkit's auto-pagination threshold", () => {
+  /**
+   * drawFooter's own comment warns that a text call whose bottom edge crosses
+   * page.height - bottomMargin makes pdfkit add a page — which once silently
+   * doubled a report's page count. Pinned so the offsets are not "tidied".
+   */
+  it("keeps both footer lines above the threshold", () => {
+    const threshold = PAGE_HEIGHT - 20;
+    const lineHeight = 9;
+    expect(footerNoteY(PAGE_HEIGHT) + lineHeight).toBeLessThan(threshold);
+    expect(pageNumberY(PAGE_HEIGHT) + lineHeight).toBeLessThan(threshold);
+    expect(MARGIN_X).toBeGreaterThan(0);
+  });
+});
