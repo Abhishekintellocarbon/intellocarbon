@@ -30,6 +30,10 @@ import type {
   CsrdMaterialTopic,
   CsrdStandardScore,
   CsrdDisclosureIndex,
+  CdpReport,
+  CdpMetrics,
+  CdpMaturityAssessment,
+  CdpResponseIndex,
   IssbS1S2Metrics,
   Scope3Data,
   Scope3CategoryCatalogEntry,
@@ -1403,6 +1407,63 @@ export const csrdApi = {
     const link = document.createElement("a");
     link.href = objectUrl;
     link.download = `csrd-statement-${reportId.slice(-8)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(objectUrl);
+  },
+};
+
+export const cdpApi = {
+  list: (facilityId: string): Promise<{ reports: CdpReport[] }> =>
+    apiFetch(`/api/cdp/facilities/${facilityId}/reports`),
+
+  // No materiality endpoint, unlike GRI and CSRD — CDP asks every responding
+  // company every question, so there is nothing to gate answer entry on.
+  getData: (
+    facilityId: string,
+    reportingPeriod: string,
+  ): Promise<{ report: CdpReport | null; metrics: CdpMetrics | null; maturity: CdpMaturityAssessment | null }> =>
+    apiFetch(`/api/cdp/facilities/${facilityId}/data/${encodeURIComponent(reportingPeriod)}`),
+
+  save: (facilityId: string, input: Record<string, unknown>, submit: boolean): Promise<{ report: CdpReport }> =>
+    apiFetch(`/api/cdp/facilities/${facilityId}/data`, {
+      method: "POST",
+      body: JSON.stringify({ ...input, submit }),
+    }),
+
+  getReport: (
+    facilityId: string,
+    reportingPeriod: string,
+  ): Promise<{
+    report: CdpReport;
+    facility: Facility;
+    metrics: CdpMetrics;
+    maturity: CdpMaturityAssessment;
+    responseIndex: CdpResponseIndex;
+  }> => apiFetch(`/api/cdp/facilities/${facilityId}/report/${encodeURIComponent(reportingPeriod)}`),
+
+  downloadPdf: async (reportId: string): Promise<void> => {
+    const reportUrl = `${API_URL}/api/cdp/report/${reportId}/pdf`;
+    const fetchReport = () =>
+      fetch(reportUrl, {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        credentials: "include",
+      });
+
+    let res = await fetchReport();
+    if (res.status === 401) {
+      const refreshed = await refreshSession();
+      if (refreshed) res = await fetchReport();
+    }
+    if (!res.ok) {
+      throw new ApiError("Couldn't generate the response pack. Please try again.", res.status);
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = `cdp-climate-response-${reportId.slice(-8)}.pdf`;
     document.body.appendChild(link);
     link.click();
     link.remove();

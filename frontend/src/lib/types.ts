@@ -2271,3 +2271,180 @@ export interface CsrdDisclosureIndex {
   phaseInCount: number;
   excludedStandards: { standard: string; title: string; rationale: string }[];
 }
+
+// ---------------------------------------------------------------------------
+// CDP Climate Change questionnaire
+//
+// No materiality types here, unlike GRI and CSRD: CDP asks every responding
+// company every question in the questionnaire it issues, so nothing is
+// conditionally gated. And no conformity type, because there is nothing to
+// conform to — see lib/cdp-questionnaire.ts.
+// ---------------------------------------------------------------------------
+
+export type CdpMaturityBand = "NOT_STARTED" | "DEVELOPING" | "ESTABLISHED" | "STRONG";
+
+export type CdpRiskKind = "RISK" | "OPPORTUNITY";
+export type CdpTimeHorizon = "SHORT_TERM" | "MEDIUM_TERM" | "LONG_TERM";
+export type CdpTargetKind = "ABSOLUTE" | "INTENSITY";
+export type CdpBreakdownDimension = "GAS" | "COUNTRY" | "BUSINESS_DIVISION" | "ACTIVITY";
+export type CdpBreakdownScope = "SCOPE_1" | "SCOPE_2";
+
+export interface CdpRisk {
+  id?: string;
+  kind: CdpRiskKind;
+  riskType: string;
+  description: string;
+  valueChainStage: string | null;
+  timeHorizon: CdpTimeHorizon | null;
+  likelihood: string | null;
+  magnitude: string | null;
+  financialImpactMin: number | null;
+  financialImpactMax: number | null;
+  impactDescription: string | null;
+  responseStrategy: string | null;
+  responseCost: number | null;
+}
+
+export interface CdpTarget {
+  id?: string;
+  kind: CdpTargetKind;
+  scopesCovered: string;
+  baseYear: number;
+  baseYearEmissionsTco2e: number | null;
+  targetYear: number;
+  reductionPct: number | null;
+  intensityMetric: string | null;
+  baseYearIntensity: number | null;
+  targetIntensity: number | null;
+  percentAchieved: number | null;
+  isScienceBased: boolean;
+  description: string | null;
+}
+
+export interface CdpEmissionsBreakdownRow {
+  id?: string;
+  dimension: CdpBreakdownDimension;
+  scope: CdpBreakdownScope;
+  label: string;
+  emissionsTco2e: number;
+}
+
+export interface CdpScope3CategoryTotal {
+  category: string;
+  emissionsTco2e: number;
+}
+
+export interface CdpMetrics {
+  fyWindow: { start: string; end: string; label: string };
+  rollup: {
+    scope1Tco2e: number;
+    scope2LocationTco2e: number;
+    scope3Tco2e: number | null;
+    scope3ByCategory: CdpScope3CategoryTotal[];
+    totalScope12Tco2e: number;
+    totalEnergyMwh: number;
+    purchasedElectricityMwh: number;
+    renewableElectricityMwh: number;
+    purchasedSteamMwh: number;
+    renewableSharePct: number | null;
+    wasteGeneratedTonnes: number | null;
+    waterWithdrawalM3: number | null;
+    carbonCreditsCancelledTco2e: number | null;
+    productionQuantityT: number;
+    activityDataCount: number;
+  };
+  intensityPerRevenue: number | null;
+  carbonPricingExposure: {
+    observedSystems: string[];
+    appliesCbam: boolean;
+    appliesCcts: boolean;
+    cbamFrameworks: string[];
+    carbonPricePaidEurPerTonne: number | null;
+    hasCctsTarget: boolean;
+  };
+}
+
+export interface CdpModuleMaturity {
+  moduleCode: string;
+  label: string;
+  title: string;
+  band: CdpMaturityBand;
+  bandBeforeCaps: CdpMaturityBand;
+  answered: number;
+  total: number;
+  optional: boolean;
+  unansweredCodes: string[];
+  evidenceGaps: string[];
+}
+
+export interface CdpMaturityAssessment {
+  modules: CdpModuleMaturity[];
+  answered: number;
+  total: number;
+  completenessPct: number;
+  overallBand: CdpMaturityBand;
+  readinessActions: string[];
+  registryReconciled: boolean;
+  confirmedQuestions: number;
+  totalQuestions: number;
+}
+
+export type CdpModuleRow = Record<string, string | number | boolean | null>;
+
+export interface CdpReport {
+  id: string;
+  companyId: string;
+  facilityId: string;
+  reportingPeriod: string;
+  revenue: number | null;
+  status: "DRAFT" | "SUBMITTED";
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  introduction?: CdpModuleRow | null;
+  governance?: CdpModuleRow | null;
+  risksOpportunities?: CdpModuleRow | null;
+  businessStrategy?: CdpModuleRow | null;
+  targetsPerformance?: CdpModuleRow | null;
+  emissionsMethodology?: CdpModuleRow | null;
+  emissionsData?: CdpModuleRow | null;
+  emissionsBreakdownModule?: CdpModuleRow | null;
+  energy?: CdpModuleRow | null;
+  additionalMetrics?: CdpModuleRow | null;
+  verification?: CdpModuleRow | null;
+  carbonPricing?: CdpModuleRow | null;
+  engagement?: CdpModuleRow | null;
+  signoff?: CdpModuleRow | null;
+  risks: CdpRisk[];
+  targets: CdpTarget[];
+  breakdownRows: CdpEmissionsBreakdownRow[];
+  _count?: { risks: number; targets: number; breakdownRows: number };
+}
+
+export interface CdpResponseIndexEntry {
+  module: string;
+  code: string;
+  label: string;
+  pageNumber: number | null;
+  answered: boolean;
+  derived: boolean;
+  status: "CONFIRMED" | "PENDING_SOURCE";
+  moduleCode: string;
+  optional: boolean;
+}
+
+export interface CdpResponseIndex {
+  entries: CdpResponseIndexEntry[];
+  preparationStatement: string;
+  applicabilityNotice: string;
+  submissionNotice: string;
+  scoringNotice: string;
+  registryReconciled: boolean;
+  questionnaireVersion: string | null;
+  confirmedQuestions: number;
+  totalQuestions: number;
+  answeredCount: number;
+  unansweredCount: number;
+  derivedCount: number;
+  emptyModules: { module: string; title: string; optional: boolean }[];
+}

@@ -14,6 +14,7 @@ import type { Facility, ActivityData, BrsrCoreReport } from "@/lib/types";
 import { FACILITY_TYPE_OPTIONS, PRODUCTION_ROUTE_OPTIONS } from "@/lib/constants";
 import { GriSection } from "@/components/gri/gri-section";
 import { CsrdSection } from "@/components/csrd/csrd-section";
+import { CdpSection } from "@/components/cdp/cdp-section";
 import { VoluntaryOffsetsSection } from "@/components/offsets/voluntary-offsets-section";
 
 const labelFor = (options: readonly { value: string; label: string }[], value: string) =>
@@ -254,6 +255,8 @@ function FacilityDetailContent() {
         {/* Both render nothing for a company without the ESG Disclosure Bundle. */}
         <GriSection facilityId={facility.id} />
         <CsrdSection facilityId={facility.id} />
+
+        <CdpSection facilityId={facility.id} />
         <VoluntaryOffsetsSection facilityId={facility.id} />
       </main>
     </div>

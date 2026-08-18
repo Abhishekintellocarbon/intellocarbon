@@ -5,20 +5,17 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
 import { ToolFooter } from "@/components/intellocalc/tool-footer";
-import { NotifyMeCapture } from "@/components/esg/notify-me-capture";
-import type { EsgWaitlistFramework } from "@/lib/api";
 
 export const metadata: Metadata = {
-  title: "ESG Disclosure Bundle — BRSR Core, ISSB, GRI, CSRD/ESRS, Scope 3 | Intellocarbon",
+  title: "ESG Disclosure Bundle — BRSR Core, ISSB, GRI, CSRD/ESRS, CDP, Scope 3 | Intellocarbon",
   description:
-    "One subscription for BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, CSRD/ESRS and Scope 3 emissions — live today. CDP is in active development.",
+    "One subscription for BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, CSRD/ESRS, CDP Climate Change and Scope 3 emissions — all live today.",
 };
 
 interface BundleItem {
   icon: React.ComponentType<{ className?: string }>;
   name: string;
   status: "live" | "soon";
-  waitlistTool?: EsgWaitlistFramework;
 }
 
 // No price figure on this page — pricing lives on /billing, which is behind
@@ -33,7 +30,7 @@ const BUNDLE_ITEMS: BundleItem[] = [
   { icon: Leaf, name: "Voluntary Offsets Tracking", status: "live" },
   { icon: Globe2, name: "GRI Standards 2021", status: "live" },
   { icon: Landmark, name: "CSRD / ESRS", status: "live" },
-  { icon: ScrollText, name: "CDP", status: "soon", waitlistTool: "ESG_CDP" },
+  { icon: ScrollText, name: "CDP Climate Change", status: "live" },
 ];
 
 interface MarketRow {
@@ -50,7 +47,7 @@ const MARKET_ROWS: MarketRow[] = [
   { market: "Global stakeholders (voluntary, most widely used)", framework: "GRI Standards 2021", status: "live" },
   { market: "European Union (above the Omnibus thresholds)", framework: "CSRD / ESRS", status: "live" },
   { market: "United States (SEC / state climate rules)", framework: "Climate disclosure rules", status: "soon" },
-  { market: "Global supply chains (buyer-driven)", framework: "CDP", status: "soon" },
+  { market: "Global supply chains (buyer-driven)", framework: "CDP Climate Change", status: "live" },
 ];
 
 function StatusChip({ status }: { status: "live" | "soon" }) {
@@ -85,8 +82,8 @@ export default function EsgHub() {
           <span className="text-gradient">ESG</span> reporting on Intellocarbon
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-balance text-muted-foreground sm:text-lg">
-          BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, CSRD/ESRS and Scope 3 emissions are live today, in one
-          bundled subscription. CDP is in active development.
+          BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, CSRD/ESRS, CDP Climate Change and Scope 3 emissions are
+          all live today, in one bundled subscription.
         </p>
 
         {/* Unified ESG Disclosure Bundle */}
@@ -114,8 +111,18 @@ export default function EsgHub() {
             value-chain request, not because you are required to file.
           </p>
 
-          {/* GRI and CSRD are the two frameworks here whose scope isn't
-              obvious from the name. Both notes live in the shared bundle copy
+          {/* The same discipline for CDP, whose failure mode is worse than
+              CSRD's: CSRD at least has thresholds, whereas CDP is not a
+              regulator at all and nothing about the name says so. */}
+          <p className="mt-3 text-sm text-muted-foreground">
+            CDP is voluntary and buyer-driven — there is no law behind it and no statutory deadline. You need it when
+            a specific customer or investor asks you to respond, and the scope and deadline are theirs, not ours. The
+            module prepares your response; CDP responses are submitted on CDP&apos;s own platform, so nothing here
+            files on your behalf.
+          </p>
+
+          {/* GRI, CSRD and CDP are the frameworks here whose scope isn't
+              obvious from the name. These notes live in the shared bundle copy
               rather than as per-item annotations, so no single framework in
               the list below carries more visual weight than the others. */}
           <p className="mt-3 text-sm text-muted-foreground">
@@ -150,22 +157,9 @@ export default function EsgHub() {
             <Link href="/login" className="font-medium text-teal-500 hover:underline">
               log in
             </Link>{" "}
-            to see pricing and start with BRSR Core — ISSB IFRS S1/S2, GRI, CSRD/ESRS and Scope 3 are available from
-            the same facility dashboard.
+            to see pricing and start with BRSR Core — ISSB IFRS S1/S2, GRI, CSRD/ESRS, CDP and Scope 3 are available
+            from the same facility dashboard.
           </p>
-
-          <div className="mt-8 border-t border-surface-border pt-6">
-            <p className="text-sm font-medium">Want CDP next?</p>
-            <p className="mt-1 text-xs text-muted-foreground">Join the waitlist for whichever one you need.</p>
-            <div className="mt-4 grid grid-cols-1 gap-4">
-              {BUNDLE_ITEMS.filter((i) => i.waitlistTool).map((item) => (
-                <div key={item.name}>
-                  <p className="text-xs font-semibold text-muted-foreground">{item.name}</p>
-                  <NotifyMeCapture framework={item.waitlistTool!} />
-                </div>
-              ))}
-            </div>
-          </div>
         </Card>
 
         {/* Lightweight global mandate comparison */}
