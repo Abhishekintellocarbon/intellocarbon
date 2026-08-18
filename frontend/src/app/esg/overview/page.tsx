@@ -20,6 +20,7 @@ import { TargetProgressCard } from "@/components/dashboard/esg/target-progress-c
 import { RecCoverageCard } from "@/components/dashboard/esg/rec-coverage-card";
 import { GovernanceCard } from "@/components/dashboard/esg/governance-card";
 import { SupplierScorecardCard } from "@/components/dashboard/esg/supplier-scorecard-card";
+import { SectorBenchmarkCard } from "@/components/dashboard/esg/sector-benchmark-card";
 import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
@@ -251,6 +252,21 @@ function EsgOverviewContent() {
 
               <div className="mt-4">
                 <SupplierScorecardCard suppliers={overview.suppliers} />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Sector comparison</h2>
+                <span className="text-xs text-muted-foreground">Public sources only</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                How you compare against public sector figures. Where no citeable public benchmark exists, that is
+                stated rather than estimated — an untraceable number looks the same on screen as a real one.
+              </p>
+
+              <div className="mt-4">
+                <SectorBenchmarkCard benchmarks={overview.benchmarks} />
               </div>
             </section>
 

@@ -295,6 +295,35 @@ export interface WaterFootprint {
   hasDischargeExceedingWithdrawal: boolean;
 }
 
+export type BenchmarkStatus = "AVAILABLE" | "NO_SECTOR_DATA" | "SAMPLE_TOO_SMALL" | "NO_COMPANY_VALUE";
+
+/**
+ * A benchmark value and its source always travel together — if benchmarkValue
+ * is non-null, source is too. See sectorBenchmark.service.ts.
+ */
+export interface SectorBenchmark {
+  metricKey: string;
+  label: string;
+  unit: string;
+  status: BenchmarkStatus;
+  /** Populated whenever status is not AVAILABLE. Render verbatim. */
+  unavailableReason: string | null;
+  companyValue: number | null;
+  benchmarkValue: number | null;
+  sampleSize: number;
+  source: string | null;
+  comparison: "BETTER" | "WORSE" | "SIMILAR" | null;
+  differencePct: number | null;
+}
+
+export interface BenchmarkSet {
+  sector: string;
+  benchmarks: SectorBenchmark[];
+  /** Metrics with no citeable public benchmark, declared rather than hidden. */
+  unsourced: { metricKey: string; label: string; unit: string; why: string }[];
+  notice: string;
+}
+
 export type SupplierRiskFlag = "LOW" | "MEDIUM" | "HIGH" | "NOT_ASSESSED";
 
 export interface Supplier {
@@ -1655,6 +1684,7 @@ export interface EsgOverview {
   recCoverage: RecCoverage;
   governance: GovernanceSummary;
   suppliers: SupplierScorecard;
+  benchmarks: BenchmarkSet;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;

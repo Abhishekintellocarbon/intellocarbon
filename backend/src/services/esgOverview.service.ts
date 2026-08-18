@@ -6,6 +6,7 @@ import { listCompanyTargets } from "./companyTarget.service";
 import { buildRecCoverage, type RecCoverage } from "./recCoverage.service";
 import { buildGovernanceSummary, type GovernanceSummary } from "./governanceSummary.service";
 import { buildSupplierScorecard, type SupplierScorecard } from "./supplierScorecard.service";
+import { buildBenchmarkSet, type BenchmarkSet } from "./sectorBenchmark.service";
 import { requireMyCompany } from "./company.service";
 import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { getCompanyBrsrAnalytics, type CompanyBrsrAnalytics } from "./companyDashboard.service";
@@ -652,6 +653,7 @@ export interface EsgOverview {
   recCoverage: RecCoverage;
   governance: GovernanceSummary;
   suppliers: SupplierScorecard;
+  benchmarks: BenchmarkSet;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
@@ -873,6 +875,34 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     })),
   );
 
+  // Sector benchmark. Gazetted CCTS notifications are the only public source
+  // with real provenance here — see sectorBenchmark.service for why the EU
+  // default SEE values were rejected. Expect NO_SECTOR_DATA in most cases;
+  // that is the honest answer, not a gap.
+  const [notifiedEntities, intensityRows] = await Promise.all([
+    prisma.cctsObligatedEntity.findMany({
+      where: { baselineIntensity: { not: null } },
+      select: { sector: true, baselineIntensity: true, status: true },
+    }),
+    facilityIds.length === 0
+      ? Promise.resolve([])
+      : prisma.activityData.findMany({
+          where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
+          select: { productionQuantityT: true, calculationResult: { select: { ghgIntensityCcts: true } } },
+        }),
+  ]);
+
+  // Production-weighted, so a small facility does not carry the same weight as
+  // a large one in the company's own figure.
+  const weighted = intensityRows.filter((r) => r.calculationResult?.ghgIntensityCcts != null && (r.productionQuantityT ?? 0) > 0);
+  const totalProduction = weighted.reduce((sum, r) => sum + (r.productionQuantityT ?? 0), 0);
+  const companyIntensity =
+    totalProduction > 0
+      ? weighted.reduce((sum, r) => sum + r.calculationResult!.ghgIntensityCcts! * (r.productionQuantityT ?? 0), 0) / totalProduction
+      : null;
+
+  const benchmarks = buildBenchmarkSet(company.sector, companyIntensity, notifiedEntities);
+
   const recCoverage = buildRecCoverage(
     recPurchases,
     waterRows.map((r) => ({
@@ -897,6 +927,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     recCoverage,
     governance,
     suppliers,
+    benchmarks,
     offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),
