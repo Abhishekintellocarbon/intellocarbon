@@ -194,6 +194,7 @@ model Company {
   csrdReports          CsrdReport[]
   cdpReports           CdpReport[]
   targets              CompanyTarget[]
+  recPurchases         RecPurchase[]
   scope3Data           Scope3Data[]
   voluntaryOffsets     VoluntaryOffsetPurchase[]
   auditLogs            AuditLog[]
@@ -694,6 +695,7 @@ model Facility {
   griReports          GriReport[]
   csrdReports         CsrdReport[]
   cdpReports          CdpReport[]
+  recPurchases        RecPurchase[]
   scope3Data          Scope3Data[]
   voluntaryOffsets    VoluntaryOffsetPurchase[]
   auditLogs           AuditLog[]
@@ -3446,4 +3448,71 @@ model CompanyTarget {
 
   @@index([companyId])
   @@map("company_targets")
+}
+
+// ===========================================================================
+// Renewable Energy Certificates
+//
+// The contractual instrument that lets a company claim renewable attributes
+// for electricity drawn off the grid. The energy mix trend deliberately counts
+// grid electricity as non-renewable precisely because no such attribute exists
+// on those rows — this is where one gets recorded.
+//
+// TRACKING ONLY, on exactly the same terms as VoluntaryOffsetPurchase above:
+// the registry, reference, quantity and vintage are recorded as the purchaser
+// enters them. No registry API check, no uniqueness constraint on the
+// reference, no quality judgement. Rejecting a mistyped reference would imply
+// an authority over the certificate that this platform does not have.
+// ===========================================================================
+
+enum RecRegistry {
+  // India's own REC mechanism under CERC, traded on IEX and PXIL.
+  INDIA_REC_CERC
+  // International REC Standard.
+  I_REC
+  // Tradable Instrument for Global Renewables.
+  TIGR
+  // EU Guarantee of Origin.
+  GUARANTEE_OF_ORIGIN
+  // US-market certificates.
+  GREEN_E
+  OTHER
+}
+
+model RecPurchase {
+  id         String   @id @default(cuid())
+  // Denormalised from the facility at write time, as VoluntaryOffsetPurchase
+  // and Scope3Data both do, so the company rollup aggregates without joining
+  // through facilities.
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  registry             RecRegistry
+  // Free text: reference formats differ per registry and change over time.
+  certificateReference String
+
+  // MWh of renewable generation the certificate represents. MWh rather than
+  // GJ because every electricity figure on this platform is in MWh, and a
+  // coverage ratio against consumption must not need a unit conversion to be
+  // checked by eye.
+  quantityMwh Float
+
+  // The year the underlying generation happened, which is NOT the purchase
+  // year. Market-based accounting expects vintage to match the consumption
+  // year being claimed against; the coverage calculation matches on this and
+  // reports certificates it could not match rather than quietly counting them.
+  vintageYear  Int
+  purchaseDate DateTime
+
+  status DataEntryStatus @default(DRAFT)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([facilityId])
+  @@index([companyId])
+  @@map("rec_purchases")
 }

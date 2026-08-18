@@ -17,6 +17,7 @@ import { WaterFootprintCard } from "@/components/dashboard/esg/water-footprint-c
 import { CircularityCard } from "@/components/dashboard/esg/circularity-card";
 import { EnergyMixTrendCard } from "@/components/dashboard/esg/energy-mix-trend-card";
 import { TargetProgressCard } from "@/components/dashboard/esg/target-progress-card";
+import { RecCoverageCard } from "@/components/dashboard/esg/rec-coverage-card";
 import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
@@ -202,6 +203,22 @@ function EsgOverviewContent() {
 
               <div className="mt-4">
                 <TargetProgressCard targets={overview.targets} />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Renewable certificates</h2>
+                <span className="text-xs text-muted-foreground">Tracking only</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                How much of your grid electricity carries a renewable attribute. Certificates are matched to the
+                consumption year by vintage, and measured against grid draw only — electricity you already report
+                as renewable needs no certificate.
+              </p>
+
+              <div className="mt-4">
+                <RecCoverageCard coverage={overview.recCoverage} />
               </div>
             </section>
 

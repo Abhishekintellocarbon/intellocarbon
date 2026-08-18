@@ -295,6 +295,49 @@ export interface WaterFootprint {
   hasDischargeExceedingWithdrawal: boolean;
 }
 
+export type RecRegistry =
+  | "INDIA_REC_CERC"
+  | "I_REC"
+  | "TIGR"
+  | "GUARANTEE_OF_ORIGIN"
+  | "GREEN_E"
+  | "OTHER";
+
+export interface RecCoveragePeriod {
+  periodLabel: string;
+  year: number;
+  gridElectricityMwh: number;
+  directRenewableMwh: number;
+  totalElectricityMwh: number;
+  recsMatchedMwh: number;
+  /** Against grid electricity only; null when there was no grid draw. Can exceed 100. */
+  coveragePct: number | null;
+  overCovered: boolean;
+}
+
+export interface RecCoverage {
+  hasData: boolean;
+  periods: RecCoveragePeriod[];
+  latest: RecCoveragePeriod | null;
+  totalRecsMwh: number;
+  /** Certificates whose vintage matches no reported consumption year. */
+  unmatchedRecs: { vintageYear: number; quantityMwh: number }[];
+  unmatchedMwh: number;
+}
+
+export interface RecPurchase {
+  id: string;
+  facilityId: string;
+  registry: RecRegistry;
+  certificateReference: string;
+  quantityMwh: number;
+  vintageYear: number;
+  purchaseDate: string;
+  status: "DRAFT" | "SUBMITTED";
+  notes: string | null;
+  facility?: { name: string };
+}
+
 export type TargetProgressStatus = "AHEAD" | "ON_TRACK" | "BEHIND" | "ACHIEVED" | "NOT_TRACKABLE";
 export type SbtiStatus = "NOT_SUBMITTED" | "COMMITTED" | "SUBMITTED" | "VALIDATED";
 
@@ -1543,6 +1586,7 @@ export interface EsgOverview {
   circularity: CircularityRollup;
   energyMix: EnergyMixTrend;
   targets: CompanyTargetsSummary;
+  recCoverage: RecCoverage;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;
