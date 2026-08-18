@@ -7,6 +7,7 @@ import { buildRecCoverage, type RecCoverage } from "./recCoverage.service";
 import { buildGovernanceSummary, type GovernanceSummary } from "./governanceSummary.service";
 import { buildSupplierScorecard, type SupplierScorecard } from "./supplierScorecard.service";
 import { buildBenchmarkSet, type BenchmarkSet } from "./sectorBenchmark.service";
+import { buildNetZeroTrajectory, type NetZeroTrajectory } from "./netZeroTrajectory.service";
 import { requireMyCompany } from "./company.service";
 import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { getCompanyBrsrAnalytics, type CompanyBrsrAnalytics } from "./companyDashboard.service";
@@ -654,6 +655,7 @@ export interface EsgOverview {
   governance: GovernanceSummary;
   suppliers: SupplierScorecard;
   benchmarks: BenchmarkSet;
+  trajectory: NetZeroTrajectory;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
@@ -903,6 +905,11 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
 
   const benchmarks = buildBenchmarkSet(company.sector, companyIntensity, notifiedEntities);
 
+  // Emissions history against the stated target path. Reuses the targets and
+  // annual actuals already resolved above — no extra query. The actual series
+  // is never projected forward; see netZeroTrajectory.service.
+  const trajectory = buildNetZeroTrajectory(targets.targets, targets.actuals);
+
   const recCoverage = buildRecCoverage(
     recPurchases,
     waterRows.map((r) => ({
@@ -928,6 +935,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     governance,
     suppliers,
     benchmarks,
+    trajectory,
     offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),

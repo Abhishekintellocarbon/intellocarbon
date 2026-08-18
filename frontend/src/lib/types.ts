@@ -295,6 +295,24 @@ export interface WaterFootprint {
   hasDischargeExceedingWithdrawal: boolean;
 }
 
+export interface TrajectoryPoint {
+  year: number;
+  /** Null for every year without submitted data, including all future years. */
+  actualTco2e: number | null;
+  pathTco2e: number | null;
+}
+
+export interface NetZeroTrajectory {
+  hasData: boolean;
+  points: TrajectoryPoint[];
+  baselineYear: number | null;
+  targetYear: number | null;
+  targetLabel: string | null;
+  isNetZero: boolean;
+  latestActualYear: number | null;
+  unavailableReason: string | null;
+}
+
 export type BenchmarkStatus = "AVAILABLE" | "NO_SECTOR_DATA" | "SAMPLE_TOO_SMALL" | "NO_COMPANY_VALUE";
 
 /**
@@ -1685,6 +1703,7 @@ export interface EsgOverview {
   governance: GovernanceSummary;
   suppliers: SupplierScorecard;
   benchmarks: BenchmarkSet;
+  trajectory: NetZeroTrajectory;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;

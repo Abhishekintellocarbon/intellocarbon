@@ -21,6 +21,7 @@ import { RecCoverageCard } from "@/components/dashboard/esg/rec-coverage-card";
 import { GovernanceCard } from "@/components/dashboard/esg/governance-card";
 import { SupplierScorecardCard } from "@/components/dashboard/esg/supplier-scorecard-card";
 import { SectorBenchmarkCard } from "@/components/dashboard/esg/sector-benchmark-card";
+import { NetZeroTrajectoryCard } from "@/components/dashboard/esg/net-zero-trajectory-card";
 import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
@@ -206,6 +207,21 @@ function EsgOverviewContent() {
 
               <div className="mt-4">
                 <TargetProgressCard targets={overview.targets} />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Trajectory</h2>
+                <span className="text-xs text-muted-foreground">Record, not forecast</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your submitted emissions plotted against the path your target implies. The actual line stops at your
+                latest data and is never projected forward.
+              </p>
+
+              <div className="mt-4">
+                <NetZeroTrajectoryCard trajectory={overview.trajectory} />
               </div>
             </section>
 
