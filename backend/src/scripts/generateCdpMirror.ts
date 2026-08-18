@@ -9,6 +9,7 @@ const question = (q: Record<string, unknown>) => {
   if (q.hint) parts.push(`hint: ${j(q.hint)}`);
   if (q.derived) parts.push(`derived: true`);
   if (q.constant) parts.push(`constant: true`);
+  if (q.shortAnswer) parts.push(`shortAnswer: true`);
   return `      { ${parts.join(", ")} },`;
 };
 
@@ -61,6 +62,8 @@ export interface CdpQuestion {
   derived?: boolean;
   /** Resolves for every report, so the readiness indicator ignores it. */
   constant?: boolean;
+  /** A narrative whose valid answers are legitimately brief, e.g. a currency code. */
+  shortAnswer?: boolean;
 }
 
 export interface CdpModuleMeta {

@@ -35,6 +35,8 @@ export interface CdpQuestion {
   derived?: boolean;
   /** Resolves for every report, so the readiness indicator ignores it. */
   constant?: boolean;
+  /** A narrative whose valid answers are legitimately brief, e.g. a currency code. */
+  shortAnswer?: boolean;
 }
 
 export interface CdpModuleMeta {
@@ -59,8 +61,8 @@ export const CDP_MODULES: CdpModuleMeta[] = [
     questions: [
       { code: "C0.1", label: "Give a general description of the organization, including its business activities", type: "narrative", field: "organizationDescription", status: "PENDING_SOURCE" },
       { code: "C0.2", label: "State the start and end date of the year for which you are reporting data", type: "narrative", field: "reportingYearDescription", status: "PENDING_SOURCE", hint: "Resolved from the reporting period and your financial year start month.", derived: true, constant: true },
-      { code: "C0.3", label: "Select the countries or areas in which you operate", type: "narrative", field: "countriesOfOperation", status: "PENDING_SOURCE" },
-      { code: "C0.4", label: "Select the currency used for all financial information disclosed", type: "narrative", field: "reportingCurrency", status: "PENDING_SOURCE", hint: "CDP asks for a single currency across the whole response. INR unless a buyer asked otherwise." },
+      { code: "C0.3", label: "Select the countries or areas in which you operate", type: "narrative", field: "countriesOfOperation", status: "PENDING_SOURCE", shortAnswer: true },
+      { code: "C0.4", label: "Select the currency used for all financial information disclosed", type: "narrative", field: "reportingCurrency", status: "PENDING_SOURCE", hint: "CDP asks for a single currency across the whole response. INR unless a buyer asked otherwise.", shortAnswer: true },
       { code: "C0.5", label: "Select the consolidation approach used for your emissions data", type: "select", field: "consolidationApproach", status: "PENDING_SOURCE", options: [{"value":"OPERATIONAL_CONTROL","label":"Operational control"},{"value":"FINANCIAL_CONTROL","label":"Financial control"},{"value":"EQUITY_SHARE","label":"Equity share"}], hint: "This must match the boundary the Scope 1 and 2 figures were compiled on." },
       { code: "C0.6", label: "State the organizational boundary covered by this response", type: "narrative", field: "organizationalBoundary", status: "PENDING_SOURCE", hint: "This response is prepared per facility. State clearly whether the figures are facility-level or group-level." },
     ],
@@ -230,7 +232,7 @@ export const CDP_MODULES: CdpModuleMeta[] = [
       { code: "C9.1", label: "Provide any additional climate-related metrics relevant to your business", type: "narrative", field: "additionalMetrics", status: "PENDING_SOURCE" },
       { code: "C9.1a", label: "Sector-specific metric — name", type: "narrative", field: "sectorMetricName", status: "PENDING_SOURCE", hint: "CDP issues sector-specific questions only to companies in the sectors they apply to. If you were not asked for one, leave this blank." },
       { code: "C9.1b", label: "Sector-specific metric — value", type: "number", field: "sectorMetricValue", status: "PENDING_SOURCE" },
-      { code: "C9.1c", label: "Sector-specific metric — unit", type: "narrative", field: "sectorMetricUnit", status: "PENDING_SOURCE" },
+      { code: "C9.1c", label: "Sector-specific metric — unit", type: "narrative", field: "sectorMetricUnit", status: "PENDING_SOURCE", shortAnswer: true },
       { code: "C9.2", label: "Waste generated in the reporting year", type: "number", field: "wasteGeneratedTonnes", status: "PENDING_SOURCE", unit: "t", hint: "Reused from the GRI 306 waste disclosure for the same period where one exists.", derived: true },
       { code: "C9.3", label: "Water withdrawn in the reporting year", type: "number", field: "waterWithdrawalM3", status: "PENDING_SOURCE", unit: "m3", hint: "Reused from the ISO 14046 water inventory where one exists.", derived: true },
     ],
@@ -301,7 +303,7 @@ export const CDP_MODULES: CdpModuleMeta[] = [
     relation: "signoff",
     blurb: "The person submitting the response on the organization's behalf, and any final statement.",
     questions: [
-      { code: "C15.1", label: "Job title of the person submitting this response", type: "narrative", field: "submitterJobTitle", status: "PENDING_SOURCE" },
+      { code: "C15.1", label: "Job title of the person submitting this response", type: "narrative", field: "submitterJobTitle", status: "PENDING_SOURCE", shortAnswer: true },
       { code: "C15.1a", label: "Corresponding job category", type: "select", field: "submitterJobCategory", status: "PENDING_SOURCE", options: [{"value":"BOARD_CHAIR","label":"Board chair"},{"value":"BOARD_MEMBER","label":"Board or executive board member"},{"value":"CEO","label":"Chief Executive Officer"},{"value":"CFO","label":"Chief Financial Officer"},{"value":"CSO","label":"Chief Sustainability Officer"},{"value":"OTHER_C_SUITE","label":"Other C-suite officer"},{"value":"SUSTAINABILITY_MANAGER","label":"Environment or sustainability manager"},{"value":"OTHER","label":"Other, please specify"}] },
       { code: "C15.2", label: "Provide any final statement to accompany this response", type: "narrative", field: "finalStatement", status: "PENDING_SOURCE" },
     ],

@@ -122,6 +122,17 @@ export interface CdpQuestion {
    * because the transfer into CDP's platform genuinely needs the dates.
    */
   constant?: boolean;
+  /**
+   * A narrative question whose valid answers are legitimately brief — a
+   * currency code, a country, a job title, a unit.
+   *
+   * The readiness indicator otherwise treats a very short narrative as an
+   * unanswered placeholder, which is right for "describe your process" and
+   * wrong here: "INR" is a complete and correct answer to which currency you
+   * report in, and marking it unanswered would tell a responder to go and
+   * write more where there is nothing more to write.
+   */
+  shortAnswer?: boolean;
 }
 
 export interface CdpModule {
@@ -188,8 +199,9 @@ export const CDP_MODULES: CdpModule[] = [
         constant: true,
         hint: "Resolved from the reporting period and your financial year start month.",
       }),
-      q("C0.3", "Select the countries or areas in which you operate", "narrative", "countriesOfOperation"),
+      q("C0.3", "Select the countries or areas in which you operate", "narrative", "countriesOfOperation", { shortAnswer: true }),
       q("C0.4", "Select the currency used for all financial information disclosed", "narrative", "reportingCurrency", {
+        shortAnswer: true,
         hint: "CDP asks for a single currency across the whole response. INR unless a buyer asked otherwise.",
       }),
       q("C0.5", "Select the consolidation approach used for your emissions data", "select", "consolidationApproach", {
@@ -473,7 +485,7 @@ export const CDP_MODULES: CdpModule[] = [
         hint: "CDP issues sector-specific questions only to companies in the sectors they apply to. If you were not asked for one, leave this blank.",
       }),
       q("C9.1b", "Sector-specific metric — value", "number", "sectorMetricValue"),
-      q("C9.1c", "Sector-specific metric — unit", "narrative", "sectorMetricUnit"),
+      q("C9.1c", "Sector-specific metric — unit", "narrative", "sectorMetricUnit", { shortAnswer: true }),
       q("C9.2", "Waste generated in the reporting year", "number", "wasteGeneratedTonnes", {
         unit: "t",
         derived: true,
@@ -575,7 +587,7 @@ export const CDP_MODULES: CdpModule[] = [
     relation: "signoff",
     blurb: "The person submitting the response on the organization's behalf, and any final statement.",
     questions: [
-      q("C15.1", "Job title of the person submitting this response", "narrative", "submitterJobTitle"),
+      q("C15.1", "Job title of the person submitting this response", "narrative", "submitterJobTitle", { shortAnswer: true }),
       q("C15.1a", "Corresponding job category", "select", "submitterJobCategory", {
         options: [
           { value: "BOARD_CHAIR", label: "Board chair" },

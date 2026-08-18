@@ -127,6 +127,22 @@ describe("answered-ness", () => {
     expect(isQuestionAnswered(question, { boardOversightDetail: NARRATIVE }, emptyMetrics())).toBe(true);
   });
 
+  /**
+   * The counterpart to the guard above, and the reason it needs an exemption
+   * at all: "INR" is a complete and correct answer to which currency you
+   * report in, and "CFO" to the submitter's job title. Marking those
+   * unanswered would tell a responder to go and write more where there is
+   * nothing more to write. Caught by an HTTP smoke test, pinned here.
+   */
+  it("counts a legitimately brief answer on a short-answer question", () => {
+    const currency = getCdpModule("C0")!.questions.find((q) => q.field === "reportingCurrency")!;
+    expect(currency.shortAnswer).toBe(true);
+    expect(isQuestionAnswered(currency, { reportingCurrency: "INR" }, emptyMetrics())).toBe(true);
+
+    const jobTitle = getCdpModule("C15")!.questions.find((q) => q.field === "submitterJobTitle")!;
+    expect(isQuestionAnswered(jobTitle, { submitterJobTitle: "CFO" }, emptyMetrics())).toBe(true);
+  });
+
   it("counts a derived question only when the calculation actually resolved", () => {
     const question = getCdpModule("C6")!.questions.find((q) => q.field === "scope1Tco2e")!;
     expect(isQuestionAnswered(question, null, emptyMetrics())).toBe(false);

@@ -63,6 +63,10 @@ const hasValue = (v: unknown): boolean => v !== null && v !== undefined && v !==
  * would otherwise lift a module's band without adding anything a reviewer
  * could use. The threshold is deliberately low — it catches "n/a" and "TBC",
  * not a genuinely terse answer.
+ *
+ * Questions flagged `shortAnswer` are exempt, because for those a brief answer
+ * is the correct one: "INR" fully answers which currency you report in, and
+ * "CFO" fully answers the submitter's job title.
  */
 const MIN_NARRATIVE_LENGTH = 12;
 
@@ -74,7 +78,7 @@ export const isQuestionAnswered = (
   if (question.derived) return derivedQuestionHasValue(question.field, metrics);
   const value = row?.[question.field];
   if (!hasValue(value)) return false;
-  if (question.type === "narrative" && typeof value === "string") {
+  if (question.type === "narrative" && !question.shortAnswer && typeof value === "string") {
     return value.trim().length >= MIN_NARRATIVE_LENGTH;
   }
   return true;
