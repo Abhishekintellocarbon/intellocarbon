@@ -1,5 +1,6 @@
 import { prisma } from "../config/prisma";
-import type { Company, Facility, IssbS1S2Report } from "@prisma/client";
+import type { Company, CompanyTarget, Facility, IssbS1S2Report } from "@prisma/client";
+import { primaryCompanyTarget, resolveEffectiveTarget } from "./companyTarget.service";
 import { resolveFyWindow as resolveBrsrFyWindow, type BrsrFyWindow } from "./brsrCalculation.service";
 
 const round = (value: number, decimals = 4) => {
@@ -70,6 +71,8 @@ export interface IssbS1S2Metrics {
     targetYear: number | null;
     baselineYear: number | null;
     baselineEmissionsTco2e: number | null;
+    /** True where a figure above came from CompanyTarget rather than the report. */
+    fromCompanyTarget?: boolean;
     /** % change from baseline to current total Scope 1+2+3 (where both are known). Negative = reduction. */
     changeFromBaselinePct: number | null;
   };
@@ -88,6 +91,13 @@ export const computeIssbS1S2Metrics = (
   report: IssbS1S2Report,
   ghg: IssbGhgRollup,
   fyWindow: IssbFyWindow,
+  /**
+   * The company's canonical target, used only to fill fields this report
+   * leaves empty. Optional so existing callers and tests that predate
+   * CompanyTarget keep working unchanged — with no target passed, behaviour is
+   * exactly what it was.
+   */
+  companyTarget: Pick<CompanyTarget, "targetYear" | "baselineYear" | "baselineEmissionsTco2e"> | null = null,
 ): IssbS1S2Metrics => {
   const totalCo2e =
     report.scope3Tco2e != null ? round(ghg.totalScope1And2Co2e + report.scope3Tco2e, 2) : ghg.totalScope1And2Co2e;
@@ -107,10 +117,17 @@ export const computeIssbS1S2Metrics = (
       activityDataCount: ghg.activityDataCount,
     },
     targets: {
-      targetYear: report.targetYear ?? null,
-      baselineYear: report.baselineYear ?? null,
-      baselineEmissionsTco2e: report.baselineEmissionsTco2e ?? null,
+      targetYear: resolveEffectiveTarget(report.targetYear, companyTarget?.targetYear ?? null),
+      baselineYear: resolveEffectiveTarget(report.baselineYear, companyTarget?.baselineYear ?? null),
+      baselineEmissionsTco2e: resolveEffectiveTarget(
+        report.baselineEmissionsTco2e,
+        companyTarget?.baselineEmissionsTco2e ?? null,
+      ),
       changeFromBaselinePct,
+      /** True where any figure above came from the company target rather than this report. */
+      fromCompanyTarget:
+        companyTarget != null &&
+        (report.targetYear == null || report.baselineYear == null || report.baselineEmissionsTco2e == null),
     },
     transition: {
       internalCarbonPriceInr: report.internalCarbonPriceInr ?? null,
@@ -120,12 +137,23 @@ export const computeIssbS1S2Metrics = (
 };
 
 /** Convenience wrapper used by both the JSON report endpoint and the PDF builder. */
+/**
+ * `company.id` is read so the report can fall back to the company's canonical
+ * reduction target (CompanyTarget) where this report states none of its own.
+ * The report's explicit value always wins — see resolveEffectiveTarget: an
+ * ISSB statement that has been submitted is a signed disclosure, and pulling
+ * a different target year in from another table would change it after the
+ * fact. The fallback only fills a gap, so the duplication stops growing.
+ */
 export const buildIssbS1S2Metrics = async (
   report: IssbS1S2Report,
   facility: Pick<Facility, "id">,
-  company: Pick<Company, "reportingFyStartMonth">,
+  company: Pick<Company, "id" | "reportingFyStartMonth">,
 ): Promise<IssbS1S2Metrics> => {
   const fyWindow = resolveFyWindow(report.reportingPeriod, company.reportingFyStartMonth);
-  const ghg = await rollupFacilityGhgForFy(facility.id, fyWindow);
-  return computeIssbS1S2Metrics(report, ghg, fyWindow);
+  const [ghg, companyTarget] = await Promise.all([
+    rollupFacilityGhgForFy(facility.id, fyWindow),
+    primaryCompanyTarget(company.id),
+  ]);
+  return computeIssbS1S2Metrics(report, ghg, fyWindow, companyTarget);
 };

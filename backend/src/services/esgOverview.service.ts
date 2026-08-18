@@ -2,6 +2,7 @@ import type { Facility, IssbS1S2Report, Scope3Data } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { buildCircularityRollup, type CircularityRollup } from "./wasteCircularity.service";
 import { buildEnergyMixTrend, type EnergyMixTrend } from "./energyMix.service";
+import { listCompanyTargets } from "./companyTarget.service";
 import { requireMyCompany } from "./company.service";
 import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { getCompanyBrsrAnalytics, type CompanyBrsrAnalytics } from "./companyDashboard.service";
@@ -118,7 +119,7 @@ type IssbReportWithFacility = IssbS1S2Report & { facility: Facility };
 
 const buildIssbSummary = async (
   reports: IssbReportWithFacility[],
-  company: { reportingFyStartMonth: number },
+  company: { id: string; reportingFyStartMonth: number },
 ): Promise<{ summary: IssbOverviewSummary; periodReports: IssbReportWithFacility[]; periodLabel: string | null }> => {
   // reportingPeriod is "FY2025-26" — same-length zero-padded years sort
   // lexicographically in chronological order, matching the BRSR aggregation.
@@ -644,6 +645,7 @@ export interface EsgOverview {
   water: WaterFootprintRollup;
   circularity: CircularityRollup;
   energyMix: EnergyMixTrend;
+  targets: Awaited<ReturnType<typeof listCompanyTargets>>;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
@@ -804,6 +806,10 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     })),
   );
 
+  // Self-reported reduction targets and progress against them. See
+  // companyTarget.service — this is not an SBTi tool and says so.
+  const targets = await listCompanyTargets(company.id, facilityIds);
+
   return {
     companyName: company.name,
     facilityCount: facilities.length,
@@ -815,6 +821,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     water: rollUpWaterFootprints(waterRows),
     circularity,
     energyMix,
+    targets,
     offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),

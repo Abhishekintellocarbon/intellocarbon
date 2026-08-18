@@ -193,6 +193,7 @@ model Company {
   griReports           GriReport[]
   csrdReports          CsrdReport[]
   cdpReports           CdpReport[]
+  targets              CompanyTarget[]
   scope3Data           Scope3Data[]
   voluntaryOffsets     VoluntaryOffsetPurchase[]
   auditLogs            AuditLog[]
@@ -3369,4 +3370,80 @@ model CdpSignoff {
   updatedAt DateTime @updatedAt
 
   @@map("cdp_signoff")
+}
+
+// ===========================================================================
+// Emissions reduction targets
+//
+// The canonical place a company states what it is aiming at. Before this,
+// target data lived in two places that could disagree: IssbS1S2Report's
+// targetYear/baselineYear/baselineEmissionsTco2e (facility + period scoped)
+// and CdpTarget rows (per CDP response). A company could state 2030 in one
+// and 2035 in the other with nothing reconciling them.
+//
+// This is company-level because a reduction target is: it is set by the
+// board for the organisation, not per facility per year. Frameworks read it
+// rather than asking again — see the precedence note in companyTarget.service.
+//
+// DELIBERATELY NOT AN SBTi SUBMISSION RECORD. This platform does not validate
+// targets and has no relationship with the Science Based Targets initiative.
+// `sbtiStatus` is what the company says about its own SBTi position, stored so
+// it can be disclosed in CDP C4.1a and elsewhere, and is never treated as
+// evidence of validation. Same discipline as CDP's readiness bands not being
+// CDP scores.
+// ===========================================================================
+
+enum CompanyTargetKind {
+  ABSOLUTE
+  INTENSITY
+}
+
+// What the company says about its own SBTi position. Self-declared.
+enum SbtiStatus {
+  NOT_SUBMITTED
+  COMMITTED
+  SUBMITTED
+  VALIDATED
+}
+
+model CompanyTarget {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  kind CompanyTargetKind @default(ABSOLUTE)
+
+  // "Scope 1+2 (location-based)", "Scope 3 (category 1)". Free text for the
+  // same reason CdpTarget.scopesCovered is: the useful phrasing varies and an
+  // enum would force a migration every time a company words it differently.
+  scopesCovered String
+
+  baselineYear           Int
+  baselineEmissionsTco2e Float
+  targetYear             Int
+  // Reduction against the baseline, 0-100. The tracker needs this to build a
+  // trajectory; a target without it can be stored but cannot be tracked.
+  reductionPct           Float?
+
+  // Intensity targets need the denominator they are stated per, or the number
+  // is uninterpretable — the same rule cdpTargetSchema enforces.
+  intensityMetric   String?
+  baselineIntensity Float?
+  targetIntensity   Float?
+
+  // A net-zero commitment is a target with a different meaning at the end
+  // point, and the trajectory chart labels it differently.
+  isNetZero  Boolean    @default(false)
+  sbtiStatus SbtiStatus @default(NOT_SUBMITTED)
+
+  description String?
+
+  // Same draft/submit lifecycle as every other manual entry here.
+  status DataEntryStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("company_targets")
 }

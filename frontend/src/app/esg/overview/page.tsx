@@ -16,6 +16,7 @@ import { Scope3BreakdownChart } from "@/components/dashboard/esg/scope3-breakdow
 import { WaterFootprintCard } from "@/components/dashboard/esg/water-footprint-card";
 import { CircularityCard } from "@/components/dashboard/esg/circularity-card";
 import { EnergyMixTrendCard } from "@/components/dashboard/esg/energy-mix-trend-card";
+import { TargetProgressCard } from "@/components/dashboard/esg/target-progress-card";
 import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
@@ -185,6 +186,22 @@ function EsgOverviewContent() {
 
               <div className="mt-4">
                 <EnergyMixTrendCard energyMix={overview.energyMix} />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Reduction targets</h2>
+                <span className="text-xs text-muted-foreground">Self-reported, not SBTi-validated</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Where you stand against the targets you have stated, measured on your own submitted emissions.
+                Intellocarbon does not validate targets and has no relationship with the Science Based Targets
+                initiative.
+              </p>
+
+              <div className="mt-4">
+                <TargetProgressCard targets={overview.targets} />
               </div>
             </section>
 

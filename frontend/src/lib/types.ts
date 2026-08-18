@@ -295,6 +295,48 @@ export interface WaterFootprint {
   hasDischargeExceedingWithdrawal: boolean;
 }
 
+export type TargetProgressStatus = "AHEAD" | "ON_TRACK" | "BEHIND" | "ACHIEVED" | "NOT_TRACKABLE";
+export type SbtiStatus = "NOT_SUBMITTED" | "COMMITTED" | "SUBMITTED" | "VALIDATED";
+
+export interface CompanyTarget {
+  id: string;
+  kind: "ABSOLUTE" | "INTENSITY";
+  scopesCovered: string;
+  baselineYear: number;
+  baselineEmissionsTco2e: number;
+  targetYear: number;
+  reductionPct: number | null;
+  intensityMetric: string | null;
+  baselineIntensity: number | null;
+  targetIntensity: number | null;
+  isNetZero: boolean;
+  /** What the company says about its own SBTi position. Never validated by us. */
+  sbtiStatus: SbtiStatus;
+  description: string | null;
+  status: "DRAFT" | "SUBMITTED";
+}
+
+export interface TargetProgress {
+  targetId: string;
+  status: TargetProgressStatus;
+  reason: string;
+  allowedTco2e: number | null;
+  actualTco2e: number | null;
+  actualYear: number | null;
+  achievedReductionPct: number | null;
+  requiredReductionPct: number | null;
+  varianceTco2e: number | null;
+  yearsRemaining: number | null;
+}
+
+export interface CompanyTargetsSummary {
+  targets: CompanyTarget[];
+  actuals: { year: number; totalTco2e: number }[];
+  progress: TargetProgress[];
+  /** Must be rendered wherever a status is. See companyTarget.service.ts. */
+  selfReportedNotice: string;
+}
+
 export type EnergyMixSource = "BRSR_CORE" | "ACTIVITY_DATA";
 
 export interface EnergyMixPoint {
@@ -1500,6 +1542,7 @@ export interface EsgOverview {
   water: WaterFootprintRollup;
   circularity: CircularityRollup;
   energyMix: EnergyMixTrend;
+  targets: CompanyTargetsSummary;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;
