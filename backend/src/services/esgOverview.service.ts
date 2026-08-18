@@ -4,6 +4,7 @@ import { buildCircularityRollup, type CircularityRollup } from "./wasteCirculari
 import { buildEnergyMixTrend, type EnergyMixTrend } from "./energyMix.service";
 import { listCompanyTargets } from "./companyTarget.service";
 import { buildRecCoverage, type RecCoverage } from "./recCoverage.service";
+import { buildGovernanceSummary, type GovernanceSummary } from "./governanceSummary.service";
 import { requireMyCompany } from "./company.service";
 import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { getCompanyBrsrAnalytics, type CompanyBrsrAnalytics } from "./companyDashboard.service";
@@ -648,6 +649,7 @@ export interface EsgOverview {
   energyMix: EnergyMixTrend;
   targets: Awaited<ReturnType<typeof listCompanyTargets>>;
   recCoverage: RecCoverage;
+  governance: GovernanceSummary;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
@@ -818,6 +820,35 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     where: { companyId: company.id, status: "SUBMITTED" },
     select: { vintageYear: true, quantityMwh: true },
   });
+  // Governance, gathered from whichever disclosures exist. CSRD and CDP are
+  // queried here rather than loaded with the frameworks above because only
+  // these three rows are needed, not the full statements.
+  const [latestCsrd, latestCdp] = await Promise.all([
+    prisma.csrdReport.findFirst({
+      where: { companyId: company.id, status: "SUBMITTED" },
+      orderBy: { reportingPeriod: "desc" },
+      select: { generalDisclosures: true, businessConductDisclosure: true },
+    }),
+    prisma.cdpReport.findFirst({
+      where: { companyId: company.id, status: "SUBMITTED" },
+      orderBy: { reportingPeriod: "desc" },
+      select: { governance: true },
+    }),
+  ]);
+
+  const latestGriUniversal =
+    griReports
+      .slice()
+      .sort((a, b) => a.reportingPeriod.localeCompare(b.reportingPeriod))
+      .at(-1)?.universalDisclosures ?? null;
+
+  const governance = buildGovernanceSummary({
+    gri: latestGriUniversal as Record<string, unknown> | null,
+    esrs2: latestCsrd?.generalDisclosures as Record<string, unknown> | null,
+    esrsG1: latestCsrd?.businessConductDisclosure as Record<string, unknown> | null,
+    cdp: latestCdp?.governance as Record<string, unknown> | null,
+  });
+
   const recCoverage = buildRecCoverage(
     recPurchases,
     waterRows.map((r) => ({
@@ -840,6 +871,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     energyMix,
     targets,
     recCoverage,
+    governance,
     offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),

@@ -295,6 +295,36 @@ export interface WaterFootprint {
   hasDischargeExceedingWithdrawal: boolean;
 }
 
+export interface GovernancePolicyItem {
+  key: string;
+  label: string;
+  /** DISCLOSED means the field was filled — never that the policy was reviewed. */
+  state: "DISCLOSED" | "NOT_DISCLOSED";
+  source: string;
+  collectedBy: string;
+}
+
+export interface GovernanceBoardStructure {
+  hasData: boolean;
+  executiveMembers: number | null;
+  nonExecutiveMembers: number | null;
+  totalMembers: number | null;
+  independentPct: number | null;
+  genderDiversityPct: number | null;
+  chairIsSeniorExecutive: boolean | null;
+  committees: string | null;
+  source: string | null;
+}
+
+export interface GovernanceSummary {
+  hasAnyData: boolean;
+  boardStructure: GovernanceBoardStructure;
+  policies: GovernancePolicyItem[];
+  disclosedCount: number;
+  totalCount: number;
+  sources: string[];
+}
+
 export type RecRegistry =
   | "INDIA_REC_CERC"
   | "I_REC"
@@ -1587,6 +1617,7 @@ export interface EsgOverview {
   energyMix: EnergyMixTrend;
   targets: CompanyTargetsSummary;
   recCoverage: RecCoverage;
+  governance: GovernanceSummary;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;
