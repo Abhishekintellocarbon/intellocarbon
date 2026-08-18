@@ -57,9 +57,25 @@ export function IntelloCalcToolsPanel() {
   const [hideFab, setHideFab] = useState(false);
 
   useEffect(() => {
-    const targets = HIDE_FAB_OVER_IDS.map((id) => document.getElementById(id)).filter(
-      (el): el is HTMLElement => el !== null,
-    );
+    const targets: Element[] = [
+      ...HIDE_FAB_OVER_IDS.map((id) => document.getElementById(id)).filter(
+        (el): el is HTMLElement => el !== null,
+      ),
+      // Every page's footer, matched by tag rather than by id so this holds
+      // for pages that use ToolFooter as well as the marketing footer, and
+      // for pages added later without anyone remembering to opt in.
+      //
+      // Same reasoning as the social-proof section: the FAB is fixed, so it
+      // floats over whatever is beneath it. Below lg it was sitting on top of
+      // the footer's legal disclaimer at every width from 375 to 900 —
+      // measured, not guessed — obscuring the sentence about where compliance
+      // responsibility rests. Padding the footer would not fix it either.
+      // There is also nothing lost by hiding it here: the footer's Platform
+      // column already links to IntelloCalc.
+      // Array.from rather than a spread: this project targets a JS version
+      // whose NodeList is not iterable without --downlevelIteration.
+      ...Array.from(document.querySelectorAll("footer")),
+    ];
     if (targets.length === 0) return;
 
     // One observer over all targets, tracking which are currently on screen —

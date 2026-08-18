@@ -113,15 +113,16 @@ const FOOTER_LINKS = {
     { label: "FAQ", href: "/faq" },
     { label: "Pricing", href: "/billing" },
   ],
-  // Three pillars — CBAM, CCTS, ESG. BRSR Core sits *under* ESG as a named
-  // sub-item (`sub: true` indents it) rather than as a fourth peer: people
-  // search for "BRSR software" directly, so the term stays visible and
-  // linkable without being presented as its own pillar.
+  // Flat list of equal-weight destinations. BRSR Core used to sit here as an
+  // indented sub-item under ESG, to keep the search term visible — but a
+  // single indented row among five flush ones just read as a misalignment,
+  // and ESG is the correct top-level entry for it anyway. The term is still
+  // carried by /products/esg-brsr, the ESG hub and the services dropdown, so
+  // nothing is lost from search. Keep every item at the same level.
   platform: [
     { label: "CBAM", href: "/products/cbam-compliance" },
     { label: "CCTS", href: "/products/ccts-carbon-markets" },
     { label: "ESG", href: "/esg" },
-    { label: "BRSR Core", href: "/products/esg-brsr", sub: true },
     { label: "IntelloCalc", href: "/intellocalc" },
     { label: "CCTS Obligated Entities", href: "/ccts-obligated-entities" },
   ],
@@ -475,7 +476,7 @@ export default function Home() {
             <p className="text-sm font-semibold text-foreground">Platform</p>
             <ul className="mt-3 space-y-2.5">
               {FOOTER_LINKS.platform.map((link) => (
-                <li key={link.label} className={"sub" in link && link.sub ? "pl-3" : undefined}>
+                <li key={link.label}>
                   <Link href={link.href} className="text-sm text-muted-foreground hover:text-teal-500">
                     {link.label}
                   </Link>
