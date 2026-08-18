@@ -3636,3 +3636,78 @@ model ProductSku {
   @@index([facilityId, reportingPeriod])
   @@map("product_skus")
 }
+
+// ===========================================================================
+// Regulatory watch
+//
+// Super Admin monitoring of regimes this platform does not implement yet but
+// expects to: ICVCM's Core Carbon Principles programme approvals, Article 6 /
+// PACM methodology approvals, the EU Digital Product Passport, TNFD.
+//
+// Internal only — nothing here is shown to customers. It exists so the team
+// has one place recording what is being watched and when it was last checked,
+// rather than that knowledge living in individual heads.
+//
+// `lastVerifiedAt` is deliberately separate from `updatedAt`, exactly as
+// CctsObligatedEntity does it: updatedAt ticks on a typo fix, while
+// lastVerifiedAt records when someone actually went and read the source. A
+// regulatory watch entry nobody has checked in a year is worse than no entry,
+// because it looks current. The admin list surfaces staleness on this field.
+// ===========================================================================
+
+enum RegulatoryRegime {
+  // Integrity Council for the Voluntary Carbon Market — CCP programme approvals.
+  ICVCM
+  // Paris Agreement Article 6 / PACM methodology approvals.
+  ARTICLE_6_PACM
+  // EU Digital Product Passport.
+  DIGITAL_PRODUCT_PASSPORT
+  // Taskforce on Nature-related Financial Disclosures.
+  TNFD
+  OTHER
+}
+
+enum RegulatoryWatchStatus {
+  // Being followed; nothing adopted that affects us yet.
+  MONITORING
+  // Draft text published and open for comment.
+  DRAFT_PUBLISHED
+  // Adopted but not yet applying.
+  ADOPTED
+  // In force and applying to someone.
+  IN_FORCE
+  // Replaced by something else, kept for history.
+  SUPERSEDED
+}
+
+model RegulatoryWatchEntry {
+  id String @id @default(cuid())
+
+  regime  RegulatoryRegime
+  title   String
+  // What it is and why it matters to this platform. Deliberately free text —
+  // the useful summary differs per regime and a schema would not help.
+  summary String
+
+  status RegulatoryWatchStatus @default(MONITORING)
+
+  // Where the summary came from. Optional because some regimes are followed
+  // through announcements rather than a single citable document, but an entry
+  // without one is weaker and the admin list shows that.
+  sourceUrl String?
+
+  // Free text: "expected H2 2026", "consultation closes 14 Mar" — the shape of
+  // a next milestone varies too much to model, and a date column would force
+  // false precision.
+  nextMilestone String?
+
+  // When a Super Admin last read the source. See the note above.
+  lastVerifiedAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([regime])
+  @@index([status])
+  @@map("regulatory_watch_entries")
+}

@@ -1,4 +1,5 @@
 import {
+  Landmark,
   AlertTriangle,
   Building2,
   Calculator,
@@ -36,6 +37,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
   { href: "/admin/internal-operators", label: "Internal Operators", icon: UserCog },
   { href: "/admin/verifiers", label: "Verifiers", icon: ShieldCheck },
   { href: "/admin/emission-factors", label: "Emission Factors", icon: Gauge },
+  { href: "/admin/ccts-entities", label: "CCTS Entities", icon: Landmark },
   { href: "/admin/regulatory-watch", label: "Regulatory Watch", icon: Search },
   { href: "/admin/ghg-runner", label: "GHG Runner", icon: Calculator },
   { href: "/admin/dpa-generator", label: "DPA Generator", icon: FileSignature },

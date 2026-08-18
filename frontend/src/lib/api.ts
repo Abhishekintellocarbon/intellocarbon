@@ -35,6 +35,7 @@ import type {
   CdpMaturityAssessment,
   CdpResponseIndex,
   ProductFootprintAllocation,
+  RegulatoryWatchEntry,
   IssbS1S2Metrics,
   Scope3Data,
   Scope3CategoryCatalogEntry,
@@ -1001,6 +1002,17 @@ export const adminApi = {
 
   setCustomSubscription: (companyId: string, input: SetCustomSubscriptionInput): Promise<{ subscription: Subscription }> =>
     apiFetch(`/api/admin/companies/${companyId}/custom-subscription`, { method: "POST", body: JSON.stringify(input) }),
+  listRegulatoryWatch: (): Promise<{ entries: RegulatoryWatchEntry[] }> => apiFetch(`/api/admin/regulatory-watch`),
+
+  createRegulatoryWatch: (input: Record<string, unknown>): Promise<{ entry: RegulatoryWatchEntry }> =>
+    apiFetch(`/api/admin/regulatory-watch`, { method: "POST", body: JSON.stringify(input) }),
+
+  seedRegulatoryWatch: (): Promise<{ created: number }> =>
+    apiFetch(`/api/admin/regulatory-watch/seed`, { method: "POST", body: JSON.stringify({}) }),
+
+  deleteRegulatoryWatch: (entryId: string): Promise<void> =>
+    apiFetch(`/api/admin/regulatory-watch/${entryId}`, { method: "DELETE" }),
+
 };
 
 export const internalDataEntryApi = {

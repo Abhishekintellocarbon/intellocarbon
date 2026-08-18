@@ -15,6 +15,7 @@ import * as ndaGeneratorController from "../controllers/ndaGenerator.controller"
 import * as adminManualPaymentsController from "../controllers/adminManualPayments.controller";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireSuperAdmin } from "../middleware/requireSuperAdmin";
+import * as regulatoryWatchController from "../controllers/regulatoryWatch.controller";
 import { validate } from "../middleware/validate";
 import { assignVerifierSchema, createVerifierSchema } from "../validators/verifierAssignment.validators";
 import { assignFacilityOperatorSchema, createInternalOperatorSchema } from "../validators/facilityAssignment.validators";
@@ -51,6 +52,14 @@ router.get("/facilities/:facilityId", adminFacilitiesController.getFacilityDetai
 router.get("/documents/:documentId/download", adminFacilitiesController.downloadDocument);
 
 router.get("/leads", leadCaptureController.listLeads);
+
+// Regulatory watch — internal monitoring of regimes not yet implemented.
+// Super Admin only, like everything else on this router.
+router.get("/regulatory-watch", regulatoryWatchController.listEntries);
+router.post("/regulatory-watch", regulatoryWatchController.createEntry);
+router.post("/regulatory-watch/seed", regulatoryWatchController.seedEntries);
+router.put("/regulatory-watch/:entryId", regulatoryWatchController.updateEntry);
+router.delete("/regulatory-watch/:entryId", regulatoryWatchController.deleteEntry);
 
 router.get("/pending-users", userApprovalController.listPendingUsers);
 router.post("/pending-users/:userId/approve", userApprovalController.approveUser);

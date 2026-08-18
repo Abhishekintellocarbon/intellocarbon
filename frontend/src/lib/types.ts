@@ -2722,3 +2722,19 @@ export interface CdpResponseIndex {
   derivedCount: number;
   emptyModules: { module: string; title: string; optional: boolean }[];
 }
+
+export type RegulatoryRegime = "ICVCM" | "ARTICLE_6_PACM" | "DIGITAL_PRODUCT_PASSPORT" | "TNFD" | "OTHER";
+export type RegulatoryWatchStatus = "MONITORING" | "DRAFT_PUBLISHED" | "ADOPTED" | "IN_FORCE" | "SUPERSEDED";
+
+/** Super Admin only. `stale` is derived from lastVerifiedAt, not updatedAt. */
+export interface RegulatoryWatchEntry {
+  id: string;
+  regime: RegulatoryRegime;
+  title: string;
+  summary: string;
+  status: RegulatoryWatchStatus;
+  sourceUrl: string | null;
+  nextMilestone: string | null;
+  lastVerifiedAt: string;
+  stale: boolean;
+}
