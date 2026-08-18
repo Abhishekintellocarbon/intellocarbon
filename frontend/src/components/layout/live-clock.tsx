@@ -57,9 +57,27 @@ export function LiveClock() {
 
   return (
     <div className="whitespace-nowrap font-sans text-[13px] leading-tight text-[#8AA0B4]" title={display.tzName}>
+      {/* Below sm: date only. The time is the first thing to go when the row
+          is tightest — see the breakpoint reference in marketing-header. */}
       <span className="sm:hidden">{display.dateLabel}</span>
-      <span className="hidden sm:inline">
+
+      {/* sm to 1399: one line, which is what the tablet header has room for. */}
+      <span className="hidden sm:inline min-[1400px]:hidden">
         {display.dateLabel}, {display.timeLabel}
+      </span>
+
+      {/* 1400 and up: the same information stacked over two lines.
+          Not a style choice — a width one. The desktop header is capped at
+          max-w-6xl, so its usable width stops growing at 1104px however wide
+          the viewport gets, and the row already spends 1013px on the logo,
+          nav and CTAs. One-line "18 Aug, 04:17 PM" measures 106px and does
+          not fit in the 91px left, at any viewport width. Stacked, the same
+          date and time measure 57px, because the width becomes the wider of
+          the two lines rather than their sum. Two lines at leading-[1.15] is
+          ~30px tall and the header row is ~44px, so it costs no height. */}
+      <span className="hidden min-[1400px]:flex min-[1400px]:flex-col min-[1400px]:items-end min-[1400px]:leading-[1.15]">
+        <span>{display.dateLabel}</span>
+        <span>{display.timeLabel}</span>
       </span>
     </div>
   );

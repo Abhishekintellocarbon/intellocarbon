@@ -30,28 +30,39 @@ export function MarketingHeader() {
                                   one row, and the clock is the only one of
                                   the three that is not navigation.
 
-            640px - 1359px        Logo + clock + hamburger. The clock has this
-              (sm .. <1360)       whole range to itself.
+            640px - 1399px        Logo + clock (one line) + hamburger.
+              (sm .. <1400)
 
-            >= 1360px             Logo + full nav + Log in / Get started.
-                                  Hamburger and clock both drop away.
+            >= 1400px             Logo + full nav + clock (stacked) +
+                                  Log in / Get started. Only the hamburger
+                                  drops away; the clock is present from sm
+                                  all the way up.
 
-          Why 1360 and not a Tailwind stop: the full row needs ~1053px of
-          usable width (logo 293 + nav 517 + CTAs 243). At 1360 the usable
-          width is 1360-240-48(px-6) = 1072, so it fits with ~19px to spare.
-          At 1280 it is 992 and the row is ~61px short — which is why 1280
-          still shows the hamburger despite being a desktop width. md (768px)
-          was the original value and switched a nav needing 1000px+ into a
-          720px box, which is what clipped it in phone landscape and tablet
+          THE BINDING CONSTRAINT is max-w-6xl, not the viewport. The header
+          caps at 1152px, so usable width stops growing at 1104px however wide
+          the screen gets — 1440 and 1920 have exactly the same room. The
+          desktop row spends it as: logo 317 + nav 477 + (clock 57 + CTAs 219)
+          = 1086, leaving 18px, which justify-between splits into two 10px
+          gaps once the nav is a direct flex child.
+
+          That is why the clock is stacked over two lines at this breakpoint.
+          One-line "18 Aug, 04:17 PM" measures 106px; there has never been
+          106px free, at any viewport width. Stacked it measures 57px and
+          costs no height. See live-clock.tsx.
+
+          Why 1400: the row needs 1086px, and usable = viewport - 288 until
+          the cap bites, so it needs viewport >= 1374 to fit at all and
+          >= 1394 to keep a 10px gap. 1400 is the first round number clear of
+          both. It was 1360 before the clock was added to this row, and 1360
+          now leaves usable 1072 against a 1086 requirement — 14px short,
+          which flex silently absorbs by compressing the nav. md (768px) was
+          the original value and switched a nav needing 1000px+ into a 720px
+          box, which is what clipped it in phone landscape and tablet
           portrait.
 
-          From 1392px up the header hits its max-w-6xl cap (1152px) and the
-          usable width stops growing at 1104px, so every width >= 1392
-          renders identically. 1440 and 1920 are the same layout.
-
-          If you add a nav item, re-measure: the 1360 switch has only ~19px
-          of headroom, and anything wider than that must move the breakpoint
-          up rather than let the row overflow.
+          If you add a nav item or lengthen the CTAs, re-measure: there are
+          only 18px spare, and anything larger must move this breakpoint up
+          rather than let flex quietly shrink the row.
           =================================================================== */}
       <header className="relative z-30 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <Link href="/">
@@ -63,9 +74,9 @@ export function MarketingHeader() {
             Nested inside the logo's div it was glued to the logo and dumped
             all ~90px of slack into a single void before "Log in", which read
             as three separate clusters rather than one row. When the nav is
-            `display: none` below 1360 it stops being a flex item, so the
+            `display: none` below 1400 it stops being a flex item, so the
             two-child logo/hamburger layout is unchanged. */}
-        <nav className="hidden items-center gap-3 min-[1360px]:flex">
+        <nav className="hidden items-center gap-1 min-[1400px]:flex">
           <Link
             href="/"
             className="whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
@@ -97,20 +108,26 @@ export function MarketingHeader() {
           </Link>
           <FaqNavLink />
         </nav>
-        {/* pl-4/sm:pl-10 keeps the hamburger clear of the clock while both are
-            on screen. It is dropped at 1360 because the clock is gone by then
-            and the padding would otherwise widen the nav-to-CTA gap only,
-            tilting the two gaps that justify-between is balancing. */}
-        <div className="flex items-center gap-4 pl-4 sm:pl-10 min-[1360px]:pl-0">
-          {/* See the breakpoint reference above: the clock owns 640-1359. It is
-              the only element here that is not navigation, so it is the one
-              that yields at both ends — to the menu button at 375px, and to
-              the full nav at 1360px. */}
-          <span className="hidden sm:block min-[1360px]:hidden">
+        {/* pl-4/sm:pl-10 keeps the hamburger clear of the clock while both
+            are on screen. Both are dropped at 1400: the hamburger is gone by
+            then, and the padding would otherwise widen the nav-to-CTA gap
+            only, tilting the two gaps justify-between is balancing. The
+            internal gap tightens to gap-3 there because the row has just 18px
+            spare — see the budget above. */}
+        <div className="flex items-center gap-4 pl-4 sm:pl-10 min-[1400px]:gap-3 min-[1400px]:pl-0">
+          {/* Present from sm upward, including desktop. It sits immediately
+              before the CTAs so the row reads logo / nav / time / actions,
+              and it is inside this group rather than being a fourth flex
+              child of the header — as a separate child, justify-between would
+              have given it its own share of the leftover width and pushed the
+              nav back toward the logo, which is the lopsided spacing that was
+              just fixed. Grouped with the CTAs it moves as one block.
+              See LiveClock for why the desktop form is stacked. */}
+          <span className="hidden sm:block">
             <LiveClock />
           </span>
           <MobileNav isAuthenticated={isAuthenticated} />
-          <div className="hidden items-center gap-4 min-[1360px]:flex">
+          <div className="hidden items-center gap-4 min-[1400px]:flex">
             {isAuthenticated ? (
               <Link href="/dashboard">
                 <Button
