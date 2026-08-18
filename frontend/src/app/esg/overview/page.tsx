@@ -15,6 +15,7 @@ import { GriSummaryCard } from "@/components/dashboard/esg/gri-summary-card";
 import { Scope3BreakdownChart } from "@/components/dashboard/esg/scope3-breakdown-chart";
 import { WaterFootprintCard } from "@/components/dashboard/esg/water-footprint-card";
 import { CircularityCard } from "@/components/dashboard/esg/circularity-card";
+import { EnergyMixTrendCard } from "@/components/dashboard/esg/energy-mix-trend-card";
 import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
@@ -169,6 +170,21 @@ function EsgOverviewContent() {
 
               <div className="mt-4">
                 <CircularityCard circularity={overview.circularity} />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Energy mix</h2>
+                <span className="text-xs text-muted-foreground">BRSR Core / activity data</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Which way your renewable share is moving, not just where it stands today. The card states which
+                energy basis the share was computed on.
+              </p>
+
+              <div className="mt-4">
+                <EnergyMixTrendCard energyMix={overview.energyMix} />
               </div>
             </section>
 

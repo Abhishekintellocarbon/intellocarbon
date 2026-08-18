@@ -1,6 +1,7 @@
 import type { Facility, IssbS1S2Report, Scope3Data } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { buildCircularityRollup, type CircularityRollup } from "./wasteCircularity.service";
+import { buildEnergyMixTrend, type EnergyMixTrend } from "./energyMix.service";
 import { requireMyCompany } from "./company.service";
 import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { getCompanyBrsrAnalytics, type CompanyBrsrAnalytics } from "./companyDashboard.service";
@@ -642,6 +643,7 @@ export interface EsgOverview {
   scope3: Scope3OverviewSummary;
   water: WaterFootprintRollup;
   circularity: CircularityRollup;
+  energyMix: EnergyMixTrend;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
@@ -700,7 +702,18 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
       ? Promise.resolve([])
       : prisma.activityData.findMany({
           where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
-          select: { facilityId: true, productionQuantityT: true, waterEntries: true },
+          // periodStart and the three energy columns are here for the energy
+          // mix trend, which shares these rows rather than issuing a second
+          // query over the same table.
+          select: {
+            facilityId: true,
+            productionQuantityT: true,
+            waterEntries: true,
+            periodStart: true,
+            gridElectricityMwh: true,
+            renewableElectricityMwh: true,
+            steamImportedGj: true,
+          },
         }),
     // Every purchase, draft included — summariseOffsets filters to SUBMITTED,
     // so the same rule applies here as on the facility page.
@@ -774,6 +787,23 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     })),
   );
 
+  // Energy mix trend. BRSR carries the total-energy split; the activity rows
+  // already loaded for the water rollup are the fallback basis. See
+  // energyMix.service for why the two are never mixed within one trend.
+  const energyMix = buildEnergyMixTrend(
+    brsrRows.map((r) => ({
+      reportingPeriod: r.reportingPeriod,
+      renewableEnergyConsumptionGj: r.renewableEnergyConsumptionGj,
+      nonRenewableEnergyConsumptionGj: r.nonRenewableEnergyConsumptionGj,
+    })),
+    waterRows.map((r) => ({
+      periodStart: r.periodStart,
+      gridElectricityMwh: r.gridElectricityMwh,
+      renewableElectricityMwh: r.renewableElectricityMwh,
+      steamImportedGj: r.steamImportedGj,
+    })),
+  );
+
   return {
     companyName: company.name,
     facilityCount: facilities.length,
@@ -784,6 +814,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     scope3,
     water: rollUpWaterFootprints(waterRows),
     circularity,
+    energyMix,
     offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),

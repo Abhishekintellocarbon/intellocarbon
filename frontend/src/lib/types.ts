@@ -295,6 +295,30 @@ export interface WaterFootprint {
   hasDischargeExceedingWithdrawal: boolean;
 }
 
+export type EnergyMixSource = "BRSR_CORE" | "ACTIVITY_DATA";
+
+export interface EnergyMixPoint {
+  periodLabel: string;
+  renewableGj: number;
+  nonRenewableGj: number;
+  totalGj: number;
+  renewablePct: number;
+}
+
+/**
+ * Renewable share over time. `source` and `electricityOnly` carry the
+ * denominator: an activity-data basis excludes on-site fuel and so reads
+ * higher than a total-energy one. See energyMix.service.ts.
+ */
+export interface EnergyMixTrend {
+  hasData: boolean;
+  source: EnergyMixSource | null;
+  points: EnergyMixPoint[];
+  electricityOnly: boolean;
+  latestRenewablePct: number | null;
+  changePoints: number | null;
+}
+
 export type CircularitySource = "GRI_306" | "BRSR_CORE";
 
 /**
@@ -1475,6 +1499,7 @@ export interface EsgOverview {
   /** ISO 14046 water footprint rolled up from submitted ActivityData. */
   water: WaterFootprintRollup;
   circularity: CircularityRollup;
+  energyMix: EnergyMixTrend;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;
