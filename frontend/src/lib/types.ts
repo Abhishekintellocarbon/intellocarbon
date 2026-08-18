@@ -295,6 +295,42 @@ export interface WaterFootprint {
   hasDischargeExceedingWithdrawal: boolean;
 }
 
+export type SupplierRiskFlag = "LOW" | "MEDIUM" | "HIGH" | "NOT_ASSESSED";
+
+export interface Supplier {
+  id: string;
+  name: string;
+  sector: string | null;
+  country: string | null;
+  /** Whether a disclosure is HELD — not whether one exists, nor a view on it. */
+  hasEsgDisclosure: boolean;
+  esgDisclosureType: string | null;
+  riskFlag: SupplierRiskFlag;
+  riskNotes: string | null;
+  spendSharePct: number | null;
+  lastReviewedAt: string | null;
+  status: "DRAFT" | "SUBMITTED";
+}
+
+export interface SupplierScorecard {
+  hasData: boolean;
+  supplierCount: number;
+  withDisclosureCount: number;
+  /** Of LISTED suppliers only. Never render without supplierCount beside it. */
+  disclosureCoveragePct: number | null;
+  spendCoveredPct: number | null;
+  riskBreakdown: { LOW: number; MEDIUM: number; HIGH: number; NOT_ASSESSED: number };
+  highRiskWithoutDisclosure: number;
+  gri: {
+    hasData: boolean;
+    environmentalScreenedPct: number | null;
+    socialScreenedPct: number | null;
+    assessedCount: number | null;
+    withNegativeImpactsCount: number | null;
+    periodLabel: string | null;
+  };
+}
+
 export interface GovernancePolicyItem {
   key: string;
   label: string;
@@ -1618,6 +1654,7 @@ export interface EsgOverview {
   targets: CompanyTargetsSummary;
   recCoverage: RecCoverage;
   governance: GovernanceSummary;
+  suppliers: SupplierScorecard;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;

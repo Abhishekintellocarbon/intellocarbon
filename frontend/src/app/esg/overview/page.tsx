@@ -19,6 +19,7 @@ import { EnergyMixTrendCard } from "@/components/dashboard/esg/energy-mix-trend-
 import { TargetProgressCard } from "@/components/dashboard/esg/target-progress-card";
 import { RecCoverageCard } from "@/components/dashboard/esg/rec-coverage-card";
 import { GovernanceCard } from "@/components/dashboard/esg/governance-card";
+import { SupplierScorecardCard } from "@/components/dashboard/esg/supplier-scorecard-card";
 import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
@@ -235,6 +236,21 @@ function EsgOverviewContent() {
 
               <div className="mt-4">
                 <GovernanceCard governance={overview.governance} />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Supplier ESG</h2>
+                <span className="text-xs text-muted-foreground">GRI 308 / 414</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Disclosures held for the key suppliers you list, alongside the aggregate screening figures from your
+                GRI supplier assessment. Coverage is of the suppliers you have listed, not your whole supply base.
+              </p>
+
+              <div className="mt-4">
+                <SupplierScorecardCard suppliers={overview.suppliers} />
               </div>
             </section>
 

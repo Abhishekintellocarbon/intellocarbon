@@ -195,6 +195,7 @@ model Company {
   cdpReports           CdpReport[]
   targets              CompanyTarget[]
   recPurchases         RecPurchase[]
+  suppliers            Supplier[]
   scope3Data           Scope3Data[]
   voluntaryOffsets     VoluntaryOffsetPurchase[]
   auditLogs            AuditLog[]
@@ -3515,4 +3516,65 @@ model RecPurchase {
   @@index([facilityId])
   @@index([companyId])
   @@map("rec_purchases")
+}
+
+// ===========================================================================
+// Supplier ESG scorecard
+//
+// A named list of key suppliers and what the company knows about each one's
+// ESG position. GRI 308 and 414 already collect the AGGREGATE picture — how
+// many suppliers were screened, how many showed negative impacts — but they
+// hold no per-supplier rows, so there is nothing there to render a scorecard
+// from. This is the list; the GRI aggregates are shown alongside it rather
+// than duplicated.
+//
+// SELF-ASSESSED THROUGHOUT. The risk flag is the company's own judgement about
+// its own supplier, and `hasEsgDisclosure` records whether the company has a
+// disclosure on file — not whether one exists, and not whether it is any good.
+// Intellocarbon does not contact, screen, rate or verify suppliers. A
+// scorecard that looked like a rating would be the failure here, since the
+// output is a table of other companies' names.
+// ===========================================================================
+
+// The company's own view of the supplier's ESG risk. Deliberately coarse:
+// a three-point scale is about as much resolution as a self-assessment
+// supports, and a finer one would imply a rigour that is not there.
+enum SupplierRiskFlag {
+  LOW
+  MEDIUM
+  HIGH
+  NOT_ASSESSED
+}
+
+model Supplier {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  name    String
+  // Free text rather than the Sector enum: that enum is the CBAM product
+  // sector list, and a supplier is very often in a sector this platform has
+  // no CBAM treatment for — logistics, packaging, professional services.
+  sector  String?
+  country String?
+
+  // Whether the company HOLDS an ESG disclosure from this supplier. Not
+  // whether one exists in the world, and not a judgement on its contents.
+  hasEsgDisclosure  Boolean          @default(false)
+  // What was received, e.g. "CDP response 2025", "BRSR Core FY2024-25".
+  esgDisclosureType String?
+  riskFlag          SupplierRiskFlag @default(NOT_ASSESSED)
+  riskNotes         String?
+  // Spend share is what makes a supplier "key" — a scorecard covering three
+  // suppliers means something different at 5% of spend than at 60%.
+  spendSharePct     Float?
+  lastReviewedAt    DateTime?
+
+  status DataEntryStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("suppliers")
 }

@@ -5,6 +5,7 @@ import { buildEnergyMixTrend, type EnergyMixTrend } from "./energyMix.service";
 import { listCompanyTargets } from "./companyTarget.service";
 import { buildRecCoverage, type RecCoverage } from "./recCoverage.service";
 import { buildGovernanceSummary, type GovernanceSummary } from "./governanceSummary.service";
+import { buildSupplierScorecard, type SupplierScorecard } from "./supplierScorecard.service";
 import { requireMyCompany } from "./company.service";
 import { requireEsgBundleAccess } from "./esgBundleAccess.service";
 import { getCompanyBrsrAnalytics, type CompanyBrsrAnalytics } from "./companyDashboard.service";
@@ -650,6 +651,7 @@ export interface EsgOverview {
   targets: Awaited<ReturnType<typeof listCompanyTargets>>;
   recCoverage: RecCoverage;
   governance: GovernanceSummary;
+  suppliers: SupplierScorecard;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
@@ -849,6 +851,28 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     cdp: latestCdp?.governance as Record<string, unknown> | null,
   });
 
+  // Supplier scorecard. The GRI 308/414 aggregates come from the reports
+  // already loaded; the named supplier rows are their own table.
+  const supplierRows = await prisma.supplier.findMany({
+    where: { companyId: company.id, status: "SUBMITTED" },
+  });
+  const suppliers = buildSupplierScorecard(
+    supplierRows,
+    griReports.map((r) => ({
+      reportingPeriod: r.reportingPeriod,
+      env: r.supplierEnvDisclosure
+        ? {
+            newSuppliersScreenedPct: r.supplierEnvDisclosure.newSuppliersScreenedPct,
+            suppliersAssessedCount: r.supplierEnvDisclosure.suppliersAssessedCount,
+            suppliersWithNegativeImpactsCount: r.supplierEnvDisclosure.suppliersWithNegativeImpactsCount,
+          }
+        : null,
+      social: r.supplierSocialDisclosure
+        ? { newSuppliersScreenedPct: r.supplierSocialDisclosure.newSuppliersScreenedPct }
+        : null,
+    })),
+  );
+
   const recCoverage = buildRecCoverage(
     recPurchases,
     waterRows.map((r) => ({
@@ -872,6 +896,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     targets,
     recCoverage,
     governance,
+    suppliers,
     offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),
