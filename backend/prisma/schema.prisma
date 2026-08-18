@@ -192,6 +192,7 @@ model Company {
   issbS1S2Reports      IssbS1S2Report[]
   griReports           GriReport[]
   csrdReports          CsrdReport[]
+  cdpReports           CdpReport[]
   scope3Data           Scope3Data[]
   voluntaryOffsets     VoluntaryOffsetPurchase[]
   auditLogs            AuditLog[]
@@ -691,6 +692,7 @@ model Facility {
   issbS1S2Reports     IssbS1S2Report[]
   griReports          GriReport[]
   csrdReports         CsrdReport[]
+  cdpReports          CdpReport[]
   scope3Data          Scope3Data[]
   voluntaryOffsets    VoluntaryOffsetPurchase[]
   auditLogs           AuditLog[]
@@ -2879,4 +2881,492 @@ model CsrdBusinessConductDisclosure {
   updatedAt DateTime @updatedAt
 
   @@map("csrd_business_conduct_disclosure")
+}
+
+// ===========================================================================
+// CDP Climate Change questionnaire
+//
+// Full CDP Climate Change response preparation: modules C0 through C12 and
+// C15, mirroring the classic questionnaire's module structure.
+//
+// The controlling design decision is what this module deliberately does NOT
+// have. There is no materiality gate — unlike GRI and CSRD, CDP asks every
+// responding company every question in the questionnaire it was issued, so
+// nothing here is conditionally excluded. And there is no conformity or
+// compliance claim, because there is nothing to conform to: CDP is voluntary
+// and buyer-driven, responses are submitted on CDP's own platform, and CDP
+// alone scores them. See data/cdpQuestionnaire.ts, which is the source of
+// truth for the questions and carries the full provenance discussion.
+//
+// As with GRI, BRSR and CSRD, figures the platform can already derive —
+// Scope 1/2/3, energy, the ISO 14046 water inventory, waste, cancelled
+// offsets — are NOT stored on these tables. Stored columns are answers the
+// calculation engines have no source for.
+// ===========================================================================
+
+model CdpReport {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  // "FY2025-26" — resolved against Company.reportingFyStartMonth, same as
+  // every other framework here.
+  reportingPeriod String
+
+  // Denominator for C6.10 (Scope 1 + 2 per unit revenue). Held without a
+  // currency of its own: CDP requires a single currency across the whole
+  // response, stated once at C0.4, and holding a second one here would let
+  // the intensity denominator silently disagree with the response's own
+  // declared currency.
+  revenue Float?
+
+  status DataEntryStatus @default(DRAFT)
+  notes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  introduction             CdpIntroduction?
+  governance               CdpGovernance?
+  risksOpportunities       CdpRisksOpportunities?
+  businessStrategy         CdpBusinessStrategy?
+  targetsPerformance       CdpTargetsPerformance?
+  emissionsMethodology     CdpEmissionsMethodology?
+  emissionsData            CdpEmissionsData?
+  emissionsBreakdownModule CdpEmissionsBreakdownModule?
+  energy                   CdpEnergy?
+  additionalMetrics        CdpAdditionalMetrics?
+  verification             CdpVerification?
+  carbonPricing            CdpCarbonPricing?
+  engagement               CdpEngagement?
+  signoff                  CdpSignoff?
+
+  risks         CdpRisk[]
+  targets       CdpTarget[]
+  breakdownRows CdpEmissionsBreakdown[]
+
+  @@unique([facilityId, reportingPeriod])
+  @@index([companyId])
+  @@map("cdp_reports")
+}
+
+// --- C0 Introduction -------------------------------------------------------
+model CdpIntroduction {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  organizationDescription String? // C0.1
+  countriesOfOperation    String? // C0.3
+  reportingCurrency       String? // C0.4
+  consolidationApproach   String? // C0.5
+  organizationalBoundary  String? // C0.6
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_introduction")
+}
+
+// --- C1 Governance ---------------------------------------------------------
+model CdpGovernance {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  boardOversight           Boolean? // C1.1
+  boardOversightPosition   String? // C1.1a
+  boardOversightDetail     String? // C1.1b
+  boardReviewFrequency     String? // C1.1c
+  managementResponsibility String? // C1.2
+  managementReportingLine  String? // C1.2a
+  climateIncentives        Boolean? // C1.3
+  climateIncentivesDetail  String? // C1.3a
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_governance")
+}
+
+// --- C2 Risks and opportunities --------------------------------------------
+model CdpRisksOpportunities {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  hasRiskProcess              Boolean? // C2.1
+  timeHorizonDefinition       String? // C2.1a
+  shortTermYears              Int? // C2.1b
+  mediumTermYears             Int? // C2.1c
+  longTermYears               Int? // C2.1d
+  substantiveImpactDefinition String? // C2.1e
+  riskProcessDescription      String? // C2.2
+  riskProcessIntegrated       Boolean? // C2.2a
+  hasSubstantiveRisks         Boolean? // C2.3
+  hasSubstantiveOpportunities Boolean? // C2.4
+  realizedImpacts             String? // C2.5
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_risks_opportunities")
+}
+
+enum CdpRiskKind {
+  RISK
+  OPPORTUNITY
+}
+
+enum CdpTimeHorizon {
+  SHORT_TERM
+  MEDIUM_TERM
+  LONG_TERM
+}
+
+// One identified climate risk or opportunity — C2.3 and C2.4.
+//
+// A child table rather than columns, because CDP asks for a repeating block
+// per risk and a company may identify many. Risks and opportunities share one
+// table: CDP asks the same question shape of both, and splitting them would
+// duplicate every column for no gain.
+model CdpRisk {
+  id          String    @id @default(cuid())
+  cdpReportId String
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  kind        CdpRiskKind
+  // Free text rather than an enum: CDP's driver taxonomy (transition —
+  // policy and legal, technology, market, reputation; physical — acute,
+  // chronic) is revised between questionnaire versions, and an enum would
+  // force a migration each time it moved.
+  riskType    String
+  description String
+
+  valueChainStage String? // Direct operations, upstream, downstream
+  timeHorizon     CdpTimeHorizon?
+  likelihood      String?
+  magnitude       String?
+
+  // CDP asks for a range rather than a point estimate, and accepts either
+  // bound alone.
+  financialImpactMin Float?
+  financialImpactMax Float?
+
+  impactDescription String?
+  responseStrategy  String?
+  responseCost      Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cdpReportId])
+  @@map("cdp_risks")
+}
+
+// --- C3 Business strategy --------------------------------------------------
+model CdpBusinessStrategy {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  transitionPlan             String? // C3.1
+  transitionPlanDetail       String? // C3.1a
+  usesScenarioAnalysis       String? // C3.2
+  scenariosUsed              String? // C3.2a
+  scenarioResults            String? // C3.2b
+  strategyInfluence          String? // C3.3
+  financialPlanningInfluence String? // C3.4
+  lowCarbonCapex             Float? // C3.5
+  lowCarbonCapexPct          Float? // C3.6 (%)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_business_strategy")
+}
+
+// --- C4 Targets and performance --------------------------------------------
+model CdpTargetsPerformance {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  targetType             String? // C4.1
+  sbtiValidated          Boolean? // C4.1a
+  sbtiDetail             String? // C4.1b
+  otherTargets           String? // C4.2
+  hasInitiatives         Boolean? // C4.3
+  initiativeCount        Int? // C4.3a
+  initiativeSavingsTco2e Float? // C4.3b (tCO2e)
+  initiativeDetail       String? // C4.3c
+  lowCarbonProducts      String? // C4.5
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_targets_performance")
+}
+
+enum CdpTargetKind {
+  ABSOLUTE
+  INTENSITY
+}
+
+// One emissions reduction target — C4.1a (absolute) and C4.1b (intensity).
+//
+// Progress is stored as reported rather than recomputed from the base year:
+// a target's coverage is usually broader than the facility this report is
+// prepared for, so deriving progress from this facility's figures alone would
+// silently misstate it.
+model CdpTarget {
+  id          String    @id @default(cuid())
+  cdpReportId String
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  kind          CdpTargetKind
+  // "Scope 1", "Scope 1+2 (location-based)", "Scope 3 (category 1)" — free
+  // text for the same reason as CdpRisk.riskType.
+  scopesCovered String
+
+  baseYear               Int
+  baseYearEmissionsTco2e Float?
+  targetYear             Int
+  // Absolute targets state a reduction percentage against the base year.
+  reductionPct           Float?
+  // Intensity targets additionally need the denominator they are stated per.
+  intensityMetric        String?
+  baseYearIntensity      Float?
+  targetIntensity        Float?
+
+  percentAchieved Float?
+  isScienceBased  Boolean @default(false)
+  description     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cdpReportId])
+  @@map("cdp_targets")
+}
+
+// --- C5 Emissions methodology ----------------------------------------------
+model CdpEmissionsMethodology {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  baseYear                    Int? // C5.1
+  baseYearScope1Tco2e         Float? // C5.1a (tCO2e)
+  baseYearScope2LocationTco2e Float? // C5.1b (tCO2e)
+  baseYearScope2MarketTco2e   Float? // C5.1c (tCO2e)
+  baseYearScope3Tco2e         Float? // C5.1d (tCO2e)
+  standardsUsed               String? // C5.2
+  gwpSource                   String? // C5.3
+  baseYearRecalculation       String? // C5.4
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_emissions_methodology")
+}
+
+// --- C6 Emissions data -----------------------------------------------------
+// Scope 1, location-based Scope 2, Scope 3 and the revenue intensity are
+// derived from the calculation engines and deliberately have no column here.
+model CdpEmissionsData {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  scope1Description    String? // C6.1a
+  scope2Approach       String? // C6.2
+  scope2MarketTco2e    Float? // C6.3a (tCO2e)
+  exclusions           String? // C6.4
+  scope3Description    String? // C6.5a
+  biogenicCo2Tonnes    Float? // C6.7 (t CO2)
+  otherIntensityMetric String? // C6.10a
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_emissions_data")
+}
+
+// --- C7 Emissions breakdown ------------------------------------------------
+model CdpEmissionsBreakdownModule {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  breakdownByGas          Boolean? // C7.1
+  breakdownByCountryNote  String? // C7.2
+  breakdownByDivisionNote String? // C7.3
+  scope2BreakdownNote     String? // C7.5
+  yearOnYearDirection     String? // C7.9
+  yearOnYearExplanation   String? // C7.9a
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_emissions_breakdown_module")
+}
+
+enum CdpBreakdownDimension {
+  GAS
+  COUNTRY
+  BUSINESS_DIVISION
+  ACTIVITY
+}
+
+enum CdpBreakdownScope {
+  SCOPE_1
+  SCOPE_2
+}
+
+// One row of a C7 emissions breakdown.
+//
+// A single table across all four dimensions rather than one per dimension:
+// every row is the same shape (a label and a tonnage against a scope), and
+// four near-identical tables would be four places to change when CDP adds a
+// grouping.
+model CdpEmissionsBreakdown {
+  id          String    @id @default(cuid())
+  cdpReportId String
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  dimension      CdpBreakdownDimension
+  scope          CdpBreakdownScope     @default(SCOPE_1)
+  // "CO2", "CH4", "India", "Chakan Works", "Electric arc melting".
+  label          String
+  emissionsTco2e Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cdpReportId])
+  @@map("cdp_emissions_breakdown")
+}
+
+// --- C8 Energy -------------------------------------------------------------
+// Total energy, purchased and renewable electricity, purchased steam and the
+// renewable share are derived from activity data and have no column here.
+model CdpEnergy {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  energySpendPct          Float? // C8.1 (%)
+  energyActivities        String? // C8.2
+  fuelConsumptionMwh      Float? // C8.2d (MWh)
+  electricityGeneratedMwh Float? // C8.2f (MWh)
+  renewableGeneratedMwh   Float? // C8.2g (MWh)
+  lowCarbonEnergyPlan     String? // C8.3
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_energy")
+}
+
+// --- C9 Additional metrics (optional / sector-specific) ---------------------
+model CdpAdditionalMetrics {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  additionalMetrics String? // C9.1
+  sectorMetricName  String? // C9.1a
+  sectorMetricValue Float? // C9.1b
+  sectorMetricUnit  String? // C9.1c
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_additional_metrics")
+}
+
+// --- C10 Verification ------------------------------------------------------
+model CdpVerification {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  scope1Assurance   String? // C10.1
+  scope2Assurance   String? // C10.1a
+  scope3Assurance   String? // C10.1b
+  assuranceProvider String? // C10.1c
+  assuranceStandard String? // C10.1d
+  assuranceYear     Int? // C10.1e
+  otherVerification String? // C10.2
+  assuranceScope    String? // C10.3
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_verification")
+}
+
+// --- C11 Carbon pricing ----------------------------------------------------
+// Credits cancelled is derived from the voluntary offsets log.
+model CdpCarbonPricing {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  regulatedByCarbonPricing Boolean? // C11.1
+  carbonPricingSystems     String? // C11.1a
+  coveredEmissionsTco2e    Float? // C11.1b (tCO2e)
+  carbonPricingStrategy    String? // C11.1c
+  usesCarbonCredits        Boolean? // C11.2
+  carbonCreditsDetail      String? // C11.2b
+  usesInternalCarbonPrice  String? // C11.3
+  internalPriceType        String? // C11.3a
+  internalCarbonPrice      Float? // C11.3b
+  internalPriceApplication String? // C11.3c
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_carbon_pricing")
+}
+
+// --- C12 Engagement --------------------------------------------------------
+model CdpEngagement {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  engagesValueChain            Boolean? // C12.1
+  supplierEngagement           String? // C12.1a
+  suppliersEngagedPct          Float? // C12.1b (%)
+  scope3CoveredByEngagementPct Float? // C12.1c (%)
+  customerEngagement           String? // C12.1d
+  supplierRequirements         Boolean? // C12.2
+  policyEngagement             Boolean? // C12.3
+  policyEngagementDetail       String? // C12.3a
+  publications                 String? // C12.4
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_engagement")
+}
+
+// --- C15 Sign off ----------------------------------------------------------
+model CdpSignoff {
+  id          String    @id @default(cuid())
+  cdpReportId String    @unique
+  cdpReport   CdpReport @relation(fields: [cdpReportId], references: [id], onDelete: Cascade)
+
+  submitterJobTitle    String? // C15.1
+  submitterJobCategory String? // C15.1a
+  finalStatement       String? // C15.2
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("cdp_signoff")
 }
