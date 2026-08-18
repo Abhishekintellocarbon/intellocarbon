@@ -109,6 +109,19 @@ export interface CdpQuestion {
    * figures were calculated and which were asserted.
    */
   derived?: boolean;
+  /**
+   * A derived question that resolves for EVERY report, because it depends only
+   * on the report existing rather than on any data behind it. C0.2's reporting
+   * window is the only one today.
+   *
+   * It has to be distinguished from an ordinary derived question because it
+   * carries no signal. Counted normally it would make an untouched module
+   * report as started and lift every response's completeness off zero — the
+   * opposite of what a readiness indicator is for. The maturity indicator
+   * therefore ignores these entirely; the response index still lists them,
+   * because the transfer into CDP's platform genuinely needs the dates.
+   */
+  constant?: boolean;
 }
 
 export interface CdpModule {
@@ -172,6 +185,7 @@ export const CDP_MODULES: CdpModule[] = [
       q("C0.1", "Give a general description of the organization, including its business activities", "narrative", "organizationDescription"),
       q("C0.2", "State the start and end date of the year for which you are reporting data", "narrative", "reportingYearDescription", {
         derived: true,
+        constant: true,
         hint: "Resolved from the reporting period and your financial year start month.",
       }),
       q("C0.3", "Select the countries or areas in which you operate", "narrative", "countriesOfOperation"),
