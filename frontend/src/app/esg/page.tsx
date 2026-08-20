@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, Check, Clock, Droplets, FileBarChart, Globe2, Landmark, Leaf, Network, ScrollText } from "lucide-react";
+import { ArrowRight, BadgeCheck, BarChart3, Boxes, Check, Clock, Droplets, FileBarChart, Gauge, Globe2, Landmark, Leaf, LineChart, Network, Recycle, ScrollText, ShieldCheck, Target, Truck, Zap } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MarketingHeader } from "@/components/intellocalc/marketing-header";
@@ -31,6 +31,40 @@ const BUNDLE_ITEMS: BundleItem[] = [
   { icon: Globe2, name: "GRI Standards 2021", status: "live" },
   { icon: Landmark, name: "CSRD / ESRS", status: "live" },
   { icon: ScrollText, name: "CDP Climate Change", status: "live" },
+];
+
+/**
+ * Capabilities that come with the same bundle, kept in their own list rather
+ * than mixed into BUNDLE_ITEMS above.
+ *
+ * The distinction is real and worth preserving: the items above are disclosure
+ * frameworks a company reports *under*, each with its own standard-setter and
+ * report output. These are trackers and indicators that read the same data.
+ * Flattening eighteen chips into one grid would imply, say, EcoVadis readiness
+ * is a reporting framework on a par with GRI, which it is not.
+ *
+ * Two names are deliberately not the ones a feature list would reach for:
+ *
+ *   - "Reduction targets & progress", not "SBTi alignment". Intellocarbon
+ *     does not validate targets and has no relationship with the Science
+ *     Based Targets initiative; the tracker records a self-stated target and
+ *     measures it against submitted emissions. Calling it SBTi alignment
+ *     would claim a validation nobody performed.
+ *   - "EcoVadis readiness", never a predicted score. It maps existing data
+ *     against the four EcoVadis themes and reports completeness per theme.
+ *     EcoVadis scores EcoVadis submissions; this only shows what is ready.
+ */
+const ALSO_INCLUDED: BundleItem[] = [
+  { icon: Recycle, name: "Waste & circularity rate", status: "live" },
+  { icon: Zap, name: "Energy mix trend", status: "live" },
+  { icon: Target, name: "Reduction targets & progress", status: "live" },
+  { icon: BadgeCheck, name: "Renewable energy certificates", status: "live" },
+  { icon: ShieldCheck, name: "Governance disclosures", status: "live" },
+  { icon: Truck, name: "Supplier ESG scorecard", status: "live" },
+  { icon: BarChart3, name: "Sector benchmarking", status: "live" },
+  { icon: LineChart, name: "Net-zero trajectory", status: "live" },
+  { icon: Boxes, name: "Product footprint per SKU", status: "live" },
+  { icon: Gauge, name: "EcoVadis readiness", status: "live" },
 ];
 
 interface MarketRow {
@@ -145,6 +179,40 @@ export default function EsgHub() {
               </div>
             ))}
           </div>
+
+          {/* Same chip markup as the frameworks above, under its own heading —
+              included in the bundle, not priced separately, and not presented
+              as a reporting framework. */}
+          <p className="mt-7 text-sm font-medium">Also included, on the same subscription</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Trackers and indicators that read the emissions, energy, waste and governance data you have already
+            entered. No additional charge and no separate module to buy.
+          </p>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {ALSO_INCLUDED.map((item) => (
+              <div
+                key={item.name}
+                className="flex items-center justify-between gap-3 rounded-xl border border-surface-border bg-surface-raised/60 px-4 py-3"
+              >
+                <div className="flex items-center gap-2.5">
+                  <item.icon className="h-4 w-4 shrink-0 text-teal-500" />
+                  <span className="text-sm font-medium">{item.name}</span>
+                </div>
+                <StatusChip status={item.status} />
+              </div>
+            ))}
+          </div>
+
+          {/* The two claims on this page that could overstate, stated plainly
+              in the same place they are offered — the discipline already
+              applied to CSRD and CDP above. */}
+          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+            Reduction targets are self-reported and measured against your own submitted emissions. Intellocarbon does
+            not validate targets and has no relationship with the Science Based Targets initiative. EcoVadis readiness
+            reports how complete your data is against the four EcoVadis themes — it is not a predicted EcoVadis score,
+            and only EcoVadis scores an EcoVadis submission.
+          </p>
 
           <Link href="/signup" className="mt-7 block">
             <Button size="lg" className="w-full">

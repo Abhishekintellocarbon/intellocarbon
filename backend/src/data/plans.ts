@@ -75,6 +75,10 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
       "Quarterly deadline alerts",
       "7-year document retention",
       "EU export compliance",
+      // Bundled here rather than sold as a tier, on the same terms as UK CBAM
+      // above. Two constraints the wording has to carry: it applies to steel
+      // only, and NISST certifies while this platform calculates.
+      "Green Steel Taxonomy assessment — steel-sector clients only. Your emissions intensity against the Ministry of Steel's 2.2 tCO2e/tonne threshold and its 3, 4 and 5-star bands, from the same figure as your CBAM liability. Prepares the calculation for NISST certification; NISST issues it, not Intellocarbon",
     ],
     razorpayPlanIdEnvVar: "RAZORPAY_PLAN_ID_CBAM_COMPLIANCE",
   },
@@ -128,7 +132,7 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
     facilityLimit: null,
     priceInr: 19999,
     priceLabel: "₹19,999/facility/mo",
-    description: "BRSR Core + ISSB IFRS S1/S2 + GRI Standards 2021 — reusing your existing GHG calculation data, with CSRD/CDP planned next.",
+    description: "BRSR Core + ISSB IFRS S1/S2 + GRI Standards 2021 + CSRD/ESRS + CDP Climate Change — reusing your existing GHG calculation data.",
     features: [
       "All 9 BRSR Core attributes (GHG, water, waste, energy, workforce, diversity, inclusion, openness, fairness)",
       "ISSB IFRS S1 & S2 disclosure — Governance, Strategy, Risk Management, Metrics & Targets",
@@ -141,7 +145,23 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
       "Reasonable-assurance verification workflow",
       "Standalone or bundled with any CBAM/CCTS plan",
       "7-year document retention",
-      "CSRD and CDP disclosures planned as future additions to this bundle",
+      // CSRD and CDP shipped; this line used to say they were planned, which
+      // understated the bundle to anyone comparing it against /esg.
+      "CSRD/ESRS disclosure — the ten topical standards with a double-materiality assessment",
+      "CDP Climate Change — the full questionnaire with a response pack and readiness indicator",
+      // The ten capabilities below read the data already entered above. Named
+      // for what they actually do: "reduction targets", not SBTi alignment,
+      // and EcoVadis "readiness", never a predicted score.
+      "Waste and circularity rate — diverted against total generated, trended",
+      "Energy mix trend — renewable share over time, not a single snapshot",
+      "Reduction targets and progress — your self-stated target measured against your submitted emissions. Not validated by Intellocarbon, which has no relationship with the Science Based Targets initiative",
+      "Renewable energy certificate ledger — registry, vintage and quantity, with coverage against grid electricity",
+      "Governance disclosures — board oversight and policy coverage surfaced from GRI 2 and BRSR data already entered",
+      "Supplier ESG scorecard — per-supplier disclosure status and self-assessed risk, beyond GRI 308/414 percentages",
+      "Sector benchmarking against published reference values, and an explicit \"not available\" where no public benchmark exists",
+      "Net-zero trajectory — historical emissions against your stated target path",
+      "Product carbon footprint per SKU — an allocation of facility emissions by production share, not a life cycle assessment",
+      "EcoVadis readiness — completeness of your data against the four EcoVadis themes. A readiness indicator, not a predicted EcoVadis score",
     ],
     razorpayPlanIdEnvVar: "RAZORPAY_PLAN_ID_BRSR_CORE",
   },

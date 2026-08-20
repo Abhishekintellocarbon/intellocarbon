@@ -118,6 +118,66 @@ function UkCbamSection() {
   );
 }
 
+/**
+ * Green Steel Taxonomy — a bundled CBAM feature, scoped to steel.
+ *
+ * Two things this section has to get right, both of which the wording carries
+ * rather than leaving to the reader:
+ *
+ *   1. It is included in CBAM Compliance. No price appears here and no card
+ *      implies a tier, because there isn't one.
+ *   2. NISST certifies; Intellocarbon calculates. The same line already drawn
+ *      for CBAM verification and CCTS — the platform prepares what an
+ *      independent body then checks.
+ *
+ * The steel-sector scope is in the subtitle, not a footnote: a cement or
+ * fertiliser reader should know in the first sentence that this is not
+ * theirs.
+ */
+function GreenSteelSection() {
+  return (
+    <ProductSection
+      title="Green Steel Taxonomy, for steel-sector clients"
+      subtitle="The Ministry of Steel's Taxonomy of Green Steel (Gazette Notification 763(E), December 2024) becomes enforceable from FY2026-27. It rates steel by emissions intensity against a 2.2 tCO2e per tonne threshold. This applies to steel producers only — if you are in cement, aluminium, fertilisers or hydrogen, it does not affect you."
+    >
+      <div className="grid gap-5 sm:grid-cols-3">
+        <Card className="rounded-[12px] p-6">
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-500">The threshold</p>
+          <p className="mt-3 text-sm font-semibold text-[#E8F0F7]">2.2 tCO2e per tonne</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#8AA0B4]">
+            Steel below that is rated in bands — five-star under 1.6, four-star to 2.0, three-star to 2.2.
+            The bands are fixed intensities, not percentages, and the Ministry reviews them every three years.
+          </p>
+        </Card>
+        <Card className="rounded-[12px] p-6">
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-500">From data you already keep</p>
+          <p className="mt-3 text-sm font-semibold text-[#E8F0F7]">The same figure as your CBAM position</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#8AA0B4]">
+            Your intensity is calculated from the activity data already entered for CBAM, so the star band sits
+            beside your CBAM liability rather than needing a second exercise.
+          </p>
+        </Card>
+        <Card className="rounded-[12px] p-6">
+          <p className="text-xs font-medium uppercase tracking-wide text-teal-500">Costs you</p>
+          <p className="mt-3 text-sm font-semibold text-[#E8F0F7]">Nothing further</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#8AA0B4]">
+            Included in the CBAM Compliance plan for steel-sector clients. No separate subscription and no
+            additional module to buy.
+          </p>
+        </Card>
+      </div>
+
+      <p className="mt-6 text-sm text-[#8AA0B4]">
+        Certification under the taxonomy is issued by NISST, the National Institute of Secondary Steel Technology,
+        through its own measurement, reporting and verification process. Intellocarbon is not a certifying body.
+        What the platform produces is the calculated intensity and a working summary of how it was derived, so the
+        submission you take to NISST starts from a figure that is already traceable to your plant data — the same
+        division of work as CBAM verification, where an accredited verifier checks what the platform prepared.
+      </p>
+    </ProductSection>
+  );
+}
+
 function ProofMockup() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -245,6 +305,7 @@ export default function CbamCompliancePage() {
         <>
           <ComplianceCalendar />
           <UkCbamSection />
+          <GreenSteelSection />
         </>
       }
       proofTitle="Proof"

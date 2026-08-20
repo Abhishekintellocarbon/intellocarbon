@@ -93,6 +93,11 @@ const CBAM_FAQS = [
     answer:
       "The mechanism takes effect on 1 January 2027. The first accounting period runs that full calendar year, with the return due by 31 May 2028; reporting moves to a quarterly rhythm from 2028. In practice the work starts earlier — the return is built from a full year of production data, so the figures need to be accumulating from January 2027 rather than reconstructed in 2028.",
   },
+  {
+    question: "Does Intellocarbon support the Green Steel Taxonomy?",
+    answer:
+      "Yes, for steel-sector clients, and it is included in the CBAM Compliance plan at no extra cost — there is no separate Green Steel subscription. The Ministry of Steel's Taxonomy of Green Steel (Gazette Notification 763(E), December 2024) becomes enforceable from FY2026-27 and rates steel by emissions intensity: below 1.6 tCO2e per tonne of finished steel is five-star, 1.6 to 2.0 is four-star, 2.0 to 2.2 is three-star, and steel at or above 2.2 is not rated. The platform calculates your intensity from the activity data you already enter for CBAM, so the band sits alongside your CBAM liability rather than needing a separate exercise. Two limits worth being clear about: this applies to steel only — it has no bearing on cement, aluminium, fertiliser or hydrogen facilities — and Intellocarbon does not certify. Certification is issued by NISST, the National Institute of Secondary Steel Technology, through its own verification process. What you get here is the calculation and a working summary of how it was derived, to carry into that submission.",
+  },
 ];
 
 const ESG_FAQS = [
@@ -119,7 +124,17 @@ const ESG_FAQS = [
   {
     question: "What ESG frameworks do you cover?",
     answer:
-      "BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, Scope 3 value-chain emissions, water footprint to ISO 14046, and voluntary offset tracking — all in one ESG Disclosure Bundle, at one price per facility, generated from the same activity data you already enter. CSRD and CDP are in active development.",
+      "BRSR Core, ISSB IFRS S1/S2, GRI Standards 2021, CSRD/ESRS, CDP Climate Change, Scope 3 value-chain emissions, water footprint to ISO 14046, and voluntary offset tracking — all in one ESG Disclosure Bundle, at one price per facility, generated from the same activity data you already enter.",
+  },
+  {
+    question: "What ESG metrics can I track beyond BRSR and GRI?",
+    answer:
+      "The bundle carries a set of trackers that read the emissions, energy, waste and governance data you have already entered, so none of them ask for a second round of data collection. Waste and circularity gives you the share diverted against total generated, trended rather than a single figure. Energy mix shows renewable share over time. Reduction targets records the target you have stated and measures progress against your submitted emissions. There is a renewable energy certificate ledger with coverage against grid electricity, a governance view built from the GRI 2 and BRSR answers already on file, a per-supplier ESG scorecard that goes beyond the aggregate percentages GRI 308 and 414 ask for, sector benchmarking against published reference values, a net-zero trajectory chart, and an indicative product carbon footprint per SKU. All of it is included in the ESG Disclosure Bundle at the same per-facility price. Two of these deserve a plain caveat: reduction targets are self-reported and Intellocarbon neither validates them nor has any relationship with the Science Based Targets initiative, and the per-SKU footprint is an allocation of facility emissions by production share, not a life cycle assessment. Where no reliable public benchmark exists for a sector, the benchmarking view says so rather than showing a number.",
+  },
+  {
+    question: "What is EcoVadis readiness?",
+    answer:
+      "It maps the data you already hold in the platform against the four themes an EcoVadis assessment covers — Environment, Labour and Human Rights, Ethics, and Sustainable Procurement — and reports how complete you are in each, so you can see where the gaps are before you start a submission. It is a readiness indicator and nothing more. It is not a predicted EcoVadis score, it does not forecast a medal, and it carries no standing with EcoVadis: only EcoVadis scores an EcoVadis submission, against its own methodology and its own evidence requirements. The value is in knowing which theme is thin while there is still time to fix it, rather than discovering it mid-assessment. It is included in the ESG Disclosure Bundle.",
   },
   {
     question: "Does Intellocarbon support GRI reporting?",

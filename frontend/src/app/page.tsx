@@ -97,6 +97,15 @@ const OFFERINGS = [
       "BRSR Core — nine SEBI attributes, reasonable assurance ready. ISSB IFRS S1/S2. GRI Standards 2021, with a materiality assessment that decides which topics you report. Scope 3 value-chain disclosure. All reuse your existing emissions data.",
   },
   {
+    // CBAM-adjacent and deliberately worded as part of that plan rather than
+    // as a fifth product: it is a bundled feature, so it must not read as
+    // something with its own price. Steel-sector scoping is in the first
+    // sentence because the taxonomy does not apply to anyone else.
+    title: "Green Steel Taxonomy",
+    description:
+      "For steel-sector clients, included in CBAM Compliance at no extra cost. See where your emissions intensity falls against the Ministry of Steel's 2.2 tCO2e per tonne threshold and its 3, 4 and 5-star bands — from the same figure that drives your CBAM liability. NISST issues the certification; we prepare the calculation you submit to them.",
+  },
+  {
     title: "IntelloCalc Free Tools",
     description:
       "Check CBAM exposure in 60 seconds. Check CCTS GHG intensity. Compliance eligibility wizard. No signup required.",
