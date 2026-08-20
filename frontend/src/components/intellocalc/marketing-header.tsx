@@ -37,40 +37,65 @@ export function MarketingHeader() {
                                   Log in / Get started, as four flex children
                                   with three equal gaps.
 
-          THE BINDING CONSTRAINT is max-w-6xl, not the viewport. The header
-          caps at 1152px, so usable width stops growing at 1104px however wide
-          the screen gets — 1440 and 1920 have exactly the same room. Widening
-          the cap is NOT the way to buy space: the IntelloCalc panel is fixed
-          at the right of the viewport, so a wider header pushes the CTAs
-          toward it rather than away.
+          THE HEADER IS FULL-BLEED, and deliberately escapes two constraints
+          that apply to the page content below it. Both were measured, and
+          re-adding either is what put ~288px of dead space to the right of
+          "Get started" at 1440 (528px at 1920, 848px at 2560):
 
-          The desktop row spends the 1104px as:
+            1. The page root carries `lg:pr-[240px]` to reserve a column for
+               the IntelloCalc panel. That panel is `position: fixed` AND
+               vertically centred (`top-[40%]`) — measured at 242px..478px in
+               a 900px-tall viewport, while the header band ends at 103px. It
+               therefore never occupies the header's row, so the header pays
+               240px for clearance it does not need. `lg:-mr-[240px]` cancels
+               the reservation for this element only; the content below still
+               gets it.
+
+            2. `mx-auto max-w-6xl` capped the header at 1152px and centred it
+               inside that already-narrowed column, so every pixel of extra
+               viewport was split into two growing gaps — which is why the
+               logo sat 288px from the left edge at 1920.
+
+          Note that adjusting px-* here can never fix that gap: the loss came
+          from the parent's padding and the centring cap, not from the
+          header's own inset. Both edges are now px-6, so the logo's left
+          inset and the CTA's right inset are both 24px at every width.
+
+          KNOWN BOUND: because the header now reaches the viewport edge, it
+          would collide with the fixed panel if the panel's band ever rose
+          into the header's. Panel top is `0.4 * vh - 118`, so that needs a
+          viewport shorter than ~553px at lg+ widths. The panel is z-40 and
+          the header z-30, so the panel would win. Re-check this if the
+          panel's height or `top-[40%]` changes.
+
+          The desktop row's content is:
 
             logo 317 + nav 441 + clock 92 + CTAs 207 = 1057
 
-          leaving 47px, which justify-between splits into three ~16px gaps —
-          one either side of the clock, one between logo and nav.
+          justify-between spreads the remaining width into three gaps — one
+          either side of the clock, one between logo and nav. Those gaps now
+          grow with the viewport instead of being fixed at ~16px.
 
           The clock was stacked over two lines here until it was reported as
           looking like an awkward wrap. One line costs ~36px more, bought back
           by trimming nav item padding to px-1.5, nav gap to 0, CTA padding to
           px-4 and the CTA pair gap to 3, plus dropping the leading zero from
-          the hour. Every one of those is load-bearing: restore any and the
-          gaps fall back toward the ~5px that made this look cramped.
+          the hour. Those trims are kept: the row still has to fit at 1400,
+          which is where slack is tightest, and loosening them there is what
+          made this look cramped before.
 
-          Header padding is px-6, so the logo's left inset and the CTA's right
-          inset are both 24px — they are symmetric, and raising them costs two
-          pixels of gap for every one of edge inset.
+          Why 1400: the row needs ~1057px plus gaps. That budget is unchanged
+          by the full-bleed fix — at 1400 the header is now 1400 wide rather
+          than 1112, so the switch point has margin it did not have before.
+          md (768px) was the original value and switched a nav needing 1000px+
+          into a 720px box, which is what clipped it in phone landscape and
+          tablet portrait.
 
-          Why 1400: the row needs ~1057px plus gaps, and usable is
-          viewport - 288 until the cap bites. md (768px) was the original value
-          and switched a nav needing 1000px+ into a 720px box, which is what
-          clipped it in phone landscape and tablet portrait.
-
-          If you add a nav item or lengthen the CTAs, re-measure — there are
-          47px of slack and three gaps competing for them.
+          MOBILE IS UNAFFECTED by the full-bleed change: `lg:-mr-[240px]` does
+          nothing below 1024, and the removed `max-w-6xl` never bound below
+          1152 anyway. Below lg this file renders exactly what it did before.
           =================================================================== */}
-      <header className="relative z-30 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+      <header className="relative z-30 flex items-center justify-between px-6 py-6 lg:-mr-[240px]">
         <Link href="/">
           <Logo size="lg" dimensional />
         </Link>
