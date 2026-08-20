@@ -758,7 +758,13 @@ export function lineTrendChart(
     for (const p of pts.slice(1)) doc.lineTo(toX(p.x), toY(p.y));
     doc.stroke();
     doc.undash();
-    for (const p of pts) doc.circle(toX(p.x), toY(p.y), 2.5).fillColor(s.color).fill();
+    // Markers only on measured series. A dot is what a reader takes for an
+    // observation, and putting one on every year of a stated target path — a
+    // straight line with no data behind any point on it — would undo the
+    // distinction the dashing exists to make.
+    if (!s.dashed) {
+      for (const p of pts) doc.circle(toX(p.x), toY(p.y), 2.5).fillColor(s.color).fill();
+    }
   }
 
   doc

@@ -432,3 +432,82 @@ describe("the PDF money formatters emit only glyphs the standard-14 metrics cove
     expect(fmtGbp(1234.5)).toContain("\u00a3");
   });
 });
+
+/**
+ * Which logo lockup each report uses.
+ *
+ * There are two, because one file cannot serve both backgrounds these
+ * documents use: covers paint a dark gradient band and need the light lockup;
+ * interior page headers are plain white and need the dark one. Getting it
+ * backwards does not fail — it renders an invisible wordmark, which is the
+ * defect brandAssets.ts documents having already been shipped once, with the
+ * white "Intello" disappearing on every interior header while the mark and the
+ * teal "carbon" stayed visible.
+ *
+ * Read from the builders rather than asserted per-report, so a new report type
+ * that reaches for the wrong lockup fails here instead of shipping.
+ */
+describe("every report uses the right logo lockup for its background", () => {
+  /**
+   * Only builders that use the shared PageBuilder in cbamReport/layout.
+   *
+   * The legal document generators and the unbranded GHG Runner have their own
+   * page builders with their own chrome and their own reasons for it — the
+   * Runner is deliberately unbranded because it is a foreign consulting tool —
+   * so noCoverPage() and this logo split do not apply to them. Filtering on
+   * the import rather than on a hardcoded list means a new report that adopts
+   * the shared builder is covered automatically.
+   */
+  const builders = (): [string, string][] => {
+    const servicesDir = path.join(__dirname, "..");
+    const found: [string, string][] = [];
+    for (const dir of fs.readdirSync(servicesDir)) {
+      const buildFile = path.join(servicesDir, dir, "build.ts");
+      if (!fs.existsSync(buildFile)) continue;
+      const src = fs.readFileSync(buildFile, "utf8");
+      if (!/import \{ PageBuilder \} from "(\.\.\/cbamReport|\.)\/layout"/.test(src)) continue;
+      found.push([dir, src]);
+    }
+    return found;
+  };
+
+  it("finds the builders", () => {
+    expect(builders().length).toBeGreaterThanOrEqual(9);
+  });
+
+  it.each(builders())("%s does not put the on-light lockup on a cover band", (_name, src) => {
+    expect(src).not.toContain("LOGO_LOCKUP_ON_LIGHT");
+  });
+
+  it.each(builders().filter(([, src]) => src.includes("coverShell(")))(
+    "%s passes the on-dark lockup to coverShell",
+    (_name, src) => {
+      expect(src).toContain("LOGO_LOCKUP_ON_DARK");
+      expect(src).toMatch(/logoPath:\s*LOGO_PATH/);
+      expect(src).toMatch(/const LOGO_PATH = LOGO_LOCKUP_ON_DARK;/);
+    },
+  );
+
+  it("draws the interior header band with the on-light lockup, in one place", () => {
+    const layout = fs.readFileSync(path.join(__dirname, "..", "cbamReport", "layout.ts"), "utf8");
+    expect(layout).toContain("LOGO_LOCKUP_ON_LIGHT");
+    expect(layout).not.toContain("LOGO_LOCKUP_ON_DARK");
+  });
+
+  /**
+   * A report with no cover must declare so, or finalize() skips page 1 as if it
+   * were one and that page gets no header band at all — the Green Steel
+   * defect. Every builder that does not call coverShell must call
+   * noCoverPage().
+   */
+  it.each(builders().filter(([, src]) => !src.includes("coverShell(")))(
+    "%s has no cover, so it declares noCoverPage()",
+    (_name, src) => {
+      expect(src).toContain("noCoverPage()");
+    },
+  );
+
+  it.each(builders())("%s calls finalize(), so its pages get header and footer", (_name, src) => {
+    expect(src).toContain("pb.finalize()");
+  });
+});
