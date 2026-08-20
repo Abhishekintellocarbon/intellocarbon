@@ -27,6 +27,7 @@ import { assignPageNumbers, type GriContentIndex, type GriContentIndexEntry } fr
 import type { ReportPhase2Data } from "../reportSections/phase2Data";
 import {
   drawCircularityBlock,
+  drawProductFootprintBlock,
   drawEnergyMixBlock,
   drawGovernanceBlock,
   drawRecCoverageBlock,
@@ -145,6 +146,13 @@ export const buildGriPdf = async (
 
   assignPageNumbers(contentIndex, pages);
   buildContentIndexSection(pb, section++, contentIndex);
+
+  // Optional annex — present only where this facility has entered SKU-level
+  // production. Not part of the GRI content index, and deliberately not
+  // numbered as a disclosure, because it is not one.
+  if (phase2?.productFootprint.hasData) {
+    buildProductFootprintAnnex(pb, section++, phase2);
+  }
 
   buildDeclaration(pb, section, facility, contentIndex);
 
@@ -1933,6 +1941,38 @@ function buildContentIndexSection(pb: PageBuilder, section: number, index: GriCo
 // ---------------------------------------------------------------------------
 // Declaration
 // ---------------------------------------------------------------------------
+
+/**
+ * Annex — product carbon footprint per SKU.
+ *
+ * An allocation of this facility's Scope 1 and 2 emissions across the products
+ * it has listed, by output volume. It is NOT a life-cycle assessment and NOT a
+ * cradle-to-gate product carbon footprint: it carries no upstream or
+ * downstream emissions, and a per-unit figure derived this way is not
+ * comparable to one produced under ISO 14067 or a PEF category rule. The annex
+ * says so at the top and the block says so again at the bottom, because a
+ * "kgCO2e per tonne" figure on a page invites exactly that comparison.
+ *
+ * An annex rather than a disclosure section because GRI has no product
+ * footprint disclosure; presenting it among the numbered topic sections would
+ * imply a standard it does not sit under.
+ */
+function buildProductFootprintAnnex(pb: PageBuilder, section: number, phase2: ReportPhase2Data) {
+  pb.startSection(section, "Annex — Product Carbon Footprint by Product");
+
+  pb.paragraph(
+    "This annex allocates the facility's Scope 1 and Scope 2 emissions across the products it has listed for this " +
+      "reporting period, in proportion to output volume. It is not a life-cycle assessment and not a cradle-to-gate " +
+      "product carbon footprint: no upstream or downstream emissions are included, and these figures are not " +
+      "comparable to a footprint produced under ISO 14067 or a product category rule.",
+  );
+  pb.note(
+    "Not a GRI disclosure. GRI has no product carbon footprint standard, so this annex sits outside the content " +
+      "index and outside the in-accordance claim.",
+  );
+
+  drawProductFootprintBlock(pb, phase2.productFootprint);
+}
 
 function buildDeclaration(
   pb: PageBuilder,

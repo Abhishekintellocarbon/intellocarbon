@@ -39,9 +39,24 @@ export const fmt = (n: number, digits = 3) =>
 
 export const fmtInt = (n: number) => Math.round(n).toLocaleString("en-IN");
 
+/**
+ * "EUR" rather than the € glyph.
+ *
+ * pdfkit's standard fonts carry no advance width for U+20AC, so the euro sign
+ * renders on top of the character after it — "€8,14,204.24" prints as a €
+ * collided with the 8. It is not dropped, which is what made this survive: the
+ * number is still there and still correct, just illegible at its first digit,
+ * and it was doing this on the CBAM Communication Package's cover hero, the
+ * liability tables and the waterfall labels.
+ *
+ * Same defect class as the Rupee sign and the unicode arrows already handled
+ * elsewhere in these builders, and the same fix: spell the currency. The pound
+ * (U+00A3) and dollar are in the standard Adobe encoding with real widths and
+ * render correctly, so fmtGbp keeps its symbol.
+ */
 export const fmtEur = (n: number, digits = 2) => {
   const abs = Math.abs(n).toLocaleString("en-IN", { maximumFractionDigits: digits, minimumFractionDigits: digits });
-  return n < 0 ? `-€${abs}` : `€${abs}`;
+  return n < 0 ? `-EUR ${abs}` : `EUR ${abs}`;
 };
 
 /** UK CBAM figures are GBP — same shape as fmtEur so the two reports format money identically apart from the symbol. */

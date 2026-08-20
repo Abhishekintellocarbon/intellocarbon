@@ -16,5 +16,8 @@ router.get("/dashboard", companyController.getCompanyDashboard);
 // Gated inside the service on the ESG Disclosure Bundle subscription (403
 // ESG_BUNDLE_NOT_SUBSCRIBED), the same gate every BRSR/ISSB/Scope 3 route uses.
 router.get("/esg-overview", companyController.getEsgOverview);
+// Same gate, same data — the PDF is built from the same getEsgOverview call
+// the dashboard card reads, so the two cannot disagree.
+router.get("/esg-overview/ecovadis-readiness.pdf", companyController.downloadEcovadisReadinessPdf);
 
 export default router;

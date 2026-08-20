@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import PDFDocument from "pdfkit";
 import { PageBuilder } from "../cbamReport/layout";
-import { PAGE_HEIGHT, CONTENT_WIDTH, MARGIN_X } from "../cbamReport/theme";
+import { PAGE_HEIGHT, CONTENT_WIDTH, MARGIN_X, fmt, fmtInt, fmtEur, fmtGbp } from "../cbamReport/theme";
 import { LOGO_LOCKUP_ON_DARK } from "../brandAssets";
 import { buildVerifyQr } from "../cbamReport/qr";
 
@@ -364,5 +364,71 @@ describe("pageNumberY stays clear of pdfkit's auto-pagination threshold", () => 
     expect(footerNoteY(PAGE_HEIGHT) + lineHeight).toBeLessThan(threshold);
     expect(pageNumberY(PAGE_HEIGHT) + lineHeight).toBeLessThan(threshold);
     expect(MARGIN_X).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Glyphs the PDF builders must not emit.
+ *
+ * pdfkit's standard fonts are WinAnsi-only, and a character outside that
+ * encoding does not fail loudly — it either vanishes or, worse, renders with no
+ * advance width so the next character prints on top of it. The euro sign did
+ * exactly that on the CBAM cover's hero number for as long as the report has
+ * existed: "EUR 8,14,204.24" was printing as a € collided with its first digit,
+ * still correct and still unreadable.
+ *
+ * Asserted by measuring, not by listing known-bad characters, so a glyph nobody
+ * has thought of yet is caught the first time a formatter emits it.
+ */
+describe("the PDF money formatters emit only glyphs the standard-14 metrics cover", () => {
+  /**
+   * pdfkit writes the base-14 fonts with /Encoding /WinAnsiEncoding and no
+   * /Widths array, so a viewer must fall back to the font's built-in Core-14
+   * AFM metrics. Those AFMs predate the euro and carry no entry for U+20AC —
+   * the viewer substitutes a glyph but advances zero, so the next character
+   * prints on top of it.
+   *
+   * That is why this is a character allowlist rather than a width measurement:
+   * pdfkit's own in-process metrics happily report 556 for the euro, so
+   * widthOfString cannot see the defect at all. Only the rendered page shows
+   * it, and it showed it on the CBAM cover's hero number — "EUR 8,14,204.24"
+   * printing as a euro sign collided with its first digit, correct and
+   * unreadable.
+   *
+   * Latin-1 punctuation and symbols that ARE in the Core-14 AFMs are listed
+   * explicitly, each because it has been checked, not assumed.
+   */
+  const SAFE_NON_ASCII = new Set(["\u00a3", "\u00a2", "\u00a5", "\u00b0", "\u2013", "\u2014", "\u2018", "\u2019", "\u201c", "\u201d"]);
+
+  const offending = (formatted: string): string[] =>
+    [...formatted].filter((c) => {
+      const code = c.codePointAt(0)!;
+      if (code >= 0x20 && code <= 0x7e) return false;
+      return !SAFE_NON_ASCII.has(c);
+    });
+
+  it.each([
+    ["fmtEur", fmtEur(814204.24)],
+    ["fmtEur negative", fmtEur(-814204.24)],
+    ["fmtGbp", fmtGbp(814204.24)],
+    ["fmtGbp negative", fmtGbp(-814204.24)],
+    ["fmt", fmt(814204.24)],
+    ["fmtInt", fmtInt(814204)],
+  ])("%s", (_name, formatted) => {
+    expect(offending(formatted), `unsafe glyph(s) in ${JSON.stringify(formatted)}`).toEqual([]);
+  });
+
+  it("would have caught the euro sign", () => {
+    // The regression itself, so the guard above cannot be weakened without
+    // this failing too.
+    expect(offending("\u20ac8,14,204.24")).toEqual(["\u20ac"]);
+  });
+
+  it("spells the euro rather than using the sign", () => {
+    expect(fmtEur(1234.5)).toContain("EUR");
+    expect(fmtEur(1234.5)).not.toContain("\u20ac");
+    expect(fmtEur(-1234.5).startsWith("-")).toBe(true);
+    // The pound is in the Core-14 AFMs with a real width, so fmtGbp keeps it.
+    expect(fmtGbp(1234.5)).toContain("\u00a3");
   });
 });

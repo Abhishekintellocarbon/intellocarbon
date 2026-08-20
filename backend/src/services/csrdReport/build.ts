@@ -20,6 +20,7 @@ import { assignPageNumbers, type CsrdDisclosureIndex, type CsrdDisclosureIndexEn
 import type { ReportPhase2Data } from "../reportSections/phase2Data";
 import {
   drawEnergyMixBlock,
+  drawProductFootprintBlock,
   drawGovernanceBlock,
   drawSupplierScorecardBlock,
 } from "../reportSections/esgBlocks";
@@ -112,6 +113,14 @@ export const buildCsrdPdf = async (
   buildMethodology(pb, section++, metrics, index);
   assignPageNumbers(index, pages);
   buildDisclosureIndexSection(pb, section++, index);
+
+  // Optional annex — present only where this facility has entered SKU-level
+  // production. Outside the disclosure index and outside the conformity claim,
+  // because ESRS has no product carbon footprint datapoint.
+  if (phase2?.productFootprint.hasData) {
+    buildProductFootprintAnnex(pb, section++, phase2);
+  }
+
   buildDeclaration(pb, section, facility, index);
 
   pb.finalize();
@@ -794,6 +803,33 @@ function buildDisclosureIndexSection(pb: PageBuilder, section: number, index: Cs
       rows: index.excludedStandards.map((s) => [s.standard, s.rationale]),
     });
   }
+}
+
+/**
+ * Annex — product carbon footprint per product.
+ *
+ * An allocation of this facility's Scope 1 and 2 emissions across its listed
+ * products by output volume, not a life-cycle assessment. ESRS E1-6e states a
+ * GHG intensity per net revenue; this is a different denominator and a
+ * different figure, and neither substitutes for the other. Kept as an annex
+ * because ESRS has no product footprint datapoint — placing it among the
+ * numbered standard sections would imply one exists.
+ */
+function buildProductFootprintAnnex(pb: PageBuilder, section: number, phase2: ReportPhase2Data) {
+  pb.startSection(section, "Annex — Product Carbon Footprint by Product");
+
+  pb.paragraph(
+    "This annex allocates the facility's Scope 1 and Scope 2 emissions across the products it has listed for this " +
+      "reporting period, in proportion to output volume. It is not a life-cycle assessment and not a cradle-to-gate " +
+      "product carbon footprint: no upstream or downstream emissions are included, and these figures are not " +
+      "comparable to a footprint produced under ISO 14067 or a product category rule.",
+  );
+  pb.note(
+    "Not an ESRS datapoint. E1-6e reports GHG intensity per net revenue, which is a different denominator; this " +
+      "annex sits outside the disclosure index and outside the conformity claim.",
+  );
+
+  drawProductFootprintBlock(pb, phase2.productFootprint);
 }
 
 function buildDeclaration(
