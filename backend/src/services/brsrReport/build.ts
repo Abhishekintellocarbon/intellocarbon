@@ -18,6 +18,8 @@ import {
   type StatusTone,
 } from "../cbamReport/theme";
 import { donutChart, horizontalGroupedBars, CHART_BLUE, CHART_SLATE } from "../cbamReport/charts";
+import type { ReportPhase2Data } from "../reportSections/phase2Data";
+import { drawCircularityBlock, drawEnergyMixBlock, drawGovernanceBlock } from "../reportSections/esgBlocks";
 
 // Cover band is the dark gradient — see brandAssets for why the interior
 // pages use a different lockup.
@@ -69,6 +71,12 @@ export const buildBrsrCorePdf = async (
   report: ReportWithVerification,
   facility: FacilityWithCompany,
   metrics: BrsrCoreMetrics,
+  /**
+   * Optional because it genuinely is: a facility with one reporting period and
+   * no governance disclosure under any framework has nothing to add here. The
+   * production loader always supplies it.
+   */
+  phase2?: ReportPhase2Data,
 ): Promise<PDFKit.PDFDocument> => {
   const doc = new PDFDocument({
     size: "A4",
@@ -85,14 +93,13 @@ export const buildBrsrCorePdf = async (
   buildExecutiveSummary(pb, report, metrics);
   buildEntityDetails(pb, facility, report);
   buildGhgFootprint(pb, metrics);
-  buildWaterAndWaste(pb, metrics);
-  buildEnergyFootprint(pb, metrics);
+  buildWaterAndWaste(pb, metrics, phase2);
+  buildEnergyFootprint(pb, metrics, phase2);
   buildEmployeeWellbeing(pb, report, metrics);
   buildGenderAndInclusion(pb, report, metrics);
-  buildOpennessAndFairness(pb, report);
-  buildMethodology(pb);
+  buildOpennessAndFairness(pb, report, phase2);
   buildVerification(pb, report);
-  buildDeclarationAnnexures(pb, facility);
+  buildMethodology(pb, facility);
 
   pb.finalize();
   return doc;
@@ -147,7 +154,7 @@ function buildCoverPage(
 // ---------------------------------------------------------------------------
 
 function buildExecutiveSummary(pb: PageBuilder, report: BrsrCoreReport, metrics: BrsrCoreMetrics) {
-  pb.startSection(1, "Executive Summary");
+  pb.startSection(1, "Executive Summary and Entity Details");
 
   pb.paragraph(
     `This report presents the 9 BRSR Core ESG attributes disclosed by ${report.reportingPeriod} for this facility, ` +
@@ -174,16 +181,21 @@ function buildExecutiveSummary(pb: PageBuilder, report: BrsrCoreReport, metrics:
   });
 
   pb.note(
-    "Attribute 1 (GHG footprint) is derived from this facility's existing CBAM/CCTS activity data — see Section 03. All other attributes are company disclosures entered directly for this reporting period.",
+    "Attribute 1 (GHG footprint) is derived from this facility's existing CBAM/CCTS activity data — see Section 02. All other attributes are company disclosures entered directly for this reporting period.",
   );
 }
 
 // ---------------------------------------------------------------------------
-// Section 02 — Entity and Reporting Period Details
+// Section 01 continued — entity and reporting period
 // ---------------------------------------------------------------------------
 
+/**
+ * Continues Section 01 rather than opening a section of its own. Eight
+ * key/value rows filled a third of a page, and the only reason they had a page
+ * was that startSection() forces a break.
+ */
 function buildEntityDetails(pb: PageBuilder, facility: FacilityWithCompany, report: BrsrCoreReport) {
-  pb.startSection(2, "Entity and Reporting Period Details");
+  pb.heading("Entity and reporting period");
 
   const { company } = facility;
   const companyRows: [string, string][] = [
@@ -204,11 +216,11 @@ function buildEntityDetails(pb: PageBuilder, facility: FacilityWithCompany, repo
 }
 
 // ---------------------------------------------------------------------------
-// Section 03 — GHG Footprint
+// Section 02 — GHG Footprint
 // ---------------------------------------------------------------------------
 
 function buildGhgFootprint(pb: PageBuilder, metrics: BrsrCoreMetrics) {
-  pb.startSection(3, "GHG Footprint");
+  pb.startSection(2, "GHG Footprint");
 
   pb.paragraph(
     "Scope 1 and Scope 2 emissions below are reused directly from this facility's existing CBAM/CCTS activity data — " +
@@ -239,11 +251,11 @@ function buildGhgFootprint(pb: PageBuilder, metrics: BrsrCoreMetrics) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 04 — Water & Waste
+// Section 03 — Water & Waste
 // ---------------------------------------------------------------------------
 
-function buildWaterAndWaste(pb: PageBuilder, metrics: BrsrCoreMetrics) {
-  pb.startSection(4, "Water & Waste");
+function buildWaterAndWaste(pb: PageBuilder, metrics: BrsrCoreMetrics, phase2?: ReportPhase2Data) {
+  pb.startSection(3, "Water & Waste");
 
   pb.heading("Water Footprint");
   pb.paragraph("Water withdrawn, discharged and consumed by this facility during the reporting period.");
@@ -294,14 +306,35 @@ function buildWaterAndWaste(pb: PageBuilder, metrics: BrsrCoreMetrics) {
     ],
     highlightRowIndex: 2,
   });
+
+  // Drawn only where the circularity rollup is sourced from a GRI 306
+  // disclosure, because only then does it say anything Attribute 3 has not.
+  //
+  // For a BRSR-only filer the rollup reads back the same two tonnages and the
+  // same rate printed in the table above — a chart and a box restating the row
+  // above them is padding, which is the one thing this pass must not add. GRI
+  // 306 carries a genuine diverted/disposed split that BRSR Core does not
+  // capture, and BRSR's "recovered" is close to but not the same measure as
+  // GRI's "diverted from disposal", so where both exist the difference is
+  // worth stating.
+  if (phase2?.circularity.source === "GRI_306") {
+    pb.heading("Circularity from the GRI 306 disclosure (supplementary)");
+    pb.paragraph(
+      "This facility also files a GRI 306 waste disclosure, which splits the same waste into diverted from disposal " +
+        "and directed to disposal. BRSR Core's recovered figure and GRI's diverted figure are close but not the same " +
+        "measure, so both are shown rather than reconciled to one number.",
+      { size: 9 },
+    );
+    drawCircularityBlock(pb, phase2.circularity);
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Section 05 — Energy Footprint
+// Section 04 — Energy Footprint
 // ---------------------------------------------------------------------------
 
-function buildEnergyFootprint(pb: PageBuilder, metrics: BrsrCoreMetrics) {
-  pb.startSection(5, "Energy Footprint");
+function buildEnergyFootprint(pb: PageBuilder, metrics: BrsrCoreMetrics, phase2?: ReportPhase2Data) {
+  pb.startSection(4, "Energy Footprint");
 
   pb.paragraph(
     "Total energy consumption is split between renewable and non-renewable sources below (a manual disclosure). " +
@@ -339,16 +372,34 @@ function buildEnergyFootprint(pb: PageBuilder, metrics: BrsrCoreMetrics) {
   }
 
   pb.note(
-    `For reference: ${fmt(metrics.energy.electricityAndSteamGjReused, 2)} GJ of this facility's electricity and imported steam energy is already captured in its CBAM/CCTS activity data (see Section 03).`,
+    `For reference: ${fmt(metrics.energy.electricityAndSteamGjReused, 2)} GJ of this facility's electricity and imported steam energy is already captured in its CBAM/CCTS activity data (see Section 02).`,
   );
+
+  // Attribute 4 is a single-period disclosure. Whether the renewable share is
+  // rising is the question a reader asks of it, and one period cannot answer
+  // it — this draws every period the facility has filed. It renders only where
+  // more than the current period exists, so a first-year filer sees nothing
+  // rather than a one-bar "trend".
+  if (phase2 && phase2.energyMix.points.length > 1) {
+    pb.heading("Renewable share over time (supplementary)");
+    drawEnergyMixBlock(pb, phase2.energyMix);
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Section 06 — Employee Wellbeing and Safety
+// Section 05 — Employee wellbeing, gender diversity and inclusive development
 // ---------------------------------------------------------------------------
 
+/**
+ * Opens the people section. Attributes 5, 6 and 7 — employee wellbeing,
+ * gender diversity and inclusive development — are reported together under one
+ * section heading, each still under its own subheading so an assurance
+ * provider can find each attribute. Separately they were a third of a page and
+ * a full page; together they are one and a half.
+ */
 function buildEmployeeWellbeing(pb: PageBuilder, report: BrsrCoreReport, metrics: BrsrCoreMetrics) {
-  pb.startSection(6, "Employee Wellbeing and Safety");
+  pb.startSection(5, "Employee Wellbeing, Gender Diversity and Inclusive Development");
+  pb.heading("Employee Wellbeing and Safety (Attribute 5)");
 
   pb.summaryBox("Employee Wellbeing", [
     ["Total employees", fmtCount(report.employeeCountTotal)],
@@ -370,11 +421,12 @@ function buildEmployeeWellbeing(pb: PageBuilder, report: BrsrCoreReport, metrics
 }
 
 // ---------------------------------------------------------------------------
-// Section 07 — Gender Diversity & Inclusive Development
+// Section 05 continued — gender diversity and inclusive development
 // ---------------------------------------------------------------------------
 
+/** Continues the people section opened by buildEmployeeWellbeing. */
 function buildGenderAndInclusion(pb: PageBuilder, report: BrsrCoreReport, metrics: BrsrCoreMetrics) {
-  pb.startSection(7, "Gender Diversity & Inclusive Development");
+  pb.heading("Gender Diversity and Inclusive Development (Attributes 6 and 7)");
 
   pb.heading("Gender Diversity");
   pb.table({
@@ -428,7 +480,7 @@ function buildGenderAndInclusion(pb: PageBuilder, report: BrsrCoreReport, metric
 }
 
 // ---------------------------------------------------------------------------
-// Section 08 — Openness of Business & Customer Fairness
+// Section 06 — Openness of Business & Customer Fairness
 // ---------------------------------------------------------------------------
 
 const concentrationTone = (pct: number | null | undefined): StatusTone => {
@@ -452,8 +504,8 @@ const concentrationNote = (label: string, noun: string, pct: number | null | und
   return `${label} concentration at ${pctLabel} (Green band) reflects a diversified ${noun} base.`;
 };
 
-function buildOpennessAndFairness(pb: PageBuilder, report: BrsrCoreReport) {
-  pb.startSection(8, "Openness of Business & Customer Fairness");
+function buildOpennessAndFairness(pb: PageBuilder, report: BrsrCoreReport, phase2?: ReportPhase2Data) {
+  pb.startSection(6, "Openness of Business & Customer Fairness");
 
   pb.heading("Openness of Business");
   pb.paragraph(
@@ -489,14 +541,41 @@ function buildOpennessAndFairness(pb: PageBuilder, report: BrsrCoreReport) {
     ["Consumer complaints received", fmtCount(report.consumerComplaintsCount)],
     ["Complaints resolved", fmtPct(report.consumerComplaintsResolvedPct)],
   ]);
+
+  // Governance sits here rather than in a section of its own because BRSR Core
+  // has no governance attribute: the nine Core attributes are the assured
+  // subset, and governance is disclosed in the wider BRSR rather than in Core.
+  // Attribute 8 is the closest ground — conduct and transparency of the
+  // business — so the coverage table is placed with it and labelled
+  // supplementary, rather than being given a section that would imply a tenth
+  // Core attribute exists.
+  if (phase2) {
+    pb.heading("Governance and policy coverage (supplementary)");
+    pb.paragraph(
+      "Not a BRSR Core attribute. BRSR Core is the nine attributes subject to reasonable assurance, and governance " +
+        "is disclosed in the wider BRSR rather than in Core. This reports which governance commitments this " +
+        "organization has disclosed under any framework on this platform, and names the source for each.",
+      { size: 9 },
+    );
+    drawGovernanceBlock(pb, phase2.governance);
+  }
 }
 
 // ---------------------------------------------------------------------------
-// Section 09 — Methodology and Regulatory Basis
+// Section 08 — Methodology, declaration and annexures
 // ---------------------------------------------------------------------------
 
-function buildMethodology(pb: PageBuilder) {
-  pb.startSection(9, "Methodology and Regulatory Basis");
+/**
+ * Closes the report: the regulatory basis, then the declaration and annexures.
+ *
+ * Both were a third of a page each and each took one. They belong together —
+ * both are statements about the standing of the document rather than
+ * disclosures within it — and the verification statement now precedes them,
+ * which is also where a reader expects to find it: after the disclosures it
+ * covers and before the sign-off.
+ */
+function buildMethodology(pb: PageBuilder, facility: FacilityWithCompany) {
+  pb.startSection(8, "Methodology, Declaration and Annexures");
 
   pb.paragraph(
     "This report is prepared under SEBI's Business Responsibility and Sustainability Reporting (BRSR) Core framework, " +
@@ -514,7 +593,7 @@ function buildMethodology(pb: PageBuilder) {
 
   pb.heading("GHG calculation basis");
   pb.paragraph(
-    "The GHG footprint (Section 03) reuses this facility's existing Scope 1 and Scope 2 emissions from its CBAM/CCTS " +
+    "The GHG footprint (Section 02) reuses this facility's existing Scope 1 and Scope 2 emissions from its CBAM/CCTS " +
       "activity data, computed on the IPCC AR2/BUR3 (100-yr) Global Warming Potential basis used for CCTS — the same " +
       "basis mandated for India's domestic carbon reporting — rather than recalculating emissions independently.",
   );
@@ -522,17 +601,19 @@ function buildMethodology(pb: PageBuilder) {
   pb.heading("Other attributes");
   pb.paragraph(
     "Water, waste, energy, employee wellbeing, gender diversity, inclusive development, openness of business, and " +
-      "customer fairness (Sections 04-08) are company disclosures entered directly against this facility and reporting period, " +
+      "customer fairness (Sections 03-06) are company disclosures entered directly against this facility and reporting period, " +
       "presented per the standard BRSR Core intensity format (per rupee of turnover) wherever applicable.",
   );
+
+  buildDeclarationAnnexures(pb, facility);
 }
 
 // ---------------------------------------------------------------------------
-// Section 10 — Verification Statement
+// Section 07 — Verification Statement
 // ---------------------------------------------------------------------------
 
 function buildVerification(pb: PageBuilder, report: ReportWithVerification) {
-  pb.startSection(10, "Verification Statement");
+  pb.startSection(7, "Verification Statement");
 
   const vr = report.verificationRequest;
   const isApproved = vr?.status === "APPROVED";
@@ -568,11 +649,12 @@ function buildVerification(pb: PageBuilder, report: ReportWithVerification) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 11 — Declaration and Annexures
+// Section 08 continued — declaration and annexures
 // ---------------------------------------------------------------------------
 
+/** Continues the closing section opened by buildMethodology. */
 function buildDeclarationAnnexures(pb: PageBuilder, facility: FacilityWithCompany) {
-  pb.startSection(11, "Declaration and Annexures");
+  pb.heading("Declaration and annexures");
 
   const owner = facility.company.owner;
 
@@ -596,10 +678,10 @@ function buildDeclarationAnnexures(pb: PageBuilder, facility: FacilityWithCompan
 
   pb.heading("Annexures");
   const annexures = [
-    "Annex A — GHG footprint calculation detail (Section 03; full breakdown in the CCTS GHG Intensity Report)",
+    "Annex A — GHG footprint calculation detail (Section 02; full breakdown in the CCTS GHG Intensity Report)",
     "Annex B — Water, waste and energy disclosure detail (Sections 04-05)",
-    "Annex C — Methodology and regulatory basis (Section 09)",
-    "Annex D — Verification statement (Section 10)",
+    "Annex C — Methodology and regulatory basis (Section 08)",
+    "Annex D — Verification statement (Section 07)",
   ];
   for (const item of annexures) {
     pb.paragraph(`•  ${item}`, { size: 9.5 });

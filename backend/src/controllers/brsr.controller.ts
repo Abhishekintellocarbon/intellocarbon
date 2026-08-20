@@ -33,8 +33,8 @@ export const getBrsrReport = asyncHandler(async (req, res) => {
 });
 
 export const downloadBrsrReportPdf = asyncHandler(async (req, res) => {
-  const { report, facility, metrics } = await brsrService.getBrsrReportContextById(req.user!.sub, req.params.reportId);
-  const doc = await buildBrsrCorePdf(report, facility, metrics);
+  const { report, facility, metrics, phase2 } = await brsrService.getBrsrReportContextById(req.user!.sub, req.params.reportId);
+  const doc = await buildBrsrCorePdf(report, facility, metrics, phase2);
 
   logFacilityAudit(facility.id, report.companyId, "REPORT_GENERATED", `BRSR Core report — ${report.reportingPeriod}`, req.user!.sub);
 

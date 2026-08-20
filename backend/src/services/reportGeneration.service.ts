@@ -6,6 +6,7 @@ import { generateReportPdf, type ReportContext } from "./report.service";
 import { buildBrsrCoreMetrics } from "./brsrCalculation.service";
 import { buildBrsrCorePdf } from "./brsrReport/build";
 import { logFacilityAudit } from "./auditLog.service";
+import { loadReportPhase2Data } from "./reportSections/phase2Data";
 import {
   getCbamReportPeriodStatus,
   getCctsReportPeriodStatus,
@@ -208,7 +209,12 @@ export const generateReport = async (userId: string, facilityId: string, reportT
       include: { company: { include: { owner: true } } },
     });
     const metrics = await buildBrsrCoreMetrics(brsrReport, facilityWithCompany, facilityWithCompany.company);
-    pdfDoc = await buildBrsrCorePdf(brsrReport, facilityWithCompany, metrics);
+    const phase2 = await loadReportPhase2Data(
+      facilityWithCompany.companyId,
+      facilityWithCompany.id,
+      brsrReport.reportingPeriod,
+    );
+    pdfDoc = await buildBrsrCorePdf(brsrReport, facilityWithCompany, metrics, phase2);
   }
 
   const pdfBuffer = await pdfToBuffer(pdfDoc);

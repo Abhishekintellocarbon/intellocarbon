@@ -1,5 +1,6 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
+import { loadReportPhase2Data } from "./reportSections/phase2Data";
 import { buildBrsrCoreMetrics } from "./brsrCalculation.service";
 import { requireOwnedFacilityForEsgBundle, throwEsgBundleAccessDenied } from "./esgBundleAccess.service";
 import { isBrsrReportWindowOpen, brsrUnlockDate } from "../data/complianceDeadlines";
@@ -139,7 +140,8 @@ export const getBrsrReportData = async (userId: string, facilityId: string, repo
   requireBrsrReportWindowOpen(reportingPeriod);
 
   const metrics = await buildBrsrCoreMetrics(report, facility, facility.company);
-  return { report, facility, metrics };
+  const phase2 = await loadReportPhase2Data(facility.companyId, facility.id, reportingPeriod);
+  return { report, facility, metrics, phase2 };
 };
 
 export const getBrsrReportContextById = async (userId: string, reportId: string) => {
@@ -172,5 +174,6 @@ export const getBrsrReportContextById = async (userId: string, reportId: string)
   requireBrsrReportWindowOpen(report.reportingPeriod);
 
   const metrics = await buildBrsrCoreMetrics(report, report.facility, report.facility.company);
-  return { report, facility: report.facility, metrics };
+  const phase2 = await loadReportPhase2Data(report.facility.companyId, report.facility.id, report.reportingPeriod);
+  return { report, facility: report.facility, metrics, phase2 };
 };
