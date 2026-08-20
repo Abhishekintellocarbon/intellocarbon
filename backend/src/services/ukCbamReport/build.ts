@@ -5,6 +5,7 @@ import { AppError } from "../../utils/AppError";
 import { PageBuilder } from "../cbamReport/layout";
 import { buildVerifyQr } from "../cbamReport/qr";
 import {
+  TEAL,
   TEAL_DARK,
   MUTED,
   MARGIN_X,
@@ -15,7 +16,8 @@ import {
   fmtDateTime,
   titleCase,
 } from "../cbamReport/theme";
-import { productionRouteLabel } from "../cbamReport/build";
+import { donutChart, waterfallChart, CHART_BLUE, CHART_SLATE } from "../cbamReport/charts";
+import { productionRouteLabel, verificationStatusLabel } from "../cbamReport/build";
 import { FUEL_LIBRARY, PROCESS_MATERIAL_LIBRARY, PRECURSOR_LIBRARY } from "../../data/emissionFactors";
 import { GWP_AR5 } from "../../data/gwpTables";
 import {
@@ -75,6 +77,7 @@ export const buildUkCbamReturn = async (
   buildEmissionsInScope(pb, ctx, impact);
   buildLiability(pb, impact);
   buildMethodology(pb, impact);
+  buildVerification(pb, ctx);
 
   pb.finalize();
 };
@@ -130,7 +133,7 @@ function buildCoverPage(
 // ---------------------------------------------------------------------------
 
 function buildReturnSummary(pb: PageBuilder, ctx: ReportContext, impact: UkCbamReturnImpact) {
-  pb.startSection(1, "Return Summary");
+  pb.startSection(1, "Return Summary and Installation");
 
   const year = accountingPeriodYear(ctx);
   const cadence = ukCbamReportingCadence(year);
@@ -165,11 +168,19 @@ function buildReturnSummary(pb: PageBuilder, ctx: ReportContext, impact: UkCbamR
 }
 
 // ---------------------------------------------------------------------------
-// Section 02 — Goods and installation
+// Section 01 continued — goods and installation
 // ---------------------------------------------------------------------------
 
+/**
+ * Continues Section 01 rather than opening a section of its own.
+ *
+ * Both halves answer the same question — what is being returned, for whom —
+ * and neither filled half a page. Two near-empty pages where one full one says
+ * the same thing is worse for a reader than a slightly longer section, and the
+ * only reason they were split was that startSection() forces a page break.
+ */
 function buildGoodsAndInstallation(pb: PageBuilder, ctx: ReportContext, impact: UkCbamReturnImpact) {
-  pb.startSection(2, "Goods and Installation");
+  pb.heading("Goods and installation");
 
   const company = ctx.facility.company;
 
@@ -211,17 +222,47 @@ function buildGoodsAndInstallation(pb: PageBuilder, ctx: ReportContext, impact: 
 }
 
 // ---------------------------------------------------------------------------
-// Section 03 — Emissions in scope
+// Section 02 — Emissions in scope
 // ---------------------------------------------------------------------------
 
 function buildEmissionsInScope(pb: PageBuilder, ctx: ReportContext, impact: UkCbamReturnImpact) {
-  pb.startSection(3, "Emissions in Scope");
+  pb.startSection(2, "Emissions in Scope");
 
   const r = ctx.calculationResult;
 
   pb.paragraph(
     "UK CBAM counts direct (Scope 1) emissions and the embedded emissions of select precursor materials. Indirect emissions are not in scope for this accounting period.",
   );
+
+  // The excluded indirect slice is drawn in the same donut as the two in-scope
+  // slices rather than left out of it. What makes this return unusual is the
+  // deferral, and a chart of only what is in scope would hide the exact figure
+  // that changes when the UK ends it. The donut's centre total is therefore all
+  // calculated emissions, not the in-scope total — which the caption says.
+  //
+  // Placed at the top of the section, before the tables, so it reads as the
+  // overview it is. Putting it after the closing summary box stranded it alone
+  // on a page of its own with the tables ending short on the page before.
+  const composition = [
+    { label: "Scope 1 — direct (in scope)", value: r.totalDirectCo2eAr5, color: TEAL },
+    { label: "Precursors (in scope)", value: r.directPrecursorCo2e, color: CHART_BLUE },
+    { label: "Indirect — excluded, deferred", value: impact.excludedIndirectTco2e, color: CHART_SLATE },
+  ].filter((segment) => segment.value > 0);
+
+  if (composition.length > 1) {
+    pb.y = donutChart(pb.doc, {
+      x: MARGIN_X,
+      y: pb.y,
+      diameter: 112,
+      segments: composition,
+      unit: "tCO2e",
+      centerLabel: "Calculated",
+    });
+    pb.note(
+      `Centre total is all calculated emissions for the period, including the ${fmt(impact.excludedIndirectTco2e, 2)} tCO2e of ` +
+        `indirect emissions excluded from this return. Emissions in scope for UK CBAM are ${fmt(impact.emissionsTco2e, 2)} tCO2e.`,
+    );
+  }
 
   pb.heading("Scope 1 — direct emissions");
   const scope1Rows: [string, string][] = [
@@ -320,11 +361,11 @@ function buildEmissionsInScope(pb: PageBuilder, ctx: ReportContext, impact: UkCb
 }
 
 // ---------------------------------------------------------------------------
-// Section 04 — Liability
+// Section 03 — Liability
 // ---------------------------------------------------------------------------
 
 function buildLiability(pb: PageBuilder, impact: UkCbamReturnImpact) {
-  pb.startSection(4, "Liability");
+  pb.startSection(3, "Liability");
 
   if (impact.status === "RATE_PENDING") {
     // The whole point of the pending state: the emissions above are final and
@@ -388,15 +429,37 @@ function buildLiability(pb: PageBuilder, impact: UkCbamReturnImpact) {
     ],
     { tone: "teal" },
   );
+
+  // Same liability walk the EU package draws, in sterling. Only drawn where
+  // there is a deduction to walk through — with no overseas carbon price the
+  // gross and net bars are identical and the middle bar is empty, which is a
+  // chart that says nothing the summary box above has not already said.
+  if (impact.overseasCarbonPriceDeductionGbp > 0) {
+    pb.ensureSpace(190);
+    pb.y = waterfallChart(pb.doc, {
+      x: MARGIN_X,
+      y: pb.y,
+      width: CONTENT_WIDTH,
+      height: 130,
+      grossLabel: "Gross liability",
+      grossValue: impact.grossLiabilityGbp,
+      deductionLabel: "Carbon price paid overseas",
+      deductionValue: impact.overseasCarbonPriceDeductionGbp,
+      netLabel: "Net liability",
+      netValue: impact.netLiabilityGbp,
+      formatValue: (n) => fmtGbp(n, 0),
+    });
+  }
+
   pb.note(`Rate source: ${impact.rateSource} (as of ${impact.rateAsOfDate}).`);
 }
 
 // ---------------------------------------------------------------------------
-// Section 05 — Methodology
+// Section 04 — Methodology
 // ---------------------------------------------------------------------------
 
 function buildMethodology(pb: PageBuilder, impact: UkCbamReturnImpact) {
-  pb.startSection(5, "Methodology and Sources");
+  pb.startSection(4, "Methodology and Sources");
 
   pb.heading("Emissions");
   pb.paragraph(
@@ -421,4 +484,52 @@ function buildMethodology(pb: PageBuilder, impact: UkCbamReturnImpact) {
     "This return is prepared from the operator's submitted activity data and is not a filing. It does not assess registration threshold status, does not state commodity codes, and does not constitute tax advice. Figures should be confirmed against HMRC's published guidance for the accounting period before submission.",
   );
   pb.doc.fillColor(TEAL_DARK).font("Helvetica-Bold").fontSize(9).text("", MARGIN_X, pb.y, { width: CONTENT_WIDTH });
+}
+
+// ---------------------------------------------------------------------------
+// Section 05 — Verification statement
+// ---------------------------------------------------------------------------
+
+/**
+ * Placed last, matching where the EU package and the CCTS report put theirs.
+ *
+ * UK CBAM has no verification requirement of its own — HMRC does not accredit
+ * verifiers for it the way the EU scheme does, and this section does not
+ * suggest otherwise. What it reports is whether the underlying activity data
+ * was verified on this platform, which is a real and useful fact about the
+ * figures above and the same verification record the EU report draws on.
+ */
+function buildVerification(pb: PageBuilder, ctx: ReportContext) {
+  pb.startSection(5, "Verification Statement");
+
+  const vr = ctx.verificationRequest;
+  const isApproved = vr?.status === "APPROVED";
+
+  pb.paragraph(
+    "HMRC does not operate an accreditation scheme for UK CBAM verifiers, and this return is not required to be " +
+      "independently verified before it is filed. This section records the verification status of the activity data " +
+      "the return is built from, so a reader can see what standing the figures in Sections 02 and 03 have.",
+  );
+
+  pb.verificationBlock({
+    title: "Verification of the underlying activity data",
+    verifierName: vr?.verifier?.name,
+    verifierOrg: vr?.verifierOrg,
+    accreditationRef: vr?.accreditationNumber,
+    extraRows: [["Verification status", verificationStatusLabel(ctx)]],
+    statement: isApproved
+      ? (vr?.statement ?? "Approved — no additional statement provided.")
+      : vr?.status === "REJECTED"
+        ? (vr?.comments ?? "Rejected — see comments.")
+        : null,
+    verifiedAt: isApproved ? vr?.decidedAt : null,
+    unverifiedNote:
+      "The activity data behind this return has not been independently verified. The emissions and liability figures " +
+      "are the operator's own, prepared from data submitted through the Intellocarbon platform.",
+  });
+
+  if (isApproved && vr?.qualifications) {
+    pb.heading("Qualifications / emphasis of matter");
+    pb.paragraph(vr.qualifications);
+  }
 }
