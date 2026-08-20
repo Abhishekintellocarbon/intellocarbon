@@ -179,32 +179,33 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  facilities           Facility[]
+  facilities            Facility[]
   // A company can hold more than one active tier at once (e.g. CBAM +
   // BRSR_CORE_REPORTING bought separately) — see [[companyId, tier]] below.
   // Was a 1:1 `Subscription?` until BRSR Core needed to be purchasable as a
   // standalone add-on alongside an existing CBAM/CCTS plan rather than only
   // as a pre-bundled combo tier like CBAM_PLUS_CCTS.
-  subscriptions        Subscription[]
-  verificationRequests VerificationRequest[]
-  notifications        Notification[]
-  brsrCoreReports      BrsrCoreReport[]
-  issbS1S2Reports      IssbS1S2Report[]
-  griReports           GriReport[]
-  csrdReports          CsrdReport[]
-  cdpReports           CdpReport[]
-  targets              CompanyTarget[]
-  recPurchases         RecPurchase[]
-  suppliers            Supplier[]
-  productSkus          ProductSku[]
-  scope3Data           Scope3Data[]
-  voluntaryOffsets     VoluntaryOffsetPurchase[]
-  auditLogs            AuditLog[]
-  reports              Report[]
-  documents            Document[]
-  verificationQueries  VerificationQuery[]
-  verifierAssignments  VerifierCompanyAssignment[]
-  manualPayments       ManualPayment[]
+  subscriptions         Subscription[]
+  verificationRequests  VerificationRequest[]
+  notifications         Notification[]
+  brsrCoreReports       BrsrCoreReport[]
+  issbS1S2Reports       IssbS1S2Report[]
+  griReports            GriReport[]
+  csrdReports           CsrdReport[]
+  cdpReports            CdpReport[]
+  targets               CompanyTarget[]
+  recPurchases          RecPurchase[]
+  greenSteelAssessments GreenSteelAssessment[]
+  suppliers             Supplier[]
+  productSkus           ProductSku[]
+  scope3Data            Scope3Data[]
+  voluntaryOffsets      VoluntaryOffsetPurchase[]
+  auditLogs             AuditLog[]
+  reports               Report[]
+  documents             Document[]
+  verificationQueries   VerificationQuery[]
+  verifierAssignments   VerifierCompanyAssignment[]
+  manualPayments        ManualPayment[]
 
   @@map("companies")
 }
@@ -690,22 +691,23 @@ model Facility {
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
-  activityData        ActivityData[]
-  notifications       Notification[]
-  brsrCoreReports     BrsrCoreReport[]
-  issbS1S2Reports     IssbS1S2Report[]
-  griReports          GriReport[]
-  csrdReports         CsrdReport[]
-  cdpReports          CdpReport[]
-  recPurchases        RecPurchase[]
-  productSkus         ProductSku[]
-  scope3Data          Scope3Data[]
-  voluntaryOffsets    VoluntaryOffsetPurchase[]
-  auditLogs           AuditLog[]
-  reports             Report[]
-  documents           Document[]
-  verificationQueries VerificationQuery[]
-  assignments         FacilityAssignment[]
+  activityData          ActivityData[]
+  notifications         Notification[]
+  brsrCoreReports       BrsrCoreReport[]
+  issbS1S2Reports       IssbS1S2Report[]
+  griReports            GriReport[]
+  csrdReports           CsrdReport[]
+  cdpReports            CdpReport[]
+  recPurchases          RecPurchase[]
+  greenSteelAssessments GreenSteelAssessment[]
+  productSkus           ProductSku[]
+  scope3Data            Scope3Data[]
+  voluntaryOffsets      VoluntaryOffsetPurchase[]
+  auditLogs             AuditLog[]
+  reports               Report[]
+  documents             Document[]
+  verificationQueries   VerificationQuery[]
+  assignments           FacilityAssignment[]
 
   @@index([companyId])
   @@map("facilities")
@@ -3710,4 +3712,63 @@ model RegulatoryWatchEntry {
   @@index([regime])
   @@index([status])
   @@map("regulatory_watch_entries")
+}
+
+// ===========================================================================
+// Green Steel Taxonomy (Ministry of Steel)
+//
+// Gazette Notification No. 763(E) of 12 December 2024 defines "green steel"
+// as steel with a CO2e emission intensity below 2.2 tonnes per tonne of
+// finished steel, and rates qualifying steel 3, 4 or 5 stars by how far below
+// that it lands. See greenSteel.service.ts for the bands and their provenance.
+//
+// INTELLOCARBON DOES NOT CERTIFY. The National Institute of Secondary Steel
+// Technology (NISST) is the notified nodal agency for measurement, reporting,
+// verification and certificate issuance under the taxonomy. What this module
+// produces is the calculated intensity a producer would submit to NISST — the
+// same "we prepare, an independent body certifies" line already drawn for
+// CBAM, CCTS and BRSR verification. Nothing here may be presented, styled or
+// exported as a certificate.
+//
+// STEEL ONLY. The taxonomy applies to steel; an assessment for any other
+// sector is meaningless rather than merely empty, so the service refuses to
+// produce one and the dashboard card does not render.
+// ===========================================================================
+
+model GreenSteelAssessment {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  facilityId String
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  reportingPeriod String
+
+  // Snapshot of what the calculation produced when this assessment was taken.
+  // Stored rather than recomputed on read so a generated PDF and the figure a
+  // producer submitted to NISST cannot drift apart as later activity data is
+  // entered — the same reason CBAM reports snapshot their inputs.
+  totalEmissionsTco2e Float
+  productionTonnes    Float
+  // tCO2e per tonne of finished steel, the taxonomy's unit.
+  emissionIntensity   Float
+
+  // 3, 4 or 5. Null where the intensity is at or above the 2.2 threshold:
+  // that steel is not rated by the taxonomy at all, which is a different
+  // statement from "rated zero stars" and is stored as the absence it is.
+  starRating       Int?
+  qualifiesAsGreen Boolean
+
+  // How many submitted activity-data entries the figures were aggregated
+  // from, so a one-entry assessment is not mistaken for a full year.
+  activityDataCount Int
+
+  status DataEntryStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([facilityId, reportingPeriod])
+  @@index([companyId])
+  @@map("green_steel_assessments")
 }

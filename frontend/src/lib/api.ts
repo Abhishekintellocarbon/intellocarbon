@@ -32,6 +32,7 @@ import type {
   CsrdDisclosureIndex,
   CdpReport,
   CdpMetrics,
+  GreenSteelAssessment,
   CdpMaturityAssessment,
   CdpResponseIndex,
   ProductFootprintAllocation,
@@ -1443,6 +1444,18 @@ export const targetApi = {
     apiFetch(`/api/targets/${targetId}`, { method: "PUT", body: JSON.stringify({ ...input, submit }) }),
 
   remove: (targetId: string): Promise<void> => apiFetch(`/api/targets/${targetId}`, { method: "DELETE" }),
+};
+
+/**
+ * Green Steel Taxonomy. `assessment` returns `applicable: false` for non-steel
+ * accounts rather than erroring — the dashboard asks for every facility, and
+ * "the taxonomy does not cover you" is an answer.
+ */
+export const greenSteelApi = {
+  assessment: (facilityId: string, reportingPeriod: string): Promise<GreenSteelAssessment> =>
+    apiFetch(`/api/green-steel/facilities/${facilityId}/assessment?reportingPeriod=${encodeURIComponent(reportingPeriod)}`),
+
+  pdfUrl: (assessmentId: string): string => `/api/green-steel/report/${assessmentId}/pdf`,
 };
 
 export const recApi = {

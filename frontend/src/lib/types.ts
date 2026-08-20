@@ -2800,3 +2800,35 @@ export interface EcovadisReadiness {
   notScoreNotice: string;
   notSubmissionNotice: string;
 }
+
+/**
+ * Green Steel Taxonomy assessment (Ministry of Steel, Gazette 763(E)).
+ *
+ * `applicable: false` is a normal answer, not an error — the taxonomy covers
+ * steel, and the dashboard asks this for every facility it renders.
+ */
+export type GreenSteelAssessment =
+  | { applicable: false; reason: string; sector: string }
+  | {
+      applicable: true;
+      facilityId: string;
+      reportingPeriod: string;
+      figures: {
+        totalEmissionsTco2e: number;
+        productionTonnes: number;
+        emissionIntensity: number;
+        activityDataCount: number;
+      } | null;
+      rating: {
+        /** Null where the intensity is at or above 2.2 — not rated, not zero stars. */
+        stars: 3 | 4 | 5 | null;
+        qualifiesAsGreen: boolean;
+        percentBelowThreshold: number;
+        summary: string;
+      } | null;
+      threshold: number;
+      assessmentId: string | null;
+      certificationNotice: string;
+      boundaryNotice: string;
+      history: { reportingPeriod: string; emissionIntensity: number; starRating: number | null }[];
+    };

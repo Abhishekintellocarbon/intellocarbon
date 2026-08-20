@@ -25,6 +25,7 @@ import voluntaryOffsetRoutes from "./voluntaryOffset.routes";
 import ghgEngagementRoutes from "./ghgEngagement.routes";
 import crossCheckReviewRoutes from "./crossCheckReview.routes";
 import cctsObligatedEntityRoutes from "./cctsObligatedEntity.routes";
+import greenSteelRoutes from "./greenSteel.routes";
 
 const router = Router();
 
@@ -65,6 +66,7 @@ router.use("/cdp", cdpRoutes);
 router.use("/targets", companyTargetRoutes);
 router.use("/recs", recRoutes);
 router.use("/suppliers", supplierRoutes);
+router.use("/green-steel", greenSteelRoutes);
 router.use("/product-skus", productSkuRoutes);
 router.use("/scope3", scope3Routes);
 router.use("/offsets", voluntaryOffsetRoutes);

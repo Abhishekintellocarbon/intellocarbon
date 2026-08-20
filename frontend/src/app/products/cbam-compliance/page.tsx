@@ -231,6 +231,11 @@ export default function CbamCompliancePage() {
             "The certificate price is charted quarter by quarter as the Commission publishes it, your facility's embedded emissions are shown against the EU default that would otherwise apply, and a board-ready summary of the current position exports in one click.",
         },
         {
+          title: "Green Steel Taxonomy — steel producers only",
+          description:
+            "For clients in the steel sector, the same emissions figure already computed for CBAM is measured against the Ministry of Steel's Green Steel Taxonomy (enforceable from FY2026-27) and shown against the 2.2 tCO2e per tonne threshold and its 3, 4 and 5-star bands. Certification is issued by NISST — this prepares the calculation for that submission and does not itself certify. Included in CBAM Compliance at no additional cost.",
+        },
+        {
           title: "Verifier portal, built in",
           description:
             "An accredited verifier works inside the platform against the Annex VI checklist, with the evidence trail attached to each figure rather than exchanged over email.",

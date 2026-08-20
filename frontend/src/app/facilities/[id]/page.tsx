@@ -9,13 +9,15 @@ import { Button } from "@/components/ui/button";
 import { DraftBadge, SubmittedBadge } from "@/components/ui/draft-badge";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { AppHeader } from "@/components/layout/app-header";
-import { activityDataApi, brsrApi, facilityApi, ApiError } from "@/lib/api";
-import type { Facility, ActivityData, BrsrCoreReport } from "@/lib/types";
+import { activityDataApi, brsrApi, facilityApi, greenSteelApi, ApiError } from "@/lib/api";
+import type { Facility, ActivityData, BrsrCoreReport, GreenSteelAssessment } from "@/lib/types";
 import { FACILITY_TYPE_OPTIONS, PRODUCTION_ROUTE_OPTIONS } from "@/lib/constants";
 import { GriSection } from "@/components/gri/gri-section";
 import { CsrdSection } from "@/components/csrd/csrd-section";
 import { CdpSection } from "@/components/cdp/cdp-section";
 import { ProductSkuSection } from "@/components/esg/product-sku-section";
+import { GreenSteelCard } from "@/components/dashboard/esg/green-steel-card";
+import { currentCctsReportingFyLabel } from "@/lib/compliance-deadlines";
 import { VoluntaryOffsetsSection } from "@/components/offsets/voluntary-offsets-section";
 
 const labelFor = (options: readonly { value: string; label: string }[], value: string) =>
@@ -32,6 +34,10 @@ function FacilityDetailContent() {
   const [brsrReports, setBrsrReports] = useState<BrsrCoreReport[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Green Steel is CBAM-adjacent and steel-only. The API answers
+  // `applicable: false` for every other sector, and the card renders nothing
+  // in that case, so no sector check is duplicated here.
+  const [greenSteel, setGreenSteel] = useState<GreenSteelAssessment | null>(null);
 
   useEffect(() => {
     Promise.all([facilityApi.get(params.id), activityDataApi.list(params.id), brsrApi.list(params.id)])
@@ -41,6 +47,15 @@ function FacilityDetailContent() {
         setBrsrReports(brsrRes.reports);
       })
       .catch(() => setError("Couldn't load this facility. It may not exist or you may not have access."));
+  }, [params.id]);
+
+  useEffect(() => {
+    // Separate from the load above: a facility without a CBAM subscription
+    // gets a 403 here, which must not blank the whole page.
+    greenSteelApi
+      .assessment(params.id, currentCctsReportingFyLabel())
+      .then(setGreenSteel)
+      .catch(() => setGreenSteel(null));
   }, [params.id]);
 
   const handleDeleteFacility = async () => {
@@ -146,6 +161,12 @@ function FacilityDetailContent() {
           <StatCard label="Data entries" value={entries.length.toString()} />
           <StatCard label="Products" value={facility.productsManufactured.join(", ") || "—"} />
         </div>
+
+        {greenSteel?.applicable && (
+          <div className="mt-8">
+            <GreenSteelCard assessment={greenSteel} />
+          </div>
+        )}
 
         <h2 className="mt-10 mb-4 text-lg font-semibold">Activity data</h2>
 
