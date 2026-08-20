@@ -270,11 +270,19 @@ export function TargetEditor({
   onChange,
   onBlur,
   disabled,
+  registerTargetCount = 0,
 }: {
   rows: TargetRow[];
   onChange: (rows: TargetRow[]) => void;
   onBlur: () => void;
   disabled?: boolean;
+  /**
+   * Targets already recorded in the company's target register. Leaving C4
+   * empty discloses those rather than disclosing no target, so the empty state
+   * has to say so — otherwise the only visible instruction is "no target
+   * entered yet" and the responder retypes what they already entered once.
+   */
+  registerTargetCount?: number;
 }) {
   const update = (index: number, patch: Partial<TargetRow>) =>
     onChange(rows.map((t, i) => (i === index ? { ...t, ...patch } : t)));
@@ -297,7 +305,15 @@ export function TargetEditor({
 
       {rows.length === 0 && (
         <p className="rounded-xl border border-dashed border-surface-border px-4 py-6 text-center text-xs text-muted-foreground">
-          No target entered yet.
+          {registerTargetCount > 0 ? (
+            <>
+              No target entered here, so this response discloses the{" "}
+              {registerTargetCount === 1 ? "target" : `${registerTargetCount} targets`} recorded in your target
+              register. Add one here only to state something different for CDP.
+            </>
+          ) : (
+            "No target entered yet."
+          )}
         </p>
       )}
 

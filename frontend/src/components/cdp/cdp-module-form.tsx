@@ -455,6 +455,7 @@ export function CdpModuleForm({
                   onChange={setTargets}
                   onBlur={onBlurAutosave}
                   disabled={isAlreadySubmitted}
+                  registerTargetCount={metrics?.targets.fromCompanyTarget ? metrics.targets.rows.length : 0}
                 />
               </div>
             )}

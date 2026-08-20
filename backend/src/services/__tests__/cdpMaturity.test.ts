@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { assessCdpMaturity, isQuestionAnswered } from "../cdpMaturity.service";
 import { CDP_MODULES, getCdpModule } from "../../data/cdpQuestionnaire";
-import type { CdpMetrics, CdpReportWithRelations } from "../cdpCalculation.service";
+import { effectiveCdpTargets, type CdpMetrics, type CdpReportWithRelations } from "../cdpCalculation.service";
+import type { CompanyTarget } from "@prisma/client";
 
 /**
  * The maturity indicator is the one place this module makes a judgement about
@@ -44,6 +45,17 @@ const emptyMetrics = (overrides: Partial<CdpMetrics["rollup"]> = {}): CdpMetrics
     carbonPricePaidEurPerTonne: null,
     hasCctsTarget: false,
   },
+  targets: { rows: [], fromCompanyTarget: false },
+});
+
+/**
+ * Metrics whose C4 targets are resolved the way the service resolves them, so
+ * a case can state its targets on the report (or on the company register) and
+ * have the assessment see what production would see.
+ */
+const metricsFor = (report: CdpReportWithRelations, companyTargets: CompanyTarget[] = []): CdpMetrics => ({
+  ...emptyMetrics(),
+  targets: effectiveCdpTargets(report.targets, companyTargets),
 });
 
 /** A long-enough narrative that the trivial-answer guard accepts it. */
@@ -188,30 +200,44 @@ describe("evidence caps hold a module down regardless of completeness", () => {
   });
 
   it("caps C4 at Established when targets exist but none is science-based", () => {
-    const assessment = assessCdpMaturity(
-      buildReport(
-        { C4: fullModuleRow("C4", { targetType: "ABSOLUTE", sbtiValidated: false }) },
-        {
-          targets: [
-            { kind: "ABSOLUTE", baseYear: 2020, targetYear: 2030, isScienceBased: false } as never,
-          ],
-        },
-      ),
-      emptyMetrics(),
+    const report = buildReport(
+      { C4: fullModuleRow("C4", { targetType: "ABSOLUTE", sbtiValidated: false }) },
+      {
+        targets: [{ kind: "ABSOLUTE", baseYear: 2020, targetYear: 2030, isScienceBased: false } as never],
+      },
     );
+    const assessment = assessCdpMaturity(report, metricsFor(report));
     expect(bandFor(assessment, "C4").band).toBe("ESTABLISHED");
   });
 
   it("lets C4 reach Strong with a validated science-based target", () => {
-    const assessment = assessCdpMaturity(
-      buildReport(
-        { C4: fullModuleRow("C4", { targetType: "ABSOLUTE", sbtiValidated: true }) },
-        { targets: [{ kind: "ABSOLUTE", baseYear: 2020, targetYear: 2030, isScienceBased: true } as never] },
-      ),
-      emptyMetrics(),
+    const report = buildReport(
+      { C4: fullModuleRow("C4", { targetType: "ABSOLUTE", sbtiValidated: true }) },
+      { targets: [{ kind: "ABSOLUTE", baseYear: 2020, targetYear: 2030, isScienceBased: true } as never] },
     );
+    const assessment = assessCdpMaturity(report, metricsFor(report));
     expect(bandFor(assessment, "C4").band).toBe("STRONG");
     expect(bandFor(assessment, "C4").evidenceGaps).toEqual([]);
+  });
+
+  /**
+   * The point of making CompanyTarget the single source of truth: a company
+   * that recorded its target once should not be told it has no target because
+   * it did not retype it into the CDP response.
+   */
+  it("does not cap C4 for having no target when the company register has one", () => {
+    const report = buildReport({ C4: fullModuleRow("C4", { targetType: "ABSOLUTE", sbtiValidated: false }) });
+    const assessment = assessCdpMaturity(
+      report,
+      metricsFor(report, [
+        { kind: "ABSOLUTE", baselineYear: 2020, targetYear: 2030, sbtiStatus: "VALIDATED" } as never,
+      ]),
+    );
+    const c4 = bandFor(assessment, "C4");
+    expect(c4.evidenceGaps.join(" ")).not.toMatch(/no emissions reduction target/i);
+    // Still capped at Established: a self-declared SBTi position is not the
+    // science-based flag, so the fallback must not buy its way to Strong.
+    expect(c4.band).toBe("ESTABLISHED");
   });
 
   /**

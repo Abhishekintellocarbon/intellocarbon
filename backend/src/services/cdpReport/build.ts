@@ -1,6 +1,6 @@
 import { LOGO_LOCKUP_ON_DARK } from "../brandAssets";
 import PDFDocument from "pdfkit";
-import type { Company, Facility, User } from "@prisma/client";
+import type { Company, Facility, SbtiStatus, User } from "@prisma/client";
 import { PageBuilder } from "../cbamReport/layout";
 import { buildVerifyQr } from "../cbamReport/qr";
 import { MARGIN_X, CONTENT_WIDTH, MUTED, NAVY, TEAL, TEAL_DARK, BORDER, fmt, fmtInt, fmtDate } from "../cbamReport/theme";
@@ -29,6 +29,26 @@ const fmtCount = (v: number | null | undefined): string => (v == null ? NOT_ANSW
 const fmtPct = (v: number | null | undefined): string => (v == null ? NOT_ANSWERED : `${fmt(v, 1)}%`);
 const fmtText = (v: string | null | undefined): string => (v && v.trim() ? v : "Not yet answered.");
 const fmtBool = (v: boolean | null | undefined): string => (v == null ? NOT_ANSWERED : v ? "Yes" : "No");
+
+/**
+ * The company's own account of its SBTi position.
+ *
+ * "Validated" here means the company says SBTi validated it, which is why the
+ * column it prints under is labelled self-declared. Nothing on this platform
+ * checks it.
+ */
+const sbtiStatusLabel = (status: SbtiStatus | null): string => {
+  switch (status) {
+    case "VALIDATED":
+      return "Validated";
+    case "SUBMITTED":
+      return "Submitted";
+    case "COMMITTED":
+      return "Committed";
+    default:
+      return "";
+  }
+};
 
 /** Resolves a select answer to the label CDP shows, not the stored key. */
 const fmtSelect = (question: CdpQuestion, value: unknown): string => {
@@ -393,7 +413,7 @@ function buildModuleSection(
   const row = ((report as unknown as Record<string, unknown>)[module.relation] ?? null) as Record<string, unknown> | null;
   renderQuestions(pb, module.questions, row);
 
-  renderRepeatingBlocks(pb, module, report);
+  renderRepeatingBlocks(pb, module, report, metrics);
 
   return pageIndex;
 }
@@ -613,7 +633,12 @@ function renderDerivedFigures(
 }
 
 /** C2's risks and opportunities, C4's targets, C7's breakdown rows. */
-function renderRepeatingBlocks(pb: PageBuilder, module: CdpModule, report: CdpReportWithRelations) {
+function renderRepeatingBlocks(
+  pb: PageBuilder,
+  module: CdpModule,
+  report: CdpReportWithRelations,
+  metrics: CdpMetrics,
+) {
   if (module.code === "C2") {
     for (const kind of ["RISK", "OPPORTUNITY"] as const) {
       const rows = report.risks.filter((r) => r.kind === kind);
@@ -660,12 +685,21 @@ function renderRepeatingBlocks(pb: PageBuilder, module: CdpModule, report: CdpRe
 
   if (module.code === "C4") {
     pb.heading("C4.1a / C4.1b Emissions reduction targets");
-    if (report.targets.length === 0) {
+    const { rows: targets, fromCompanyTarget } = metrics.targets;
+    if (targets.length === 0) {
       pb.paragraph(
         "No emissions reduction target has been entered. A target with a base year, a target year and a stated " +
           "reduction is the single thing a requesting buyer most often looks for in this module.",
       );
       return;
+    }
+    if (fromCompanyTarget) {
+      pb.paragraph(
+        "No target was entered against this response, so the targets below are the ones recorded in the " +
+          "organization's own target register. Any SBTi position shown is the organization's own account of where " +
+          "it stands and has not been verified here.",
+        { size: 9.5 },
+      );
     }
     pb.table({
       columns: [
@@ -675,20 +709,20 @@ function renderRepeatingBlocks(pb: PageBuilder, module: CdpModule, report: CdpRe
         { header: "Target year", width: 60, align: "right" },
         { header: "Reduction", width: 65, align: "right" },
         { header: "Achieved", width: 60, align: "right" },
-        { header: "SBTi", width: 40 },
+        { header: fromCompanyTarget ? "SBTi (self-declared)" : "SBTi", width: 40 },
       ],
-      rows: report.targets.map((t) => [
+      rows: targets.map((t) => [
         t.kind === "ABSOLUTE" ? "Absolute" : "Intensity",
         t.scopesCovered,
         String(t.baseYear),
         String(t.targetYear),
         t.reductionPct != null ? `${fmt(t.reductionPct, 1)}%` : "—",
         t.percentAchieved != null ? `${fmt(t.percentAchieved, 1)}%` : "—",
-        t.isScienceBased ? "Yes" : "",
+        fromCompanyTarget ? sbtiStatusLabel(t.sbtiStatus) : t.isScienceBased ? "Yes" : "",
       ]),
     });
 
-    const intensity = report.targets.filter((t) => t.kind === "INTENSITY");
+    const intensity = targets.filter((t) => t.kind === "INTENSITY");
     if (intensity.length > 0) {
       pb.heading("Intensity target denominators");
       pb.table({

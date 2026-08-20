@@ -7,6 +7,7 @@ import {
   TARGET_STATUS_LABELS,
   SBTI_STATUS_LABELS,
 } from "../companyTarget.service";
+import { effectiveCdpTargets } from "../cdpCalculation.service";
 import type { CompanyTarget } from "@prisma/client";
 
 /**
@@ -221,5 +222,109 @@ describe("framework precedence", () => {
    */
   it("does not treat zero as absent", () => {
     expect(resolveEffectiveTarget(0, 500)).toBe(0);
+  });
+});
+
+/**
+ * CDP discloses targets as a list rather than as scalar fields, so it resolves
+ * against the register with effectiveCdpTargets rather than
+ * resolveEffectiveTarget. The precedence rule is the same one.
+ */
+describe("effectiveCdpTargets", () => {
+  const companyTarget = (overrides: Partial<CompanyTarget> = {}): CompanyTarget =>
+    ({
+      id: "ct1",
+      kind: "ABSOLUTE",
+      scopesCovered: "Scope 1+2 (location-based)",
+      baselineYear: 2020,
+      baselineEmissionsTco2e: 1000,
+      targetYear: 2030,
+      reductionPct: 42,
+      intensityMetric: null,
+      baselineIntensity: null,
+      targetIntensity: null,
+      isNetZero: false,
+      sbtiStatus: "NOT_SUBMITTED",
+      description: null,
+      ...overrides,
+    }) as CompanyTarget;
+
+  const reportTarget = (overrides: Record<string, unknown> = {}) =>
+    ({
+      kind: "ABSOLUTE",
+      scopesCovered: "Scope 1",
+      baseYear: 2019,
+      baseYearEmissionsTco2e: 900,
+      targetYear: 2035,
+      reductionPct: 30,
+      intensityMetric: null,
+      baseYearIntensity: null,
+      targetIntensity: null,
+      percentAchieved: 12,
+      isScienceBased: true,
+      description: null,
+      ...overrides,
+    }) as never;
+
+  it("discloses the response's own targets when it has any", () => {
+    const result = effectiveCdpTargets([reportTarget()], [companyTarget()]);
+    expect(result.fromCompanyTarget).toBe(false);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].targetYear).toBe(2035);
+  });
+
+  /**
+   * The failure this guards against is a submitted response silently gaining a
+   * target row the company never put in it.
+   */
+  it("never merges register targets into a response that states its own", () => {
+    const result = effectiveCdpTargets([reportTarget()], [companyTarget(), companyTarget({ id: "ct2" })]);
+    expect(result.rows).toHaveLength(1);
+  });
+
+  it("falls back to the register when the response states no target", () => {
+    const result = effectiveCdpTargets([], [companyTarget()]);
+    expect(result.fromCompanyTarget).toBe(true);
+    expect(result.rows[0]).toMatchObject({ baseYear: 2020, targetYear: 2030, reductionPct: 42 });
+  });
+
+  /**
+   * The whole discipline of companyTarget.service in one assertion: a company
+   * saying it is SBTi-validated is not the platform certifying the target as
+   * science-based, and C4's flag is the latter.
+   */
+  it("never promotes a self-declared SBTi status to the science-based flag", () => {
+    const result = effectiveCdpTargets([], [companyTarget({ sbtiStatus: "VALIDATED" })]);
+    expect(result.rows[0].isScienceBased).toBe(false);
+    expect(result.rows[0].sbtiStatus).toBe("VALIDATED");
+  });
+
+  /** Percent achieved is a reported figure; the register does not hold one. */
+  it("leaves percent achieved empty on fallback rows", () => {
+    expect(effectiveCdpTargets([], [companyTarget()]).rows[0].percentAchieved).toBeNull();
+  });
+
+  it("reports no fallback when neither side has a target", () => {
+    expect(effectiveCdpTargets([], [])).toEqual({ rows: [], fromCompanyTarget: false });
+  });
+
+  it("carries the intensity denominator through the fallback", () => {
+    const result = effectiveCdpTargets(
+      [],
+      [
+        companyTarget({
+          kind: "INTENSITY",
+          intensityMetric: "tCO2e per tonne of cement",
+          baselineIntensity: 0.8,
+          targetIntensity: 0.5,
+        }),
+      ],
+    );
+    expect(result.rows[0]).toMatchObject({
+      kind: "INTENSITY",
+      intensityMetric: "tCO2e per tonne of cement",
+      baseYearIntensity: 0.8,
+      targetIntensity: 0.5,
+    });
   });
 });

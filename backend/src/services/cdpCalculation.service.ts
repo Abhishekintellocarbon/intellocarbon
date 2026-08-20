@@ -1,5 +1,15 @@
 import { prisma } from "../config/prisma";
-import type { Company, Facility, Prisma, Scope3Category } from "@prisma/client";
+import type {
+  Company,
+  CompanyTarget,
+  CdpTarget,
+  CdpTargetKind,
+  Facility,
+  Prisma,
+  SbtiStatus,
+  Scope3Category,
+} from "@prisma/client";
+import { submittedCompanyTargets } from "./companyTarget.service";
 import { resolveFyWindow as resolveBrsrFyWindow, type BrsrFyWindow } from "./brsrCalculation.service";
 import { buildWaterFootprint } from "./waterCalculation.service";
 import { CDP_MODULES, getCdpModule } from "../data/cdpQuestionnaire";
@@ -329,23 +339,134 @@ export const derivedQuestionHasValue = (field: string, metrics: CdpMetrics): boo
   }
 };
 
+// ---------------------------------------------------------------------------
+// C4 targets
+//
+// CompanyTarget is the single source of truth for what the company says its
+// reduction targets are. CDP predates it and stores its own CdpTarget rows per
+// response, so this resolves which of the two a given response discloses.
+// ---------------------------------------------------------------------------
+
+/** One C4 target row as disclosed, whatever table it came from. */
+export interface CdpEffectiveTarget {
+  kind: CdpTargetKind;
+  scopesCovered: string;
+  baseYear: number;
+  baseYearEmissionsTco2e: number | null;
+  targetYear: number;
+  reductionPct: number | null;
+  intensityMetric: string | null;
+  baseYearIntensity: number | null;
+  targetIntensity: number | null;
+  percentAchieved: number | null;
+  isScienceBased: boolean;
+  /**
+   * The company's own account of its SBTi position, carried through only for
+   * rows sourced from CompanyTarget so C4 can state it as the self-declaration
+   * it is. Never rendered as validation — see companyTarget.service.
+   */
+  sbtiStatus: SbtiStatus | null;
+  description: string | null;
+}
+
+export interface CdpEffectiveTargets {
+  rows: CdpEffectiveTarget[];
+  /** True where the rows came from CompanyTarget rather than this response. */
+  fromCompanyTarget: boolean;
+}
+
+/**
+ * The targets a CDP response discloses under C4.1a / C4.1b.
+ *
+ * Targets entered on the response itself always win, and are never merged with
+ * the company register: a CDP response marked complete is a signed disclosure,
+ * and quietly adding a row to a submitted list of targets would change what
+ * the company said after the fact. The fallback only covers the case where the
+ * response states no target at all, which is the duplication CompanyTarget
+ * exists to end — the same rule ISSB follows in resolveEffectiveTarget.
+ *
+ * `isScienceBased` is deliberately false on every fallback row. A company
+ * self-declaring SBTi status is not the same assertion as CDP's science-based
+ * flag, and promoting one to the other would be this platform making a
+ * compliance claim on the company's behalf. The status travels separately so
+ * C4 can report it as self-declared.
+ */
+export const effectiveCdpTargets = (
+  reportTargets: CdpTarget[],
+  companyTargets: CompanyTarget[],
+): CdpEffectiveTargets => {
+  if (reportTargets.length > 0) {
+    return {
+      fromCompanyTarget: false,
+      rows: reportTargets.map((t) => ({
+        kind: t.kind,
+        scopesCovered: t.scopesCovered,
+        baseYear: t.baseYear,
+        baseYearEmissionsTco2e: t.baseYearEmissionsTco2e,
+        targetYear: t.targetYear,
+        reductionPct: t.reductionPct,
+        intensityMetric: t.intensityMetric,
+        baseYearIntensity: t.baseYearIntensity,
+        targetIntensity: t.targetIntensity,
+        percentAchieved: t.percentAchieved,
+        isScienceBased: t.isScienceBased,
+        sbtiStatus: null,
+        description: t.description,
+      })),
+    };
+  }
+
+  return {
+    fromCompanyTarget: companyTargets.length > 0,
+    rows: companyTargets.map((t) => ({
+      kind: t.kind,
+      scopesCovered: t.scopesCovered,
+      baseYear: t.baselineYear,
+      baseYearEmissionsTco2e: t.baselineEmissionsTco2e,
+      targetYear: t.targetYear,
+      reductionPct: t.reductionPct,
+      intensityMetric: t.intensityMetric,
+      baseYearIntensity: t.baselineIntensity,
+      targetIntensity: t.targetIntensity,
+      // The register tracks progress against actuals rather than storing a
+      // reported percentage, and C4's "percent achieved" is a reported figure.
+      // Deriving one here would put a number the company never stated into a
+      // signed response.
+      percentAchieved: null,
+      isScienceBased: false,
+      sbtiStatus: t.sbtiStatus,
+      description: t.description,
+    })),
+  };
+};
+
 export interface CdpMetrics {
   fyWindow: CdpFyWindow;
   rollup: CdpMetricsRollup;
   /** C6.10 — null when no revenue was entered. */
   intensityPerRevenue: number | null;
   carbonPricingExposure: CdpCarbonPricingExposure;
+  /** C4.1a / C4.1b, resolved against the company target register. */
+  targets: CdpEffectiveTargets;
 }
 
+/**
+ * `company.id` is read so a response that states no target of its own can fall
+ * back to the company's target register instead of reporting none.
+ */
 export const buildCdpMetrics = async (
   report: CdpReportWithRelations,
   facility: Pick<Facility, "id">,
-  company: Pick<Company, "reportingFyStartMonth" | "appliesCbam" | "appliesCcts" | "cbamFrameworks">,
+  company: Pick<Company, "id" | "reportingFyStartMonth" | "appliesCbam" | "appliesCcts" | "cbamFrameworks">,
 ): Promise<CdpMetrics> => {
   const fyWindow = resolveFyWindow(report.reportingPeriod, company.reportingFyStartMonth);
-  const [rollup, carbonPricingExposure] = await Promise.all([
+  const [rollup, carbonPricingExposure, companyTargets] = await Promise.all([
     rollupCdpMetrics(facility.id, report.reportingPeriod, fyWindow),
     buildCarbonPricingExposure(facility.id, company, fyWindow),
+    // Only needed when the response has no targets of its own, but the query
+    // is a single indexed read and skipping it would fork this function into
+    // two await graphs for no measurable gain.
+    submittedCompanyTargets(company.id),
   ]);
 
   return {
@@ -353,6 +474,7 @@ export const buildCdpMetrics = async (
     rollup,
     intensityPerRevenue: computeIntensity(rollup, report.revenue),
     carbonPricingExposure,
+    targets: effectiveCdpTargets(report.targets, companyTargets),
   };
 };
 

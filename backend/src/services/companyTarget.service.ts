@@ -361,3 +361,18 @@ export const primaryCompanyTarget = async (companyId: string) =>
     where: { companyId, status: "SUBMITTED", kind: "ABSOLUTE" },
     orderBy: [{ targetYear: "asc" }, { createdAt: "asc" }],
   });
+
+/**
+ * Every submitted target the company has stated, absolute and intensity alike.
+ *
+ * Where `primaryCompanyTarget` fills a single scalar field, this serves the
+ * frameworks that disclose targets as a list — CDP's C4.1a/C4.1b repeating
+ * block. Drafts are excluded: an unsubmitted target is not something the
+ * company has stated yet, and surfacing one inside a framework response would
+ * disclose a figure the company never signed off.
+ */
+export const submittedCompanyTargets = async (companyId: string) =>
+  prisma.companyTarget.findMany({
+    where: { companyId, status: "SUBMITTED" },
+    orderBy: [{ targetYear: "asc" }, { createdAt: "asc" }],
+  });

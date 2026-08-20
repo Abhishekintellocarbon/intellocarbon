@@ -2637,6 +2637,32 @@ export interface CdpMetrics {
     carbonPricePaidEurPerTonne: number | null;
     hasCctsTarget: boolean;
   };
+  /**
+   * C4.1a / C4.1b as disclosed. Where the response entered no target of its
+   * own these are the company's recorded targets, and `fromCompanyTarget`
+   * says so — see effectiveCdpTargets on the backend.
+   */
+  targets: {
+    rows: CdpEffectiveTarget[];
+    fromCompanyTarget: boolean;
+  };
+}
+
+export interface CdpEffectiveTarget {
+  kind: "ABSOLUTE" | "INTENSITY";
+  scopesCovered: string;
+  baseYear: number;
+  baseYearEmissionsTco2e: number | null;
+  targetYear: number;
+  reductionPct: number | null;
+  intensityMetric: string | null;
+  baseYearIntensity: number | null;
+  targetIntensity: number | null;
+  percentAchieved: number | null;
+  isScienceBased: boolean;
+  /** Self-declared, and only ever set on rows from the company register. */
+  sbtiStatus: SbtiStatus | null;
+  description: string | null;
 }
 
 export interface CdpModuleMaturity {

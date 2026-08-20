@@ -165,13 +165,17 @@ const evidenceCapFor = (
     case "C4": {
       // A truthful "no target" is a complete answer and a weak position. The
       // indicator says so rather than rewarding the completeness.
-      if (row?.targetType === "NONE" || report.targets.length === 0) {
+      // Targets resolve against the company register, so a response that
+      // entered none but whose company has stated one is not capped for
+      // having no target — it discloses that target under C4.
+      const targets = metrics.targets.rows;
+      if (row?.targetType === "NONE" || targets.length === 0) {
         caps.push({
           ceiling: "DEVELOPING",
           reason:
             "No emissions reduction target is reported. A target with a base year, a target year and a stated reduction is the single largest thing a buyer looks for here.",
         });
-      } else if (!report.targets.some((t) => t.isScienceBased) && row?.sbtiValidated !== true) {
+      } else if (!targets.some((t) => t.isScienceBased) && row?.sbtiValidated !== true) {
         caps.push({
           ceiling: "ESTABLISHED",
           reason: "No target is science-based or SBTi-validated. CDP treats validated targets as materially stronger.",
