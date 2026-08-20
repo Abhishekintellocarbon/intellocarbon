@@ -30,8 +30,12 @@ export function MarketingHeader() {
                                   one row, and the clock is the only one of
                                   the three that is not navigation.
 
-            640px - 1399px        Logo + clock (one line) + hamburger.
-              (sm .. <1400)
+            640px - 1399px        Logo, then clock + hamburger together on the
+              (sm .. <1400)       right (`sm:ml-auto` on the clock). The clock
+                                  used to sit mid-row here because
+                                  justify-between gave it an equal gap either
+                                  side; it now hugs the hamburger at 12px, the
+                                  same gap the desktop cluster uses.
 
             >= 1400px             Logo + full nav + clock (one line) +
                                   Log in / Get started, as four flex children
@@ -147,15 +151,28 @@ export function MarketingHeader() {
           </Link>
           <FaqNavLink />
         </nav>
-        {/* Its own flex child at desktop, so justify-between gives it an equal
-            gap on BOTH sides rather than welding it to the CTA block — which
-            left it with ~11px of clearance and reading as cramped. Below 1400
-            it stays inside the group on the right, next to the hamburger,
-            where there is no nav to balance against. */}
-        <span className="hidden sm:block min-[1400px]:order-none">
+        {/* `sm:ml-auto` is the landscape/tablet counterpart of the nav's
+            `mx-auto`, and does the same job by the same mechanism. Between
+            640 and 1400 the nav is hidden, so the row is logo / clock /
+            hamburger and justify-between handed the clock an equal share on
+            both sides — it drifted to mid-row, 84px off the hamburger at 640
+            and 166px at 812, growing with the viewport. The auto margin takes
+            all the free space to the clock's LEFT instead, so the clock and
+            the hamburger settle against each other as one right-hand group.
+
+            `min-[1400px]:ml-0` is load-bearing. At desktop the nav already
+            carries `mx-auto`, and flexbox splits free space equally among ALL
+            auto margins — a third one here would take a third of it, pulling
+            the clock back off the CTAs and undoing the desktop grouping. */}
+        <span className="hidden sm:ml-auto sm:block min-[1400px]:ml-0">
           <LiveClock />
         </span>
-        <div className="flex items-center gap-4 pl-4 sm:pl-6 min-[1400px]:gap-4 min-[1400px]:pl-3">
+        {/* pl is the clock-to-cluster gap once the auto margin has pulled them
+            together, so 640-up and desktop share one value (12px) and read as
+            the same group. Below 640 the clock is `display: none`, so pl-4 is
+            only the logo/hamburger separation on mobile portrait — left at 16
+            deliberately, since that row is confirmed correct. */}
+        <div className="flex items-center gap-4 pl-4 sm:pl-3 min-[1400px]:gap-4">
           <MobileNav isAuthenticated={isAuthenticated} />
           <div className="hidden items-center gap-3 min-[1400px]:flex">
             {isAuthenticated ? (
