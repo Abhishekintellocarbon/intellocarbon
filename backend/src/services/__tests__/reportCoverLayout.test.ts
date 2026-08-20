@@ -258,6 +258,100 @@ describe("page numbering is unaffected by skipping the cover", () => {
   });
 });
 
+/**
+ * The running footer is the only place an interior page says whose document it
+ * is. It used to name Intellocarbon and nobody else, so a page separated from
+ * its cover carried a confidentiality claim with no owner attached to it.
+ */
+describe("the running footer names the reporting organisation", () => {
+  const footerDrawsFor = async (organisation?: string) => {
+    const doc = new PDFDocument({
+      size: "A4",
+      margins: { top: 50, left: 50, right: 50, bottom: 20 },
+      bufferPages: true,
+    });
+    const pb = new PageBuilder(doc, "ICT-TEST-0003", organisation);
+    pb.noCoverPage();
+    pb.paragraph("Body copy.");
+
+    const draws = recordChromeDraws(doc, doc.bufferedPageRange().count - 1);
+    pb.finalize();
+    return draws.map((d) => d.text);
+  };
+
+  it("puts the client's name in the footer when one is given", async () => {
+    const texts = await footerDrawsFor("Northwind Steel Ltd");
+    const footer = texts.find((t) => t.includes("Confidential"));
+    expect(footer).toContain("Northwind Steel Ltd");
+    // Provenance is never dropped in favour of the client name.
+    expect(footer).toContain("intellocarbon.com");
+  });
+
+  it("falls back to the Intellocarbon-only note when no organisation is given", async () => {
+    const texts = await footerDrawsFor();
+    const footer = texts.find((t) => t.includes("Confidential"));
+    expect(footer).toContain("Intellocarbon Solutions Private Limited");
+  });
+});
+
+/**
+ * A document with no cover page must say so, or finalize() treats page index 0
+ * as a cover and skips it — which is what left the Green Steel working paper
+ * with no header band, no confidentiality footer and no page number on the
+ * only page it usually has.
+ */
+describe("a report with no cover still gets page chrome on page 1", () => {
+  it("stamps header, footer and page number on the first page", async () => {
+    const doc = new PDFDocument({
+      size: "A4",
+      margins: { top: 50, left: 50, right: 50, bottom: 20 },
+      bufferPages: true,
+    });
+    const pb = new PageBuilder(doc, "GS-TESTREF1", "Northwind Steel Ltd");
+    pb.noCoverPage();
+    pb.heading("Calculation summary");
+
+    const draws = recordChromeDraws(doc, doc.bufferedPageRange().count - 1);
+    pb.finalize();
+
+    const onFirst = draws.filter((d) => d.page === 0);
+    expect(onFirst.some((d) => d.text.includes("Confidential"))).toBe(true);
+    expect(onFirst.some((d) => d.text === "Page 1 of 1")).toBe(true);
+    expect(onFirst.some((d) => d.text === "GS-TESTREF1")).toBe(true);
+  });
+});
+
+/**
+ * Every document control panel reports when the document was generated to the
+ * minute, not the day. Two copies produced on the same day are otherwise
+ * indistinguishable, which is exactly the question a version dispute asks.
+ * Read from the builders rather than asserted per-report, so a new report type
+ * that only prints a date fails here.
+ */
+describe("document control panels report a generated time, not only a date", () => {
+  const generatedRows = (): [string, string][] => {
+    const servicesDir = path.join(__dirname, "..");
+    const found: [string, string][] = [];
+    for (const dir of fs.readdirSync(servicesDir)) {
+      const buildFile = path.join(servicesDir, dir, "build.ts");
+      if (!fs.existsSync(buildFile)) continue;
+      const src = fs.readFileSync(buildFile, "utf8");
+      const match = src.match(/\["Generated",\s*(fmtDate|fmtDateTime)\(new Date\(\)\)\]/);
+      if (!match) continue;
+      found.push([dir, match[1]]);
+    }
+    return found;
+  };
+
+  it("finds the builders' generated rows", () => {
+    expect(generatedRows().length).toBeGreaterThanOrEqual(8);
+  });
+
+  it.each(generatedRows())("%s uses fmtDateTime", (_name, fn) => {
+    expect(fn).toBe("fmtDateTime");
+  });
+});
+
 describe("pageNumberY stays clear of pdfkit's auto-pagination threshold", () => {
   /**
    * drawFooter's own comment warns that a text call whose bottom edge crosses

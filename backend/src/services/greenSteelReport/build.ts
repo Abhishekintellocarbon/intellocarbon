@@ -1,7 +1,8 @@
 import PDFDocument from "pdfkit";
 import type { Company, Facility, GreenSteelAssessment } from "@prisma/client";
 import { PageBuilder } from "../cbamReport/layout";
-import { MARGIN_X, CONTENT_WIDTH, MUTED, fmt, fmtInt, fmtDate } from "../cbamReport/theme";
+import { MARGIN_X, CONTENT_WIDTH, MUTED, fmt, fmtInt, fmtDateTime } from "../cbamReport/theme";
+import { horizontalBarComparison } from "../cbamReport/charts";
 import {
   GREEN_STEEL_BANDS,
   GREEN_STEEL_THRESHOLD_TCO2E_PER_T,
@@ -52,8 +53,16 @@ export const buildGreenSteelSummary = (
   assessment: GreenSteelAssessment,
   facility: FacilityWithCompany,
 ) => {
-  const pb = new PageBuilder(doc, `GS-${assessment.id.slice(-8).toUpperCase()}`);
+  const reference = `GS-${assessment.id.slice(-8).toUpperCase()}`;
+  const pb = new PageBuilder(doc, reference, facility.company.name);
   const rating = rateGreenSteel(assessment.emissionIntensity);
+
+  // This document has no cover page, so page 1 is an ordinary interior page and
+  // must be told so. Without this, finalize() treats index 0 as a cover and
+  // skips it — which left the first (and usually only) page of this document
+  // with no header band, no footer confidentiality note and no page number,
+  // the one report type where that was true.
+  pb.noCoverPage();
 
   // A plain title block, not a cover page. The Communication Package opens
   // with a branded cover because it is a submission; this one opens with what
@@ -67,16 +76,26 @@ export const buildGreenSteelSummary = (
 
   pb.note(GREEN_STEEL_CERTIFICATION_NOTICE);
 
+  // Document control, in the same six facts every other report type carries.
+  // Deliberately a plain two-column block rather than the bordered cover panel
+  // the submission reports use: a reference, a version and a classification are
+  // exactly what marks this as a working paper, and none of it is certificate
+  // furniture. The reference is prefixed and labelled "Working paper reference"
+  // so it cannot read as a certificate number.
   pb.keyValueColumns(
-    "Facility",
+    "Document control",
+    [
+      ["Working paper reference", reference],
+      ["Version", "v1.0"],
+      ["Classification", "Confidential — Working Paper"],
+      ["Distribution", "Company Admin"],
+    ],
+    "Scope of this calculation",
     [
       ["Facility", facility.name],
       ["Company", facility.company.name],
-    ],
-    "Assessment",
-    [
       ["Reporting period", assessment.reportingPeriod],
-      ["Prepared on", fmtDate(new Date())],
+      ["Generated", fmtDateTime(new Date())],
     ],
   );
 
@@ -118,6 +137,26 @@ export const buildGreenSteelSummary = (
     { size: 9.5, color: MUTED },
   );
 
+  // The one visual in this document, and chosen for what it is not: a bar of
+  // the calculated intensity against the threshold is the arithmetic drawn to
+  // scale. A row of stars, a dial or a seal would all be the award furniture
+  // this document must not have.
+  pb.ensureSpace(120);
+  pb.y = horizontalBarComparison(doc, {
+    x: MARGIN_X,
+    y: pb.y,
+    width: CONTENT_WIDTH,
+    actualValue: assessment.emissionIntensity,
+    actualLabel: "Calculated intensity",
+    referenceValue: GREEN_STEEL_THRESHOLD_TCO2E_PER_T,
+    referenceLabel: "Taxonomy threshold",
+    unit: "tCO2e/t",
+  });
+  pb.note(
+    "Position against the threshold only. Being below the threshold is what brings steel into the taxonomy at all; " +
+      "which band it lands in is set by the absolute intensity in the table below, not by distance from the threshold.",
+  );
+
   pb.table({
     columns: [
       { header: "Band", width: 150 },
@@ -134,6 +173,26 @@ export const buildGreenSteelSummary = (
 
   pb.heading("Basis of the figure");
   pb.paragraph(GREEN_STEEL_BOUNDARY_NOTICE, { size: 10 });
+
+  // The same verification block every other report type carries, and here it
+  // reports an absence. That is the point: dashes against every field, and no
+  // signature line, state plainly that nobody has verified these figures.
+  // Leaving the block out entirely would have been the riskier choice — it is
+  // the only section that answers "has this been checked?" in the place a
+  // reader of any other Intellocarbon report has learned to look.
+  pb.verificationBlock({
+    title: "Verification status",
+    verifierName: null,
+    verifierOrg: null,
+    accreditationRef: null,
+    statementLabel: "Independent verification",
+    statement: null,
+    verifiedAt: null,
+    unverifiedNote:
+      "No independent verification has been carried out on this calculation, and Intellocarbon does not verify it. " +
+      "Measurement, reporting and verification under the Taxonomy of Green Steel is NISST's process, conducted to " +
+      "NISST's own requirements. Nothing in this working paper substitutes for it or forms part of it.",
+  });
 
   pb.heading("What this document is not");
   pb.paragraph(
@@ -154,6 +213,11 @@ export const buildGreenSteelSummary = (
       doc.y,
       { width: CONTENT_WIDTH },
     );
+
+  // Stamps the header band, the confidentiality footer and page numbers on
+  // every page. This document was the one report type that never called it, so
+  // it carried none of that chrome.
+  pb.finalize();
 };
 
 export const generateGreenSteelPdf = (assessment: GreenSteelAssessment, facility: FacilityWithCompany) => {

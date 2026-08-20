@@ -580,3 +580,289 @@ export function scatterMatrix(
 
   return plotY + height + 8;
 }
+
+export interface StackedSeries {
+  label: string;
+  color: string;
+}
+
+export interface StackedBarPoint {
+  label: string;
+  /** One value per entry in `series`, same order. */
+  values: number[];
+}
+
+/**
+ * Stacked vertical bars over a shared category axis — built for the energy mix
+ * trend (renewable vs non-renewable per reporting period), kept generic.
+ *
+ * Bars are scaled against the tallest *total*, not the tallest segment, so two
+ * periods of different size stay visually comparable. A share label sits above
+ * each bar because the question a mix chart is read for is the proportion, and
+ * reading that off segment heights by eye is exactly what the label removes.
+ */
+export function stackedBarTrend(
+  doc: PDFKit.PDFDocument,
+  opts: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    series: StackedSeries[];
+    points: StackedBarPoint[];
+    unit: string;
+    /** Index of the series whose share is printed above each bar. */
+    shareSeriesIndex?: number;
+  },
+): number {
+  const { x, y, width, height, series, points, unit } = opts;
+  const totals = points.map((p) => p.values.reduce((sum, v) => sum + v, 0));
+  const maxTotal = Math.max(...totals, 0.0001);
+  const gap = points.length > 6 ? 8 : 16;
+  const barWidth = Math.max(8, (width - gap * (points.length - 1)) / points.length);
+  const baseline = y + height;
+  const usableHeight = height - BAR_LABEL_MARGIN;
+
+  points.forEach((point, i) => {
+    const barX = x + i * (barWidth + gap);
+    let segmentBottom = baseline;
+    point.values.forEach((value, s) => {
+      const segH = (value / maxTotal) * usableHeight;
+      if (segH <= 0) return;
+      doc.rect(barX, segmentBottom - segH, barWidth, segH).fillColor(series[s].color).fill();
+      segmentBottom -= segH;
+    });
+
+    if (opts.shareSeriesIndex != null && totals[i] > 0) {
+      const share = (point.values[opts.shareSeriesIndex] / totals[i]) * 100;
+      doc
+        .fillColor(NAVY)
+        .font("Helvetica-Bold")
+        .fontSize(7.5)
+        .text(`${fmt(share, 1)}%`, barX - 8, segmentBottom - 12, {
+          width: barWidth + 16,
+          align: "center",
+          lineBreak: false,
+        });
+    }
+
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(7)
+      .text(point.label, barX - 8, baseline + 6, { width: barWidth + 16, align: "center" });
+  });
+
+  doc.moveTo(x, baseline).lineTo(x + width, baseline).strokeColor(BORDER).lineWidth(1).stroke();
+
+  const legendBottom = drawLegend(
+    doc,
+    x,
+    baseline + 26,
+    width,
+    series.map((s, i) => ({
+      color: s.color,
+      label: `${s.label} — ${fmt(points.reduce((sum, p) => sum + p.values[i], 0), 2)} ${unit} across ${points.length} period${
+        points.length === 1 ? "" : "s"
+      }`,
+    })),
+  );
+
+  return legendBottom + 6;
+}
+
+export interface TrendSeries {
+  label: string;
+  color: string;
+  /** Dashed for a stated target path, solid for measured actuals. */
+  dashed?: boolean;
+  points: { x: number; y: number }[];
+}
+
+/**
+ * Multi-series line chart over a numeric x axis — the net-zero trajectory
+ * (measured emissions against the stated target path) and any other year-series.
+ *
+ * The dashed/solid distinction is load-bearing and not a style choice: one
+ * series is what the company measured and the other is what it said it would
+ * do, and a chart that draws them identically invites a reader to treat a
+ * commitment as a result. Actual series are never extended past their last
+ * measured point — see netZeroTrajectory.service for the same rule upstream.
+ */
+export function lineTrendChart(
+  doc: PDFKit.PDFDocument,
+  opts: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    series: TrendSeries[];
+    xLabel: string;
+    yLabel: string;
+    unit: string;
+  },
+): number {
+  const { x, y, width, height, series, unit } = opts;
+  const all = series.flatMap((s) => s.points);
+  if (all.length === 0) return y;
+
+  const xs = all.map((p) => p.x);
+  const ys = all.map((p) => p.y);
+  const xMin = Math.min(...xs);
+  const xMax = Math.max(...xs);
+  const yMax = Math.max(...ys, 0.0001) * 1.1;
+  const xSpan = xMax - xMin || 1;
+
+  const padLeft = 40;
+  const padBottom = 20;
+  const plotX = x + padLeft;
+  const plotY = y;
+  const plotW = width - padLeft;
+  const plotH = height - padBottom;
+
+  const toX = (v: number) => plotX + ((v - xMin) / xSpan) * plotW;
+  const toY = (v: number) => plotY + plotH - (v / yMax) * plotH;
+
+  // Horizontal gridlines with value labels, so a point can be read off the
+  // chart rather than only from the table it accompanies.
+  doc.lineWidth(0.5).strokeColor(BORDER);
+  for (let i = 0; i <= 4; i++) {
+    const value = (yMax / 4) * i;
+    const gy = toY(value);
+    doc.moveTo(plotX, gy).lineTo(plotX + plotW, gy).stroke();
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(6.5)
+      .text(fmt(value, 0), x, gy - 3.5, { width: padLeft - 6, align: "right", lineBreak: false });
+  }
+
+  // One x tick per year where that stays legible, otherwise thinned out.
+  const step = Math.max(1, Math.ceil((xMax - xMin + 1) / 10));
+  for (let v = xMin; v <= xMax; v += step) {
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(6.5)
+      .text(String(v), toX(v) - 14, plotY + plotH + 5, { width: 28, align: "center", lineBreak: false });
+  }
+
+  doc.lineWidth(1).strokeColor(BORDER).rect(plotX, plotY, plotW, plotH).stroke();
+
+  for (const s of series) {
+    const pts = s.points.slice().sort((a, b) => a.x - b.x);
+    if (pts.length === 0) continue;
+    doc.lineWidth(1.6).strokeColor(s.color);
+    if (s.dashed) doc.dash(4, { space: 3 });
+    doc.moveTo(toX(pts[0].x), toY(pts[0].y));
+    for (const p of pts.slice(1)) doc.lineTo(toX(p.x), toY(p.y));
+    doc.stroke();
+    doc.undash();
+    for (const p of pts) doc.circle(toX(p.x), toY(p.y), 2.5).fillColor(s.color).fill();
+  }
+
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica-Bold")
+    .fontSize(7.5)
+    .text(opts.xLabel, plotX, plotY + plotH + 14, { width: plotW, align: "center", lineBreak: false });
+
+  doc.save();
+  doc.rotate(-90, { origin: [x - 4, plotY + plotH / 2] });
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica-Bold")
+    .fontSize(7.5)
+    .text(opts.yLabel, x - 4 - plotH / 2, plotY + plotH / 2 - 8, { width: plotH, align: "center", lineBreak: false });
+  doc.restore();
+
+  const legendBottom = drawLegend(
+    doc,
+    x,
+    plotY + height + 6,
+    width,
+    series.map((s) => ({
+      color: s.color,
+      label: `${s.label}${s.dashed ? " (stated path)" : ""} — ${s.points.length} point${
+        s.points.length === 1 ? "" : "s"
+      }, ${unit}`,
+    })),
+  );
+
+  return legendBottom + 6;
+}
+
+export interface PercentBarRow {
+  label: string;
+  /** 0-100. Null renders an explicit not-measured track rather than a zero bar. */
+  pct: number | null;
+  /** Right-hand annotation — the raw figures behind the percentage. */
+  valueLabel?: string;
+  color?: string;
+}
+
+/**
+ * Rows of percentage bars against a common 0-100 track — coverage, screened
+ * shares, readiness by theme.
+ *
+ * A null percentage draws an empty track labelled "not measured" instead of a
+ * zero-width bar, because zero and unknown are different answers and a bar
+ * chart that renders them identically reports the second as the first. Values
+ * above 100 are clamped for drawing but printed unclamped, so an over-coverage
+ * (more certificates than consumption) is still visible as the number it is.
+ */
+export function percentBars(
+  doc: PDFKit.PDFDocument,
+  opts: { x: number; y: number; width: number; rows: PercentBarRow[]; barHeight?: number; gap?: number },
+): number {
+  const { x, y, width, rows } = opts;
+  const barHeight = opts.barHeight ?? 18;
+  const gap = opts.gap ?? 10;
+  const labelWidth = 150;
+  const valueWidth = 96;
+  const trackWidth = width - labelWidth - valueWidth;
+
+  let rowY = y;
+  for (const row of rows) {
+    doc
+      .fillColor(NAVY)
+      .font("Helvetica")
+      .fontSize(8.5)
+      .text(row.label, x, rowY + barHeight / 2 - 5, { width: labelWidth - 8, height: 11, ellipsis: true });
+
+    doc.roundedRect(x + labelWidth, rowY, trackWidth, barHeight, 3).fillColor(ROW_ALT).fill();
+
+    if (row.pct == null) {
+      doc
+        .fillColor(MUTED)
+        .font("Helvetica-Oblique")
+        .fontSize(7.5)
+        .text("Not measured", x + labelWidth + 8, rowY + barHeight / 2 - 4, { lineBreak: false });
+    } else {
+      const filled = Math.max(3, (Math.min(row.pct, 100) / 100) * trackWidth);
+      doc.roundedRect(x + labelWidth, rowY, filled, barHeight, 3).fillColor(row.color ?? TEAL).fill();
+      doc
+        .fillColor(filled > 46 ? WHITE : NAVY)
+        .font("Helvetica-Bold")
+        .fontSize(8)
+        .text(`${fmt(row.pct, 1)}%`, x + labelWidth + 8, rowY + barHeight / 2 - 4, { lineBreak: false });
+    }
+
+    if (row.valueLabel) {
+      doc
+        .fillColor(MUTED)
+        .font("Helvetica")
+        .fontSize(7.5)
+        .text(row.valueLabel, x + labelWidth + trackWidth + 6, rowY + barHeight / 2 - 4, {
+          width: valueWidth - 6,
+          height: 10,
+          align: "right",
+          ellipsis: true,
+        });
+    }
+
+    rowY += barHeight + gap;
+  }
+
+  return rowY - gap + 8;
+}

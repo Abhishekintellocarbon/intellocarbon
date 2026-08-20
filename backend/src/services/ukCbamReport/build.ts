@@ -12,6 +12,7 @@ import {
   fmt,
   fmtGbp,
   fmtDate,
+  fmtDateTime,
   titleCase,
 } from "../cbamReport/theme";
 import { productionRouteLabel } from "../cbamReport/build";
@@ -64,7 +65,7 @@ export const buildUkCbamReturn = async (
     throw AppError.badRequest(impact.reason, "UK_CBAM_OUT_OF_SCOPE");
   }
 
-  const pb = new PageBuilder(doc, impact.reportReference);
+  const pb = new PageBuilder(doc, impact.reportReference, ctx.facility.company.name);
   const qr = await buildVerifyQr(impact.reportReference);
 
   buildCoverPage(pb, ctx, impact, qr);
@@ -112,7 +113,7 @@ function buildCoverPage(
       ["Version", "v1.0"],
       ["Classification", "Confidential — Regulatory Submission"],
       ["Distribution", "Company Admin, Assigned Verifier"],
-      ["Generated", fmtDate(new Date())],
+      ["Generated", fmtDateTime(new Date())],
       ["Accounting period", `${fmtDate(ctx.periodStart)} – ${fmtDate(ctx.periodEnd)}`],
     ],
     qrPngBuffer: qr.buffer,

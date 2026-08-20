@@ -14,6 +14,7 @@ import {
   fmt,
   fmtInt,
   fmtDate,
+  fmtDateTime,
   type StatusTone,
 } from "../cbamReport/theme";
 import { donutChart, horizontalGroupedBars, CHART_BLUE, CHART_SLATE } from "../cbamReport/charts";
@@ -76,7 +77,7 @@ export const buildBrsrCorePdf = async (
   });
 
   const reference = reportReference(report);
-  const pb = new PageBuilder(doc, reference);
+  const pb = new PageBuilder(doc, reference, facility.company.name);
   const qr = await buildVerifyQr(reference);
 
   buildCoverPage(pb, report, metrics, reference, qr);
@@ -129,7 +130,7 @@ function buildCoverPage(
       ["Version", "v1.0"],
       ["Classification", "Confidential — Regulatory Submission"],
       ["Distribution", "Company Admin, Assurance Provider"],
-      ["Generated", fmtDate(new Date())],
+      ["Generated", fmtDateTime(new Date())],
       ["Reporting period", report.reportingPeriod],
     ],
     qrPngBuffer: qr.buffer,

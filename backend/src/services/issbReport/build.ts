@@ -4,7 +4,7 @@ import type { IssbS1S2Report, Facility, Company, User } from "@prisma/client";
 import type { IssbS1S2Metrics } from "../issbCalculation.service";
 import { PageBuilder } from "../cbamReport/layout";
 import { buildVerifyQr } from "../cbamReport/qr";
-import { MARGIN_X, MUTED, NAVY, TEAL, BORDER, fmt, fmtDate } from "../cbamReport/theme";
+import { MARGIN_X, MUTED, NAVY, TEAL, BORDER, fmt, fmtDate, fmtDateTime } from "../cbamReport/theme";
 import { donutChart, CHART_SLATE } from "../cbamReport/charts";
 
 // Cover band is the dark gradient — see brandAssets for why the interior
@@ -54,7 +54,7 @@ export const buildIssbS1S2Pdf = async (
   });
 
   const reference = reportReference(report);
-  const pb = new PageBuilder(doc, reference);
+  const pb = new PageBuilder(doc, reference, facility.company.name);
   const qr = await buildVerifyQr(reference);
 
   buildCoverPage(pb, report, metrics, reference, qr);
@@ -104,7 +104,7 @@ function buildCoverPage(
       ["Version", "v1.0"],
       ["Classification", "Confidential — Investor Disclosure"],
       ["Distribution", "Company Admin, Investors, Assurance Provider"],
-      ["Generated", fmtDate(new Date())],
+      ["Generated", fmtDateTime(new Date())],
       ["Reporting period", report.reportingPeriod],
     ],
     qrPngBuffer: qr.buffer,

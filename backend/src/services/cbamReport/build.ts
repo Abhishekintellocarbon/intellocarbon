@@ -16,6 +16,7 @@ import {
   fmtEur,
   fmtSigned,
   fmtDate,
+  fmtDateTime,
   titleCase,
   buildCitationNumbering,
 } from "./theme";
@@ -57,7 +58,7 @@ export const buildCbamCommunicationPackage = async (
   ctx: ReportContext,
   financials: CbamFinancialImpact,
 ) => {
-  const pb = new PageBuilder(doc, financials.reportReference);
+  const pb = new PageBuilder(doc, financials.reportReference, ctx.facility.company.name);
   const qr = await buildVerifyQr(financials.reportReference);
 
   buildCoverPage(pb, ctx, financials, qr);
@@ -106,7 +107,7 @@ function buildCoverPage(
       ["Version", "v1.0"],
       ["Classification", "Confidential — Regulatory Submission"],
       ["Distribution", "Company Admin, EU Declarant, Assigned Verifier"],
-      ["Generated", fmtDate(new Date())],
+      ["Generated", fmtDateTime(new Date())],
       ["Reporting period", `${fmtDate(ctx.periodStart)} – ${fmtDate(ctx.periodEnd)}`],
     ],
     qrPngBuffer: qr.buffer,

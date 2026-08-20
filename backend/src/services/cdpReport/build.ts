@@ -3,7 +3,7 @@ import PDFDocument from "pdfkit";
 import type { Company, Facility, SbtiStatus, User } from "@prisma/client";
 import { PageBuilder } from "../cbamReport/layout";
 import { buildVerifyQr } from "../cbamReport/qr";
-import { MARGIN_X, CONTENT_WIDTH, MUTED, NAVY, TEAL, TEAL_DARK, BORDER, fmt, fmtInt, fmtDate } from "../cbamReport/theme";
+import { MARGIN_X, CONTENT_WIDTH, MUTED, NAVY, TEAL, TEAL_DARK, BORDER, fmt, fmtInt, fmtDate, fmtDateTime } from "../cbamReport/theme";
 import { donutChart, verticalBarChart, CHART_BLUE, CHART_SLATE, CHART_AMBER } from "../cbamReport/charts";
 import {
   CDP_MODULES,
@@ -129,7 +129,7 @@ export const buildCdpPdf = async (
   const doc = new PDFDocument({ size: "A4", margins: { top: 50, left: 50, right: 50, bottom: 20 }, bufferPages: true });
 
   const reference = reportReference(report);
-  const pb = new PageBuilder(doc, reference);
+  const pb = new PageBuilder(doc, reference, facility.company.name);
   const qr = await buildVerifyQr(reference);
   const pages: Record<string, number> = {};
 
@@ -183,8 +183,9 @@ function buildCover(
       ["Document ID", reference],
       ["Version", "v1.0"],
       ["Classification", "Confidential — Prepared for Disclosure"],
+      ["Distribution", "Company Admin, Requesting Buyers, Assurance Provider"],
       ["Questionnaire", "CDP Climate Change"],
-      ["Generated", fmtDate(new Date())],
+      ["Generated", fmtDateTime(new Date())],
       ["Reporting period", report.reportingPeriod],
     ],
     qrPngBuffer: qr.buffer,

@@ -3,7 +3,7 @@ import PDFDocument from "pdfkit";
 import type { Company, Facility, User, CsrdMaterialTopic } from "@prisma/client";
 import { PageBuilder } from "../cbamReport/layout";
 import { buildVerifyQr } from "../cbamReport/qr";
-import { MARGIN_X, CONTENT_WIDTH, MUTED, NAVY, TEAL, TEAL_DARK, BORDER, fmt, fmtInt, fmtDate } from "../cbamReport/theme";
+import { MARGIN_X, CONTENT_WIDTH, MUTED, NAVY, TEAL, TEAL_DARK, BORDER, fmt, fmtInt, fmtDate, fmtDateTime } from "../cbamReport/theme";
 import { donutChart, scatterMatrix, CHART_BLUE, CHART_SLATE, CHART_AMBER, CHART_RED, type ScatterPoint } from "../cbamReport/charts";
 import {
   ESRS_2_DATAPOINTS,
@@ -67,7 +67,7 @@ export const buildCsrdPdf = async (
   const doc = new PDFDocument({ size: "A4", margins: { top: 50, left: 50, right: 50, bottom: 20 }, bufferPages: true });
 
   const reference = reportReference(report);
-  const pb = new PageBuilder(doc, reference);
+  const pb = new PageBuilder(doc, reference, facility.company.name);
   const qr = await buildVerifyQr(reference);
   const pages: Record<string, number> = {};
 
@@ -133,8 +133,9 @@ function buildCover(
       ["Document ID", reference],
       ["Version", "v1.0"],
       ["Classification", "Confidential — Stakeholder Disclosure"],
+      ["Distribution", "Company Admin, Stakeholders, Assurance Provider"],
       ["Standards applied", "ESRS (2026)"],
-      ["Generated", fmtDate(new Date())],
+      ["Generated", fmtDateTime(new Date())],
       ["Reporting period", report.reportingPeriod],
     ],
     qrPngBuffer: qr.buffer,

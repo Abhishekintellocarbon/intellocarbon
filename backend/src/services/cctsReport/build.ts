@@ -15,6 +15,7 @@ import {
   fmt,
   fmtInt,
   fmtDate,
+  fmtDateTime,
 } from "../cbamReport/theme";
 import { donutChart, gaugeBar, verticalBarChart, CHART_BLUE, CHART_AMBER, CHART_SLATE } from "../cbamReport/charts";
 import {
@@ -59,7 +60,7 @@ export const buildCctsGhgIntensityReport = async (doc: PDFKit.PDFDocument, ctx: 
   // reference number and the already-computed CCTS CCC surplus/deficit position —
   // no CBAM-specific figures (liability, certificates) are read from it here.
   const financials = computeCbamFinancialImpact(ctx, "CCTS");
-  const pb = new PageBuilder(doc, financials.reportReference);
+  const pb = new PageBuilder(doc, financials.reportReference, ctx.facility.company.name);
   const qr = await buildVerifyQr(financials.reportReference);
 
   buildCoverPage(pb, ctx, financials, qr);
@@ -112,7 +113,7 @@ function buildCoverPage(
       ["Version", "v1.0"],
       ["Classification", "Confidential — Regulatory Submission"],
       ["Distribution", "Company Admin, BEE-Accredited Verifier"],
-      ["Generated", fmtDate(new Date())],
+      ["Generated", fmtDateTime(new Date())],
       ["Reporting period", `${fmtDate(ctx.periodStart)} – ${fmtDate(ctx.periodEnd)}`],
     ],
     qrPngBuffer: qr.buffer,

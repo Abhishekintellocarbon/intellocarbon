@@ -3,7 +3,7 @@ import PDFDocument from "pdfkit";
 import type { Company, Facility, User, GriMaterialTopic } from "@prisma/client";
 import { PageBuilder } from "../cbamReport/layout";
 import { buildVerifyQr } from "../cbamReport/qr";
-import { MARGIN_X, CONTENT_WIDTH, MUTED, NAVY, TEAL, TEAL_DARK, BORDER, fmt, fmtInt, fmtDate } from "../cbamReport/theme";
+import { MARGIN_X, CONTENT_WIDTH, MUTED, NAVY, TEAL, TEAL_DARK, BORDER, fmt, fmtInt, fmtDate, fmtDateTime } from "../cbamReport/theme";
 import {
   donutChart,
   verticalBarChart,
@@ -96,7 +96,7 @@ export const buildGriPdf = async (
   });
 
   const reference = reportReference(report);
-  const pb = new PageBuilder(doc, reference);
+  const pb = new PageBuilder(doc, reference, facility.company.name);
   const qr = await buildVerifyQr(reference);
 
   // Page numbers collected as sections render, then stamped onto the content
@@ -170,8 +170,9 @@ function buildCoverPage(
       ["Document ID", reference],
       ["Version", "v1.0"],
       ["Classification", "Confidential — Stakeholder Disclosure"],
+      ["Distribution", "Company Admin, Stakeholders, Assurance Provider"],
       ["Standards applied", contentIndex.gri1Version],
-      ["Generated", fmtDate(new Date())],
+      ["Generated", fmtDateTime(new Date())],
       ["Reporting period", report.reportingPeriod],
     ],
     qrPngBuffer: qr.buffer,
