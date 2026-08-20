@@ -523,9 +523,9 @@ describe("the response index matches the pack", () => {
 
 describe("the generated PDF", () => {
   it("renders, and every index entry cites a page the document has", async () => {
-    const { report, facility, metrics, maturity, responseIndex } = await getCdpReportContextById(userId, reportId);
+    const { report, facility, metrics, maturity, responseIndex, phase2 } = await getCdpReportContextById(userId, reportId);
 
-    const doc = await buildCdpPdf(report, facility as never, metrics, maturity, responseIndex);
+    const doc = await buildCdpPdf(report, facility as never, metrics, maturity, responseIndex, phase2);
     const chunks: Buffer[] = [];
     const pdf = await new Promise<Buffer>((resolve, reject) => {
       doc.on("data", (c: Buffer) => chunks.push(c));

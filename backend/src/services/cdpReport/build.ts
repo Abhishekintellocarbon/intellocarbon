@@ -5,6 +5,9 @@ import { PageBuilder } from "../cbamReport/layout";
 import { buildVerifyQr } from "../cbamReport/qr";
 import { MARGIN_X, CONTENT_WIDTH, MUTED, NAVY, TEAL, TEAL_DARK, BORDER, fmt, fmtInt, fmtDate, fmtDateTime } from "../cbamReport/theme";
 import { donutChart, verticalBarChart, CHART_BLUE, CHART_SLATE, CHART_AMBER } from "../cbamReport/charts";
+import type { ReportPhase2Data } from "../reportSections/phase2Data";
+import { drawTrajectoryChart } from "../reportSections/targetsAndTrajectory";
+import { drawRecCoverageBlock } from "../reportSections/esgBlocks";
 import {
   CDP_MODULES,
   CDP_MATURITY_BAND_LABELS,
@@ -125,6 +128,12 @@ export const buildCdpPdf = async (
   metrics: CdpMetrics,
   maturity: CdpMaturityAssessment,
   index: CdpResponseIndex,
+  /**
+   * Optional because it genuinely is: a company that has bought no RECs and
+   * set no target has nothing to add here. The production loader always
+   * supplies it.
+   */
+  phase2?: ReportPhase2Data,
 ): Promise<PDFKit.PDFDocument> => {
   const doc = new PDFDocument({ size: "A4", margins: { top: 50, left: 50, right: 50, bottom: 20 }, bufferPages: true });
 
@@ -144,7 +153,7 @@ export const buildCdpPdf = async (
   // document is read alongside CDP's own form, and reordering it would make
   // every answer harder to find than it needs to be.
   for (const module of CDP_MODULES) {
-    pages[module.code] = buildModuleSection(pb, section++, module, report, metrics, maturity) + 1;
+    pages[module.code] = buildModuleSection(pb, section++, module, report, metrics, maturity, phase2) + 1;
   }
 
   buildMethodology(pb, section++, metrics, index);
@@ -395,6 +404,7 @@ function buildModuleSection(
   report: CdpReportWithRelations,
   metrics: CdpMetrics,
   maturity: CdpMaturityAssessment,
+  phase2?: ReportPhase2Data,
 ): number {
   const pageIndex = pb.startSection(section, `${module.label} — ${module.title}`);
   const record = maturity.modules.find((m) => m.moduleCode === module.code);
@@ -409,12 +419,12 @@ function buildModuleSection(
     for (const gap of record.evidenceGaps) pb.note(`Evidence gap: ${gap}`);
   }
 
-  renderDerivedFigures(pb, module, report, metrics);
+  renderDerivedFigures(pb, module, report, metrics, phase2);
 
   const row = ((report as unknown as Record<string, unknown>)[module.relation] ?? null) as Record<string, unknown> | null;
   renderQuestions(pb, module.questions, row);
 
-  renderRepeatingBlocks(pb, module, report, metrics);
+  renderRepeatingBlocks(pb, module, report, metrics, phase2);
 
   return pageIndex;
 }
@@ -469,6 +479,7 @@ function renderDerivedFigures(
   module: CdpModule,
   report: CdpReportWithRelations,
   metrics: CdpMetrics,
+  phase2?: ReportPhase2Data,
 ) {
   const r = metrics.rollup;
 
@@ -573,6 +584,14 @@ function renderDerivedFigures(
         ],
       });
     }
+
+    // C8.2d/C8.2j: CDP asks what share of purchased electricity is backed by a
+    // low-carbon instrument, which is a different question from how much was
+    // generated renewably. The certificate register answers it.
+    if (phase2) {
+      pb.heading("C8.2d / C8.2j Low-carbon electricity instruments");
+      drawRecCoverageBlock(pb, phase2.recCoverage);
+    }
     return;
   }
 
@@ -639,6 +658,7 @@ function renderRepeatingBlocks(
   module: CdpModule,
   report: CdpReportWithRelations,
   metrics: CdpMetrics,
+  phase2?: ReportPhase2Data,
 ) {
   if (module.code === "C2") {
     for (const kind of ["RISK", "OPPORTUNITY"] as const) {
@@ -723,6 +743,16 @@ function renderRepeatingBlocks(
       ]),
     });
 
+    // C4.2 asks how performance is tracked against the target. The table above
+    // answers it in numbers; this answers it in a shape a requesting buyer can
+    // read at a glance. Only drawn where a trackable absolute target exists —
+    // an intensity-only or undated target has no path to plot, and
+    // netZeroTrajectory says so rather than inventing one.
+    if (phase2?.trajectory.hasData) {
+      pb.heading("C4.2 Progress against the target path");
+      drawTrajectoryChart(pb, phase2.trajectory);
+    }
+
     const intensity = targets.filter((t) => t.kind === "INTENSITY");
     if (intensity.length > 0) {
       pb.heading("Intensity target denominators");
@@ -739,6 +769,7 @@ function renderRepeatingBlocks(
         ]),
       });
     }
+
     return;
   }
 

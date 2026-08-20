@@ -40,11 +40,11 @@ export const getCdpReport = asyncHandler(async (req, res) => {
 });
 
 export const downloadCdpReportPdf = asyncHandler(async (req, res) => {
-  const { report, facility, metrics, maturity, responseIndex } = await cdpService.getCdpReportContextById(
+  const { report, facility, metrics, maturity, responseIndex, phase2 } = await cdpService.getCdpReportContextById(
     req.user!.sub,
     req.params.reportId,
   );
-  const doc = await buildCdpPdf(report, facility, metrics, maturity, responseIndex);
+  const doc = await buildCdpPdf(report, facility, metrics, maturity, responseIndex, phase2);
 
   logFacilityAudit(
     facility.id,

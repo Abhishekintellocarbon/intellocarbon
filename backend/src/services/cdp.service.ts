@@ -1,5 +1,6 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
+import { loadReportPhase2Data } from "./reportSections/phase2Data";
 import { requireOwnedFacilityForEsgBundle, throwEsgBundleAccessDenied } from "./esgBundleAccess.service";
 import { isGriReportWindowOpen, griUnlockDate } from "../data/complianceDeadlines";
 import { CDP_MODULES, getCdpModule } from "../data/cdpQuestionnaire";
@@ -284,7 +285,8 @@ export const getCdpReportData = async (userId: string, facilityId: string, repor
 
   const metrics = await buildCdpMetrics(report, facility, facility.company);
   const maturity = assessCdpMaturity(report, metrics);
-  return { report, facility, metrics, maturity, responseIndex: buildResponseIndex(report, metrics, maturity) };
+  const phase2 = await loadReportPhase2Data(facility.companyId, facility.id, reportingPeriod);
+  return { report, facility, metrics, maturity, phase2, responseIndex: buildResponseIndex(report, metrics, maturity) };
 };
 
 export const getCdpReportContextById = async (userId: string, reportId: string) => {
@@ -316,11 +318,13 @@ export const getCdpReportContextById = async (userId: string, reportId: string) 
 
   const metrics = await buildCdpMetrics(report, report.facility, report.facility.company);
   const maturity = assessCdpMaturity(report, metrics);
+  const phase2 = await loadReportPhase2Data(report.facility.companyId, report.facility.id, report.reportingPeriod);
   return {
     report,
     facility: report.facility,
     metrics,
     maturity,
+    phase2,
     responseIndex: buildResponseIndex(report, metrics, maturity),
   };
 };
