@@ -64,11 +64,11 @@ export const getCsrdReport = asyncHandler(async (req, res) => {
 });
 
 export const downloadCsrdReportPdf = asyncHandler(async (req, res) => {
-  const { report, facility, metrics, disclosureIndex } = await csrdService.getCsrdReportContextById(
+  const { report, facility, metrics, disclosureIndex, phase2 } = await csrdService.getCsrdReportContextById(
     req.user!.sub,
     req.params.reportId,
   );
-  const doc = await buildCsrdPdf(report, facility, metrics, disclosureIndex);
+  const doc = await buildCsrdPdf(report, facility, metrics, disclosureIndex, phase2);
 
   logFacilityAudit(
     facility.id,

@@ -17,6 +17,13 @@ import {
 } from "../../data/esrsStandards";
 import type { CsrdMetrics, CsrdReportWithRelations } from "../csrdCalculation.service";
 import { assignPageNumbers, type CsrdDisclosureIndex, type CsrdDisclosureIndexEntry } from "../csrdDisclosureIndex.service";
+import type { ReportPhase2Data } from "../reportSections/phase2Data";
+import {
+  drawEnergyMixBlock,
+  drawGovernanceBlock,
+  drawSupplierScorecardBlock,
+} from "../reportSections/esgBlocks";
+import { drawTargetsTable, drawTrajectoryChart, hasTargetsToReport } from "../reportSections/targetsAndTrajectory";
 
 const LOGO_PATH = LOGO_LOCKUP_ON_DARK;
 
@@ -63,6 +70,12 @@ export const buildCsrdPdf = async (
   facility: FacilityWithCompany,
   metrics: CsrdMetrics,
   index: CsrdDisclosureIndex,
+  /**
+   * Optional because it genuinely is: a company that has entered none of this
+   * renders a normal statement with honest "not reported" states. The
+   * production loader always supplies it.
+   */
+  phase2?: ReportPhase2Data,
 ): Promise<PDFKit.PDFDocument> => {
   const doc = new PDFDocument({ size: "A4", margins: { top: 50, left: 50, right: 50, bottom: 20 }, bufferPages: true });
 
@@ -76,7 +89,7 @@ export const buildCsrdPdf = async (
 
   let section = 1;
   buildAboutStatement(pb, section++, report, facility, metrics, index);
-  pages.GENERAL = buildGeneralDisclosures(pb, section++, report) + 1;
+  pages.GENERAL = buildGeneralDisclosures(pb, section++, report, phase2) + 1;
   buildMaterialityAssessment(pb, section++, report);
 
   const material = ESRS_STANDARDS.map((standard) => ({
@@ -93,7 +106,7 @@ export const buildCsrdPdf = async (
   );
 
   for (const { standard, record } of material) {
-    pages[standard.code] = buildStandardSection(pb, section++, standard, record, report, metrics) + 1;
+    pages[standard.code] = buildStandardSection(pb, section++, standard, record, report, metrics, phase2) + 1;
   }
 
   buildMethodology(pb, section++, metrics, index);
@@ -227,7 +240,12 @@ function buildAboutStatement(
   );
 }
 
-function buildGeneralDisclosures(pb: PageBuilder, section: number, report: CsrdReportWithRelations): number {
+function buildGeneralDisclosures(
+  pb: PageBuilder,
+  section: number,
+  report: CsrdReportWithRelations,
+  phase2: ReportPhase2Data | undefined,
+): number {
   const pageIndex = pb.startSection(section, "ESRS 2 — General Disclosures");
   const g = report.generalDisclosures as unknown as Record<string, unknown> | null;
 
@@ -238,6 +256,17 @@ function buildGeneralDisclosures(pb: PageBuilder, section: number, report: CsrdR
   );
 
   renderDatapoints(pb, ESRS_2_DATAPOINTS, g);
+
+  // GOV-1 to GOV-5 are answered above from this statement's own entry. This
+  // adds the cross-framework view: which governance commitments the
+  // undertaking has disclosed anywhere on this platform — under ESRS 2/G1,
+  // GRI 2 or CDP C1 — with the source named for each, which no single
+  // framework's section can answer.
+  if (phase2) {
+    pb.heading("Governance and policy coverage across frameworks (supplementary)");
+    drawGovernanceBlock(pb, phase2.governance);
+  }
+
   return pageIndex;
 }
 
@@ -475,6 +504,7 @@ function buildStandardSection(
   record: CsrdMaterialTopic,
   report: CsrdReportWithRelations,
   metrics: CsrdMetrics,
+  phase2: ReportPhase2Data | undefined,
 ): number {
   const pageIndex = pb.startSection(section, `${standard.label} — ${standard.title}`);
 
@@ -500,7 +530,7 @@ function buildStandardSection(
     pb.paragraph(fmtText(value), { size: 9.5 });
   }
 
-  renderDerivedFigures(pb, standard, metrics);
+  renderDerivedFigures(pb, standard, metrics, phase2);
 
   const row = ((report as unknown as Record<string, unknown>)[standard.relation] ?? null) as Record<string, unknown> | null;
   renderDatapoints(pb, standard.datapoints, row);
@@ -509,7 +539,12 @@ function buildStandardSection(
 }
 
 /** The figures this standard reuses from the platform's engines, with a chart where one helps. */
-function renderDerivedFigures(pb: PageBuilder, standard: EsrsStandard, metrics: CsrdMetrics) {
+function renderDerivedFigures(
+  pb: PageBuilder,
+  standard: EsrsStandard,
+  metrics: CsrdMetrics,
+  phase2: ReportPhase2Data | undefined,
+) {
   const r = metrics.rollup;
   const i = metrics.intensities;
 
@@ -544,6 +579,24 @@ function renderDerivedFigures(pb: PageBuilder, standard: EsrsStandard, metrics: 
     if (segments.reduce((s, seg) => s + seg.value, 0) > 0) {
       pb.ensureSpace(190);
       pb.y = donutChart(pb.doc, { x: MARGIN_X, y: pb.y, diameter: 120, unit: "tCO2e", centerLabel: "Total", segments });
+    }
+
+    // E1-5 states this period's renewable share. Whether it is moving is a
+    // separate question and needs more than one period, so the trend draws
+    // only where the undertaking has filed more than one.
+    if (phase2 && phase2.energyMix.points.length > 1) {
+      pb.heading("E1-5 Renewable share over time (supplementary)");
+      drawEnergyMixBlock(pb, phase2.energyMix);
+    }
+
+    // E1-4 asks for GHG reduction targets and E1-1 for the transition plan
+    // they sit in. These are the undertaking's targets from its own register,
+    // set at entity level and reproduced unchanged — this facility's share of
+    // them is not apportioned, because no such apportionment has been stated.
+    if (phase2 && hasTargetsToReport(phase2)) {
+      pb.heading("E1-4 Reduction targets and progress (entity-level, supplementary)");
+      drawTargetsTable(pb, phase2);
+      drawTrajectoryChart(pb, phase2.trajectory);
     }
     return;
   }
@@ -600,6 +653,29 @@ function renderDerivedFigures(pb: PageBuilder, standard: EsrsStandard, metrics: 
         ],
       });
     }
+
+    // Only the rate, not the whole circularity block. E5-5 above already gives
+    // the tonnages and the diverted/disposal split, from the same GRI 306
+    // disclosure the rollup reads — repeating them under a second heading with
+    // a second donut would be the same numbers twice. The rate is the one
+    // figure E5-5 does not state, and stating it saves a reader deriving it by
+    // hand from two rows.
+    if (phase2?.circularity.hasData && phase2.circularity.circularityRatePct != null) {
+      pb.keyValueRow(
+        "Circularity rate — diverted from disposal as a share of waste generated (derived)",
+        `${fmt(phase2.circularity.circularityRatePct, 1)}%`,
+      );
+    }
+    return;
+  }
+
+  // ESRS S2 covers workers in the value chain. The supplier register is the
+  // undertaking's own record of who those value-chain relationships are with
+  // and what ESG disclosure it holds for each — the evidence base behind an
+  // S2-1 policy statement rather than a substitute for it.
+  if (standard.code === "ESRS_S2" && phase2) {
+    pb.heading("Supplier register and disclosure coverage (supplementary)");
+    drawSupplierScorecardBlock(pb, phase2.suppliers);
   }
 }
 
@@ -720,10 +796,36 @@ function buildDisclosureIndexSection(pb: PageBuilder, section: number, index: Cs
   }
 }
 
-function buildDeclaration(pb: PageBuilder, section: number, facility: FacilityWithCompany, index: CsrdDisclosureIndex) {
-  pb.startSection(section, "Declaration");
+function buildDeclaration(
+  pb: PageBuilder,
+  section: number,
+  facility: FacilityWithCompany,
+  index: CsrdDisclosureIndex,
+) {
+  pb.startSection(section, "Assurance and Declaration");
   const owner = facility.company.owner;
   const conformant = index.claimLevel === "ESRS_CONFORMANT";
+
+  // CSRD requires limited assurance over the sustainability statement. This
+  // platform holds no assurance record against a CSRD statement — the verifier
+  // workflow covers CBAM, CCTS and BRSR only — so the position is stated as
+  // the absence it is, in the same block every other report uses. Leaving the
+  // question unanswered in a document whose whole subject is a regulated
+  // assurance regime would be the worse silence.
+  pb.verificationBlock({
+    title: "Assurance status",
+    verifierName: null,
+    verifierOrg: null,
+    accreditationRef: null,
+    statementLabel: "Limited assurance engagement",
+    statement: null,
+    verifiedAt: null,
+    unverifiedNote:
+      "This statement has not been assured. CSRD requires limited assurance over the sustainability statement by an " +
+      "accredited independent assurance services provider, and no such engagement is recorded on the Intellocarbon " +
+      "platform against this statement. Where a provider is engaged separately, their assurance report is the record " +
+      "of it and this document is not.",
+  });
 
   pb.heading("Declaration");
   pb.paragraph(

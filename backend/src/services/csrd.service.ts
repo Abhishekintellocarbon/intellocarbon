@@ -1,5 +1,6 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
+import { loadReportPhase2Data } from "./reportSections/phase2Data";
 import { requireOwnedFacilityForEsgBundle, throwEsgBundleAccessDenied } from "./esgBundleAccess.service";
 import { isGriReportWindowOpen, griUnlockDate } from "../data/complianceDeadlines";
 import { ESRS_STANDARDS, getEsrsStandard } from "../data/esrsStandards";
@@ -420,7 +421,8 @@ export const getCsrdReportData = async (userId: string, facilityId: string, repo
   requireCsrdReportWindowOpen(reportingPeriod);
 
   const metrics = await buildCsrdMetrics(report, facility, facility.company);
-  return { report, facility, metrics, disclosureIndex: buildDisclosureIndex(report, metrics) };
+  const phase2 = await loadReportPhase2Data(facility.companyId, facility.id, reportingPeriod);
+  return { report, facility, metrics, phase2, disclosureIndex: buildDisclosureIndex(report, metrics) };
 };
 
 export const getCsrdReportContextById = async (userId: string, reportId: string) => {
@@ -451,10 +453,12 @@ export const getCsrdReportContextById = async (userId: string, reportId: string)
   requireCsrdReportWindowOpen(report.reportingPeriod);
 
   const metrics = await buildCsrdMetrics(report, report.facility, report.facility.company);
+  const phase2 = await loadReportPhase2Data(report.facility.companyId, report.facility.id, report.reportingPeriod);
   return {
     report,
     facility: report.facility,
     metrics,
+    phase2,
     disclosureIndex: buildDisclosureIndex(report, metrics),
   };
 };

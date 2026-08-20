@@ -377,9 +377,9 @@ describe("the disclosure index matches the statement", () => {
 
 describe("the generated PDF", () => {
   it("renders, and every index entry cites a page the document has", async () => {
-    const { report, facility, metrics, disclosureIndex } = await getCsrdReportContextById(userId, reportId);
+    const { report, facility, metrics, disclosureIndex, phase2 } = await getCsrdReportContextById(userId, reportId);
 
-    const doc = await buildCsrdPdf(report, facility as never, metrics, disclosureIndex);
+    const doc = await buildCsrdPdf(report, facility as never, metrics, disclosureIndex, phase2);
     const chunks: Buffer[] = [];
     const pdf = await new Promise<Buffer>((resolve, reject) => {
       doc.on("data", (c: Buffer) => chunks.push(c));
