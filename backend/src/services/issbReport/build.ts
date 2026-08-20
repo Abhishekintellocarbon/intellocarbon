@@ -6,6 +6,8 @@ import { PageBuilder } from "../cbamReport/layout";
 import { buildVerifyQr } from "../cbamReport/qr";
 import { MARGIN_X, MUTED, NAVY, TEAL, BORDER, fmt, fmtDate, fmtDateTime } from "../cbamReport/theme";
 import { donutChart, CHART_SLATE } from "../cbamReport/charts";
+import type { ReportPhase2Data } from "../reportSections/phase2Data";
+import { drawTargetsTable, drawTrajectoryChart, hasTargetsToReport } from "../reportSections/targetsAndTrajectory";
 
 // Cover band is the dark gradient — see brandAssets for why the interior
 // pages use a different lockup.
@@ -46,6 +48,12 @@ export const buildIssbS1S2Pdf = async (
   report: IssbS1S2Report,
   facility: FacilityWithCompany,
   metrics: IssbS1S2Metrics,
+  /**
+   * Optional because it genuinely is: a company that has entered no reduction
+   * target has nothing here, and that is the common case rather than an error.
+   * The production loader always supplies it.
+   */
+  phase2?: ReportPhase2Data,
 ): Promise<PDFKit.PDFDocument> => {
   const doc = new PDFDocument({
     size: "A4",
@@ -64,9 +72,8 @@ export const buildIssbS1S2Pdf = async (
   buildGovernance(pb, report);
   buildStrategy(pb, report);
   buildRiskManagement(pb, report);
-  buildMetricsAndTargets(pb, report, metrics);
-  buildMethodology(pb);
-  buildDeclaration(pb, facility);
+  buildMetricsAndTargets(pb, report, metrics, phase2);
+  buildMethodologyAssuranceAndDeclaration(pb, facility);
 
   pb.finalize();
   return doc;
@@ -121,7 +128,7 @@ function buildCoverPage(
 // ---------------------------------------------------------------------------
 
 function buildExecutiveSummary(pb: PageBuilder, report: IssbS1S2Report, metrics: IssbS1S2Metrics) {
-  pb.startSection(1, "Executive Summary");
+  pb.startSection(1, "Executive Summary and Entity Details");
 
   pb.paragraph(
     `This report presents this facility's sustainability- and climate-related financial disclosures for ${report.reportingPeriod}, ` +
@@ -144,16 +151,21 @@ function buildExecutiveSummary(pb: PageBuilder, report: IssbS1S2Report, metrics:
   });
 
   pb.note(
-    "Scope 1 and Scope 2 figures under Metrics & Targets (Section 06) are derived from this facility's existing CBAM/CCTS activity data. Governance, Strategy, and Risk Management (Sections 03-05) are narrative disclosures entered directly for this reporting period.",
+    "Scope 1 and Scope 2 figures under Metrics & Targets (Section 05) are derived from this facility's existing CBAM/CCTS activity data. Governance, Strategy, and Risk Management (Sections 02-04) are narrative disclosures entered directly for this reporting period.",
   );
 }
 
 // ---------------------------------------------------------------------------
-// Section 02 — Entity and Reporting Period Details
+// Section 01 continued — entity and reporting period
 // ---------------------------------------------------------------------------
 
+/**
+ * Continues Section 01 rather than opening a section of its own. Eight
+ * key/value rows filled a third of a page, and the only reason they were on a
+ * page of their own was that startSection() forces a break.
+ */
 function buildEntityDetails(pb: PageBuilder, facility: FacilityWithCompany, report: IssbS1S2Report) {
-  pb.startSection(2, "Entity and Reporting Period Details");
+  pb.heading("Entity and reporting period");
 
   const { company } = facility;
   const companyRows: [string, string][] = [
@@ -174,11 +186,11 @@ function buildEntityDetails(pb: PageBuilder, facility: FacilityWithCompany, repo
 }
 
 // ---------------------------------------------------------------------------
-// Section 03 — Governance (IFRS S1 §27-28, IFRS S2 §6)
+// Section 02 — Governance (IFRS S1 §27-28, IFRS S2 §6)
 // ---------------------------------------------------------------------------
 
 function buildGovernance(pb: PageBuilder, report: IssbS1S2Report) {
-  pb.startSection(3, "Governance");
+  pb.startSection(2, "Governance");
 
   pb.paragraph(
     "IFRS S1 and IFRS S2 both require disclosure of the governance processes, controls and procedures an entity uses to " +
@@ -193,11 +205,11 @@ function buildGovernance(pb: PageBuilder, report: IssbS1S2Report) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 04 — Strategy (IFRS S1 §29-42, IFRS S2 §9-22)
+// Section 03 — Strategy (IFRS S1 §29-42, IFRS S2 §9-22)
 // ---------------------------------------------------------------------------
 
 function buildStrategy(pb: PageBuilder, report: IssbS1S2Report) {
-  pb.startSection(4, "Strategy");
+  pb.startSection(3, "Strategy");
 
   pb.paragraph(
     "Strategy discloses how sustainability- and climate-related risks and opportunities affect the entity's business " +
@@ -218,11 +230,11 @@ function buildStrategy(pb: PageBuilder, report: IssbS1S2Report) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 05 — Risk Management (IFRS S1 §43-45, IFRS S2 §25-27)
+// Section 04 — Risk Management (IFRS S1 §43-45, IFRS S2 §25-27)
 // ---------------------------------------------------------------------------
 
 function buildRiskManagement(pb: PageBuilder, report: IssbS1S2Report) {
-  pb.startSection(5, "Risk Management");
+  pb.startSection(4, "Risk Management");
 
   pb.paragraph(
     "Risk Management discloses the processes used to identify, assess, prioritise and monitor sustainability- and " +
@@ -241,11 +253,16 @@ function buildRiskManagement(pb: PageBuilder, report: IssbS1S2Report) {
 }
 
 // ---------------------------------------------------------------------------
-// Section 06 — Metrics & Targets (IFRS S1 §46-53, IFRS S2 §28-36)
+// Section 05 — Metrics & Targets (IFRS S1 §46-53, IFRS S2 §28-36)
 // ---------------------------------------------------------------------------
 
-function buildMetricsAndTargets(pb: PageBuilder, report: IssbS1S2Report, metrics: IssbS1S2Metrics) {
-  pb.startSection(6, "Metrics & Targets");
+function buildMetricsAndTargets(
+  pb: PageBuilder,
+  report: IssbS1S2Report,
+  metrics: IssbS1S2Metrics,
+  phase2?: ReportPhase2Data,
+) {
+  pb.startSection(5, "Metrics & Targets");
 
   pb.paragraph(
     "Scope 1 and Scope 2 emissions below are reused directly from this facility's existing CBAM/CCTS activity data — " +
@@ -309,14 +326,65 @@ function buildMetricsAndTargets(pb: PageBuilder, report: IssbS1S2Report, metrics
 
   pb.heading("Transition plan");
   pb.paragraph(fmtText(report.transitionPlan));
+
+  buildCompanyTargets(pb, phase2);
+}
+
+/**
+ * The company's reduction targets and its progress against them — IFRS S2
+ * §§33-36, which asks for each target's scope, baseline, period, and the
+ * entity's performance against it, not only the single headline target the
+ * ISSB entry form captures.
+ *
+ * These are company-level targets shown in a facility-level report, which the
+ * heading and note say plainly. A company sets one Scope 1+2 target across its
+ * operations; splitting it per facility would be an allocation nobody stated.
+ *
+ * Renders nothing when no target has been submitted. IFRS S2 §36 permits an
+ * entity to have no target, so an absent section is a truthful answer here
+ * where an empty table under a heading would look like a defect.
+ */
+function buildCompanyTargets(pb: PageBuilder, phase2?: ReportPhase2Data) {
+  if (!phase2) return;
+
+  pb.heading("Reduction targets and progress (entity-level)");
+
+  if (!hasTargetsToReport(phase2)) {
+    pb.paragraph(
+      "No entity-level reduction target has been submitted for this company. The baseline and target year stated " +
+        "above are the ones entered against this disclosure; no separate target register entry exists to report " +
+        "progress against.",
+      { size: 9.5, color: MUTED },
+    );
+    return;
+  }
+
+  pb.paragraph(
+    "These targets are set at company level and cover the scopes named against each. They are reproduced here " +
+      "unchanged; this facility's share of them is not apportioned, because no such apportionment has been stated.",
+    { size: 9.5 },
+  );
+
+  drawTargetsTable(pb, phase2);
+
+  pb.heading("Emissions against the stated path");
+  drawTrajectoryChart(pb, phase2.trajectory);
 }
 
 // ---------------------------------------------------------------------------
-// Section 07 — Methodology and Regulatory Basis
+// Section 06 — Methodology, Assurance and Declaration
 // ---------------------------------------------------------------------------
 
-function buildMethodology(pb: PageBuilder) {
-  pb.startSection(7, "Methodology and Regulatory Basis");
+/**
+ * Three closing subjects in one section.
+ *
+ * Methodology, assurance and the signature block each ran to about a third of
+ * a page and each took a page, because startSection() forces a break. They
+ * belong together anyway: all three are statements about the standing of the
+ * document rather than disclosures within it.
+ */
+function buildMethodologyAssuranceAndDeclaration(pb: PageBuilder, facility: FacilityWithCompany) {
+  pb.startSection(6, "Methodology, Assurance and Declaration");
 
   pb.paragraph(
     "This report is prepared with reference to IFRS S1 (General Requirements for Disclosure of Sustainability-related " +
@@ -344,18 +412,39 @@ function buildMethodology(pb: PageBuilder) {
       "include industry-based SASB metrics, full value-chain Scope 3 categorisation, or detailed scenario-modelled " +
       "financial statement effects.",
   );
+
+  buildAssurance(pb);
+  buildDeclaration(pb, facility);
 }
 
-// ---------------------------------------------------------------------------
-// Section 08 — Declaration
-// ---------------------------------------------------------------------------
+/**
+ * IFRS S1 §§ 78-79 require an entity to state whether its sustainability
+ * disclosures have been assured and by whom. This platform holds no assurance
+ * record against an ISSB disclosure — the verifier workflow covers CBAM, CCTS
+ * and BRSR only — so the honest answer is a stated absence, in the same block
+ * shape every other report uses for the same question.
+ */
+function buildAssurance(pb: PageBuilder) {
+  pb.verificationBlock({
+    title: "Assurance status",
+    verifierName: null,
+    verifierOrg: null,
+    accreditationRef: null,
+    statementLabel: "External assurance",
+    statement: null,
+    verifiedAt: null,
+    unverifiedNote:
+      "This disclosure has not been externally assured. No assurance engagement over an ISSB IFRS S1/S2 disclosure " +
+      "is recorded on the Intellocarbon platform, and no figure in this report carries an assurance opinion. Where " +
+      "an assurance provider is engaged separately, their report is the record of it and this document is not.",
+  });
+}
 
 function buildDeclaration(pb: PageBuilder, facility: FacilityWithCompany) {
-  pb.startSection(8, "Declaration");
+  pb.heading("Declaration");
 
   const owner = facility.company.owner;
 
-  pb.heading("Declaration");
   pb.paragraph(
     `I/We, on behalf of ${facility.company.name}, declare that the information contained in this ISSB IFRS S1 & S2 ` +
       "Report has been prepared in good faith based on data submitted through the Intellocarbon platform, and " +

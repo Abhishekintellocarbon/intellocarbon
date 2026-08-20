@@ -32,8 +32,8 @@ export const getIssbReport = asyncHandler(async (req, res) => {
 });
 
 export const downloadIssbReportPdf = asyncHandler(async (req, res) => {
-  const { report, facility, metrics } = await issbService.getIssbReportContextById(req.user!.sub, req.params.reportId);
-  const doc = await buildIssbS1S2Pdf(report, facility, metrics);
+  const { report, facility, metrics, phase2 } = await issbService.getIssbReportContextById(req.user!.sub, req.params.reportId);
+  const doc = await buildIssbS1S2Pdf(report, facility, metrics, phase2);
 
   logFacilityAudit(
     facility.id,

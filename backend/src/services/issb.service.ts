@@ -1,5 +1,6 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
+import { loadReportPhase2Data } from "./reportSections/phase2Data";
 import { buildIssbS1S2Metrics } from "./issbCalculation.service";
 import { requireOwnedFacilityForEsgBundle, throwEsgBundleAccessDenied } from "./esgBundleAccess.service";
 import { isIssbReportWindowOpen, issbUnlockDate } from "../data/complianceDeadlines";
@@ -130,7 +131,8 @@ export const getIssbReportData = async (userId: string, facilityId: string, repo
   requireIssbReportWindowOpen(reportingPeriod);
 
   const metrics = await buildIssbS1S2Metrics(report, facility, facility.company);
-  return { report, facility, metrics };
+  const phase2 = await loadReportPhase2Data(facility.companyId, facility.id, report.reportingPeriod);
+  return { report, facility, metrics, phase2 };
 };
 
 export const getIssbReportContextById = async (userId: string, reportId: string) => {
@@ -165,5 +167,6 @@ export const getIssbReportContextById = async (userId: string, reportId: string)
   requireIssbReportWindowOpen(report.reportingPeriod);
 
   const metrics = await buildIssbS1S2Metrics(report, report.facility, report.facility.company);
-  return { report, facility: report.facility, metrics };
+  const phase2 = await loadReportPhase2Data(report.facility.companyId, report.facility.id, report.reportingPeriod);
+  return { report, facility: report.facility, metrics, phase2 };
 };
