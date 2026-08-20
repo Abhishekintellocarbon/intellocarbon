@@ -338,9 +338,9 @@ describe("GRI end-to-end — the content index matches the report", () => {
 
 describe("GRI end-to-end — the generated PDF", () => {
   it("renders, and every content-index page reference points at a page it really has", async () => {
-    const { report, facility, metrics, contentIndex } = await getGriReportContextById(userId, reportId);
+    const { report, facility, metrics, contentIndex, phase2 } = await getGriReportContextById(userId, reportId);
 
-    const doc = await buildGriPdf(report, facility as never, metrics, contentIndex);
+    const doc = await buildGriPdf(report, facility as never, metrics, contentIndex, phase2);
     const chunks: Buffer[] = [];
     const pdf = await new Promise<Buffer>((resolve, reject) => {
       doc.on("data", (c: Buffer) => chunks.push(c));
@@ -364,8 +364,8 @@ describe("GRI end-to-end — the generated PDF", () => {
   });
 
   it("groups each topic's disclosures onto the one page its section starts on", async () => {
-    const { report, facility, metrics, contentIndex } = await getGriReportContextById(userId, reportId);
-    const doc = await buildGriPdf(report, facility as never, metrics, contentIndex);
+    const { report, facility, metrics, contentIndex, phase2 } = await getGriReportContextById(userId, reportId);
+    const doc = await buildGriPdf(report, facility as never, metrics, contentIndex, phase2);
     doc.end();
 
     for (const code of MATERIAL) {

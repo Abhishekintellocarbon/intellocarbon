@@ -81,11 +81,11 @@ export const getGriReport = asyncHandler(async (req, res) => {
 });
 
 export const downloadGriReportPdf = asyncHandler(async (req, res) => {
-  const { report, facility, metrics, contentIndex } = await griService.getGriReportContextById(
+  const { report, facility, metrics, contentIndex, phase2 } = await griService.getGriReportContextById(
     req.user!.sub,
     req.params.reportId,
   );
-  const doc = await buildGriPdf(report, facility, metrics, contentIndex);
+  const doc = await buildGriPdf(report, facility, metrics, contentIndex, phase2);
 
   logFacilityAudit(
     facility.id,

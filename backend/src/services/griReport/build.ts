@@ -24,6 +24,14 @@ import {
 } from "../../data/griStandards";
 import type { GriMetrics, GriReportWithRelations } from "../griCalculation.service";
 import { assignPageNumbers, type GriContentIndex, type GriContentIndexEntry } from "../griContentIndex.service";
+import type { ReportPhase2Data } from "../reportSections/phase2Data";
+import {
+  drawCircularityBlock,
+  drawEnergyMixBlock,
+  drawGovernanceBlock,
+  drawRecCoverageBlock,
+  drawSupplierScorecardBlock,
+} from "../reportSections/esgBlocks";
 
 // Cover band is the dark gradient — see brandAssets for why interior pages
 // use the on-light lockup instead.
@@ -88,6 +96,12 @@ export const buildGriPdf = async (
   facility: FacilityWithCompany,
   metrics: GriMetrics,
   contentIndex: GriContentIndex,
+  /**
+   * Optional because it genuinely is: a company that has entered none of this
+   * renders a normal report with honest "not reported" states. The production
+   * loader always supplies it.
+   */
+  phase2?: ReportPhase2Data,
 ): Promise<PDFKit.PDFDocument> => {
   const doc = new PDFDocument({
     size: "A4",
@@ -110,7 +124,7 @@ export const buildGriPdf = async (
   buildAboutThisReport(pb, section++, report, facility, metrics, contentIndex);
 
   pages.UNIVERSAL = buildOrganizationalProfile(pb, section++, report, facility) + 1;
-  buildGovernanceAndPolicies(pb, section++, report);
+  buildGovernanceAndPolicies(pb, section++, report, phase2);
 
   pages.MATERIAL_TOPICS = buildMaterialityAssessment(pb, section++, report) + 1;
 
@@ -124,7 +138,7 @@ export const buildGriPdf = async (
   materialTopics.sort((a, b) => (a.record.rank ?? 999) - (b.record.rank ?? 999));
 
   for (const { standard, record } of materialTopics) {
-    pages[standard.code] = buildTopicSection(pb, section++, standard, record, report, metrics) + 1;
+    pages[standard.code] = buildTopicSection(pb, section++, standard, record, report, metrics, phase2) + 1;
   }
 
   buildMethodology(pb, section++, report, metrics);
@@ -368,7 +382,12 @@ function buildOrganizationalProfile(
 // Section 03 — GRI 2: Governance, strategy, policies (2-9 to 2-30)
 // ---------------------------------------------------------------------------
 
-function buildGovernanceAndPolicies(pb: PageBuilder, section: number, report: GriReportWithRelations) {
+function buildGovernanceAndPolicies(
+  pb: PageBuilder,
+  section: number,
+  report: GriReportWithRelations,
+  phase2: ReportPhase2Data | undefined,
+) {
   pb.startSection(section, "General Disclosures — Governance, Strategy and Policies");
   const u = report.universalDisclosures;
 
@@ -456,6 +475,19 @@ function buildGovernanceAndPolicies(pb: PageBuilder, section: number, report: Gr
   pb.heading("2-30 Collective bargaining agreements");
   pb.keyValueRow("Employees covered by collective bargaining agreements", fmtPct(u?.collectiveBargainingCoveragePct));
   pb.paragraph(fmtText(u?.collectiveBargainingDescription));
+
+  // A cross-framework view of the same governance ground GRI 2 covers.
+  //
+  // It is not a restatement of the disclosures above: it reports which
+  // governance and policy commitments the organization has disclosed anywhere
+  // on this platform — under GRI 2, ESRS 2/G1 or CDP C1 — and names the source
+  // for each. That is the question a reader of a single framework's governance
+  // section cannot answer, and every "not disclosed" row means no framework the
+  // organization has filed carries it.
+  if (phase2) {
+    pb.heading("Governance and policy coverage across frameworks (supplementary)");
+    drawGovernanceBlock(pb, phase2.governance);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -699,6 +731,7 @@ function buildTopicSection(
   record: GriMaterialTopic,
   report: GriReportWithRelations,
   metrics: GriMetrics,
+  phase2: ReportPhase2Data | undefined,
 ): number {
   const pageIndex = pb.startSection(section, `${standard.label} — ${standard.title}`);
 
@@ -710,7 +743,7 @@ function buildTopicSection(
   }
 
   buildManagementApproach(pb, record);
-  renderTopicDisclosures(pb, standard, report, metrics);
+  renderTopicDisclosures(pb, standard, report, metrics, phase2);
 
   return pageIndex;
 }
@@ -721,12 +754,13 @@ function renderTopicDisclosures(
   standard: GriTopicStandard,
   report: GriReportWithRelations,
   metrics: GriMetrics,
+  phase2: ReportPhase2Data | undefined,
 ) {
   switch (standard.code) {
     case "GRI_301":
       return renderMaterials(pb, report);
     case "GRI_302":
-      return renderEnergy(pb, report, metrics);
+      return renderEnergy(pb, report, metrics, phase2);
     case "GRI_303":
       return renderWater(pb, report, metrics);
     case "GRI_101":
@@ -734,9 +768,9 @@ function renderTopicDisclosures(
     case "GRI_305":
       return renderEmissions(pb, report, metrics);
     case "GRI_306":
-      return renderWaste(pb, report, metrics);
+      return renderWaste(pb, report, metrics, phase2);
     case "GRI_308":
-      return renderSupplierAssessment(pb, report.supplierEnvDisclosure, "environmental", "308");
+      return renderSupplierAssessment(pb, report.supplierEnvDisclosure, "environmental", "308", phase2, true);
     case "GRI_401":
       return renderEmployment(pb, report);
     case "GRI_403":
@@ -750,7 +784,17 @@ function renderTopicDisclosures(
     case "GRI_413":
       return renderLocalCommunities(pb, report);
     case "GRI_414":
-      return renderSupplierAssessment(pb, report.supplierSocialDisclosure, "social", "414");
+      // 414 carries the register only where 308 was not assessed material, so
+      // it prints exactly once whichever of the two topics the organization
+      // reports.
+      return renderSupplierAssessment(
+        pb,
+        report.supplierSocialDisclosure,
+        "social",
+        "414",
+        phase2,
+        report.materialTopics.find((t) => t.topicCode === "GRI_308")?.isMaterial !== true,
+      );
     case "GRI_416":
       return renderCustomerHs(pb, report);
     case "GRI_418":
@@ -807,7 +851,12 @@ function renderMaterials(pb: PageBuilder, report: GriReportWithRelations) {
   if (d?.reclaimedByCategory) pb.paragraph(d.reclaimedByCategory);
 }
 
-function renderEnergy(pb: PageBuilder, report: GriReportWithRelations, metrics: GriMetrics) {
+function renderEnergy(
+  pb: PageBuilder,
+  report: GriReportWithRelations,
+  metrics: GriMetrics,
+  phase2: ReportPhase2Data | undefined,
+) {
   const d = report.energyDisclosure;
 
   pb.heading("302-1 Energy consumption within the organization");
@@ -851,6 +900,26 @@ function renderEnergy(pb: PageBuilder, report: GriReportWithRelations, metrics: 
         { label: "Grid electricity and steam", value: nonRenewable, color: CHART_SLATE },
       ],
     });
+  }
+
+  // The multi-period renewable share, and the certificates behind any
+  // market-based claim. Neither is a GRI 302 disclosure in its own right: 302-1
+  // asks for this period's consumption by source, which the table above gives.
+  // These answer the question a reader of that table asks next — whether the
+  // share is moving, and whether the renewable share is generated or purchased
+  // as an attribute — and are labelled as supplementary so neither is mistaken
+  // for a required disclosure.
+  if (phase2) {
+    pb.heading("Renewable share over time (supplementary)");
+    drawEnergyMixBlock(pb, phase2.energyMix);
+
+    pb.heading("Renewable energy certificates (supplementary)");
+    pb.paragraph(
+      "GRI 302-1 reports energy consumed by source. Certificates are a separate market-based claim over that " +
+        "consumption and are reported here rather than added to the figures above, so nothing is counted twice.",
+      { size: 9 },
+    );
+    drawRecCoverageBlock(pb, phase2.recCoverage);
   }
 
   pb.heading("302-2 / 302-3 Energy outside the organization, and energy intensity");
@@ -1140,7 +1209,12 @@ function renderEmissions(pb: PageBuilder, report: GriReportWithRelations, metric
   if (d?.odsSubstancesIncluded) pb.note(`ODS included: ${d.odsSubstancesIncluded}`);
 }
 
-function renderWaste(pb: PageBuilder, report: GriReportWithRelations, metrics: GriMetrics) {
+function renderWaste(
+  pb: PageBuilder,
+  report: GriReportWithRelations,
+  metrics: GriMetrics,
+  phase2: ReportPhase2Data | undefined,
+) {
   const d = report.wasteDisclosure;
   const totals = metrics.waste;
 
@@ -1233,6 +1307,16 @@ function renderWaste(pb: PageBuilder, report: GriReportWithRelations, metrics: G
     pb.heading("Onsite and offsite breakdown");
     pb.paragraph(d.onsiteOffsiteBreakdown);
   }
+
+  // The circularity rate the 306-4/306-5 tonnages above imply, with the
+  // definition behind it. Reported as supplementary because GRI asks for the
+  // tonnages, not a rate — but a reader comparing periods or facilities wants
+  // the rate, and deriving it by hand from two tables invites arithmetic
+  // nobody checks.
+  if (phase2) {
+    pb.heading("Circularity rate (supplementary)");
+    drawCircularityBlock(pb, phase2.circularity);
+  }
 }
 
 type SupplierRow = {
@@ -1247,7 +1331,15 @@ type SupplierRow = {
 } | null;
 
 /** GRI 308 and GRI 414 are structurally identical — one renderer, parameterised by which criteria set applies. */
-function renderSupplierAssessment(pb: PageBuilder, d: SupplierRow, criteria: string, prefix: string) {
+function renderSupplierAssessment(
+  pb: PageBuilder,
+  d: SupplierRow,
+  criteria: string,
+  prefix: string,
+  phase2: ReportPhase2Data | undefined,
+  /** Whether this topic section is the one that prints the supplier register. */
+  ownsSupplierRegister: boolean,
+) {
   pb.heading(`${prefix}-1 New suppliers screened using ${criteria} criteria`);
   pb.table({
     columns: [
@@ -1275,6 +1367,28 @@ function renderSupplierAssessment(pb: PageBuilder, d: SupplierRow, criteria: str
     ],
   });
   pb.paragraph(fmtText(d?.negativeImpactsDescription));
+
+  // The named-supplier register, which answers a different question from the
+  // screening percentages above. GRI 308-1/414-1 report the share of *new*
+  // suppliers screened in the period; this reports which suppliers the
+  // organization has actually listed, what disclosure is on file for each, and
+  // how many high-risk ones have none. The block states in its own words that
+  // coverage is of the listed suppliers rather than the whole supply base.
+  //
+  // Printed once. GRI 308 and 414 share this renderer and are frequently both
+  // material, and there is one supplier register, not an environmental one and
+  // a social one — so 414 cross-references 308 rather than repeating it.
+  if (phase2) {
+    if (ownsSupplierRegister) {
+      pb.heading("Supplier register and disclosure coverage (supplementary)");
+      drawSupplierScorecardBlock(pb, phase2.suppliers);
+    } else {
+      pb.note(
+        "The supplier register and its disclosure coverage are reported once, under GRI 308 Supplier Environmental " +
+          "Assessment. The same register covers social criteria; it is not repeated here.",
+      );
+    }
+  }
 }
 
 function renderEmployment(pb: PageBuilder, report: GriReportWithRelations) {

@@ -1,5 +1,6 @@
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
+import { loadReportPhase2Data } from "./reportSections/phase2Data";
 import { requireOwnedFacilityForEsgBundle, throwEsgBundleAccessDenied } from "./esgBundleAccess.service";
 import { isGriReportWindowOpen, griUnlockDate } from "../data/complianceDeadlines";
 import { GRI_TOPIC_STANDARDS, getGriTopic } from "../data/griStandards";
@@ -454,7 +455,8 @@ export const getGriReportData = async (userId: string, facilityId: string, repor
 
   const metrics = await buildGriMetrics(report, facility, facility.company);
   const contentIndex = buildContentIndex(report, metrics);
-  return { report, facility, metrics, contentIndex };
+  const phase2 = await loadReportPhase2Data(facility.companyId, facility.id, report.reportingPeriod);
+  return { report, facility, metrics, contentIndex, phase2 };
 };
 
 /**
@@ -505,5 +507,6 @@ export const getGriReportContextById = async (userId: string, reportId: string) 
 
   const metrics = await buildGriMetrics(report, report.facility, report.facility.company);
   const contentIndex = buildContentIndex(report, metrics);
-  return { report, facility: report.facility, metrics, contentIndex };
+  const phase2 = await loadReportPhase2Data(report.facility.companyId, report.facility.id, report.reportingPeriod);
+  return { report, facility: report.facility, metrics, contentIndex, phase2 };
 };
