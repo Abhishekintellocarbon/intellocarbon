@@ -39,7 +39,7 @@ export function ServicesNavDropdown() {
     <div className="group relative">
       <Link
         href="/services"
-        className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500 group-focus-within:text-teal-500"
+        className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-[15px] font-medium text-[#8AA0B4] transition-colors hover:text-teal-500 group-focus-within:text-teal-500"
       >
         Services
         <ChevronDown className="h-3.5 w-3.5 transition-transform duration-150 group-hover:rotate-180 group-focus-within:rotate-180" />

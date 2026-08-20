@@ -59,7 +59,7 @@ export function LiveClock() {
 
   return (
     <div
-      className="whitespace-nowrap font-sans text-[13px] leading-tight text-[#8AA0B4] min-[1400px]:text-[12px]"
+      className="whitespace-nowrap font-sans text-[13px] leading-tight text-[#8AA0B4] min-[1400px]:text-[14px]"
       title={display.tzName}
     >
       {/* Below sm: date only. The time is the first thing to go when the row
@@ -68,11 +68,14 @@ export function LiveClock() {
 
       {/* sm and up, including desktop: one line.
           It was stacked over two lines at desktop to save width, which fitted
-          but read as an awkward wrap rather than a deliberate layout. One line
-          costs ~37px more, bought back by trimming the nav's item padding and
-          giving the clock its own flex slot — see marketing-header. The hour
-          is unpadded here ("4:39 PM", not "04:39 PM"), which saves a further
-          8px and is the more natural way to write a time anyway. */}
+          but read as an awkward wrap rather than a deliberate layout. The hour
+          is unpadded here ("4:39 PM", not "04:39 PM"), which saves ~8px and is
+          the more natural way to write a time anyway.
+
+          Desktop is the LARGER size (14px vs 13px), not the smaller. It used
+          to shrink to 12px here to buy width back when the header was capped
+          at 1152px; the header is full-bleed now, so that trade is gone and
+          shrinking text on the widest screens was backwards. */}
       <span className="hidden sm:inline">
         {display.dateLabel}, {display.timeLabel}
       </span>

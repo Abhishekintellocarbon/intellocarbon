@@ -76,13 +76,17 @@ export function MarketingHeader() {
           either side of the clock, one between logo and nav. Those gaps now
           grow with the viewport instead of being fixed at ~16px.
 
-          The clock was stacked over two lines here until it was reported as
-          looking like an awkward wrap. One line costs ~36px more, bought back
-          by trimming nav item padding to px-1.5, nav gap to 0, CTA padding to
-          px-4 and the CTA pair gap to 3, plus dropping the leading zero from
-          the hour. Those trims are kept: the row still has to fit at 1400,
-          which is where slack is tightest, and loosening them there is what
-          made this look cramped before.
+          NAV SPACING is px-3 + gap-1 on every item, giving 28px between
+          adjacent labels. It used to be px-1.5 + gap-0 (12px) on the plain
+          links while Services and FAQ already carried px-3 — so the gaps were
+          not merely tight, they were uneven, which is what made the row hard
+          to scan. All six items now share one padding scale; change them
+          together or the unevenness comes back.
+
+          Those trims existed to buy width back when the header was capped at
+          1152px. Full-bleed removed that pressure: at 1400 the row needs
+          ~1245px of 1352px usable, so the spacing is affordable at the
+          tightest desktop width, not just the widest.
 
           Why 1400: the row needs ~1057px plus gaps. That budget is unchanged
           by the full-bleed fix — at 1400 the header is now 1400 wide rather
@@ -99,25 +103,29 @@ export function MarketingHeader() {
         <Link href="/">
           <Logo size="lg" dimensional />
         </Link>
-        {/* A direct child of the header, not nested with the logo. With three
-            flex children, `justify-between` splits the leftover width into two
-            equal gaps, so the nav sits evenly between the logo and the CTAs.
-            Nested inside the logo's div it was glued to the logo and dumped
-            all ~90px of slack into a single void before "Log in", which read
-            as three separate clusters rather than one row. When the nav is
-            `display: none` below 1400 it stops being a flex item, so the
-            two-child logo/hamburger layout is unchanged. */}
-        <nav className="hidden items-center gap-0 min-[1400px]:flex">
+        {/* `mx-auto` at desktop is what groups the right-hand cluster.
+            Auto margins consume free space BEFORE justify-between gets to
+            distribute any, so all the slack collects on the two sides of the
+            nav and none is left to push the clock away from the CTAs — the
+            clock ends up sitting directly against "Log in" as one cluster,
+            which is the composition asked for. Previously the clock was a
+            third gap-taking flex child and read as its own island.
+
+            Below 1400 the nav is `display: none`, so it is not a flex item
+            and `mx-auto` cannot apply. justify-between then governs the
+            logo / clock / hamburger row exactly as before — this file's
+            sub-1400 layout is deliberately untouched. */}
+        <nav className="hidden items-center gap-1 min-[1400px]:mx-auto min-[1400px]:flex">
           <Link
             href="/"
-            className="whitespace-nowrap rounded-lg px-1.5 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+            className="whitespace-nowrap rounded-lg px-3 py-1.5 text-[15px] font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
           >
             Home
           </Link>
           <ServicesNavDropdown />
           <Link
             href="/esg"
-            className="whitespace-nowrap rounded-lg px-1.5 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+            className="whitespace-nowrap rounded-lg px-3 py-1.5 text-[15px] font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
           >
             ESG
           </Link>
@@ -127,13 +135,13 @@ export function MarketingHeader() {
               compliance position. */}
           <Link
             href="/project-screener"
-            className="whitespace-nowrap rounded-lg px-1.5 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+            className="whitespace-nowrap rounded-lg px-3 py-1.5 text-[15px] font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
           >
             Project Screener
           </Link>
           <Link
             href="/about"
-            className="whitespace-nowrap rounded-lg px-1.5 py-1.5 text-sm font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
+            className="whitespace-nowrap rounded-lg px-3 py-1.5 text-[15px] font-medium text-[#8AA0B4] transition-colors hover:text-teal-500"
           >
             About Us
           </Link>
@@ -147,7 +155,7 @@ export function MarketingHeader() {
         <span className="hidden sm:block min-[1400px]:order-none">
           <LiveClock />
         </span>
-        <div className="flex items-center gap-4 pl-4 sm:pl-6 min-[1400px]:gap-4 min-[1400px]:pl-0">
+        <div className="flex items-center gap-4 pl-4 sm:pl-6 min-[1400px]:gap-4 min-[1400px]:pl-3">
           <MobileNav isAuthenticated={isAuthenticated} />
           <div className="hidden items-center gap-3 min-[1400px]:flex">
             {isAuthenticated ? (
