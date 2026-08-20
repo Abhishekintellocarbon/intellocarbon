@@ -308,6 +308,31 @@ describe("effectiveCdpTargets", () => {
     expect(effectiveCdpTargets([], [])).toEqual({ rows: [], fromCompanyTarget: false });
   });
 
+  /**
+   * A response marked complete is signed. "Signed stating no target" is itself
+   * a disclosure, so filling it in from the register afterwards would rewrite
+   * it — the same alteration as adding a row to a response that listed some,
+   * just harder to spot because the before state was empty.
+   */
+  it("never falls back on a submitted response that states no target", () => {
+    const result = effectiveCdpTargets([], [companyTarget()], "SUBMITTED");
+    expect(result).toEqual({ rows: [], fromCompanyTarget: false });
+  });
+
+  it("still falls back on a draft response", () => {
+    const result = effectiveCdpTargets([], [companyTarget()], "DRAFT");
+    expect(result.fromCompanyTarget).toBe(true);
+    expect(result.rows).toHaveLength(1);
+  });
+
+  /** A submitted response keeps its own targets, exactly as signed. */
+  it("keeps a submitted response's own targets untouched", () => {
+    const result = effectiveCdpTargets([reportTarget()], [companyTarget()], "SUBMITTED");
+    expect(result.fromCompanyTarget).toBe(false);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].targetYear).toBe(2035);
+  });
+
   it("carries the intensity denominator through the fallback", () => {
     const result = effectiveCdpTargets(
       [],

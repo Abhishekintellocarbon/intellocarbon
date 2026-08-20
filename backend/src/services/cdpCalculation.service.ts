@@ -4,6 +4,7 @@ import type {
   CompanyTarget,
   CdpTarget,
   CdpTargetKind,
+  DataEntryStatus,
   Facility,
   Prisma,
   SbtiStatus,
@@ -385,6 +386,12 @@ export interface CdpEffectiveTargets {
  * response states no target at all, which is the duplication CompanyTarget
  * exists to end — the same rule ISSB follows in resolveEffectiveTarget.
  *
+ * A SUBMITTED response never falls back at all, even when it lists no target.
+ * "Signed with no target stated" is itself a disclosure, and filling it in
+ * later from the register would rewrite what the company put its name to —
+ * the same alteration as adding a row, just harder to notice because the
+ * before state was empty. Only drafts read live from the register.
+ *
  * `isScienceBased` is deliberately false on every fallback row. A company
  * self-declaring SBTi status is not the same assertion as CDP's science-based
  * flag, and promoting one to the other would be this platform making a
@@ -394,7 +401,15 @@ export interface CdpEffectiveTargets {
 export const effectiveCdpTargets = (
   reportTargets: CdpTarget[],
   companyTargets: CompanyTarget[],
+  /**
+   * The response's lifecycle status. Defaults to DRAFT so existing callers and
+   * tests that predate the signed-response rule keep their behaviour.
+   */
+  reportStatus: DataEntryStatus = "DRAFT",
 ): CdpEffectiveTargets => {
+  if (reportTargets.length === 0 && reportStatus === "SUBMITTED") {
+    return { rows: [], fromCompanyTarget: false };
+  }
   if (reportTargets.length > 0) {
     return {
       fromCompanyTarget: false,
@@ -474,7 +489,7 @@ export const buildCdpMetrics = async (
     rollup,
     intensityPerRevenue: computeIntensity(rollup, report.revenue),
     carbonPricingExposure,
-    targets: effectiveCdpTargets(report.targets, companyTargets),
+    targets: effectiveCdpTargets(report.targets, companyTargets, report.status),
   };
 };
 
