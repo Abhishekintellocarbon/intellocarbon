@@ -10,6 +10,12 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
   CLIENT_URL: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+  // Read by `prisma migrate` via schema.prisma's `directUrl`, never by the
+  // running server — which is why it is optional here and absent locally,
+  // where it is simply the same value as DATABASE_URL. Declared so the TLS
+  // check below can see it: it is a second, separate connection to the same
+  // database, and it was going entirely unchecked.
+  DIRECT_URL: z.string().optional(),
   JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
   JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
   JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
@@ -104,13 +110,65 @@ if (isProd && env.CLIENT_URL === "http://localhost:3000") {
   );
 }
 
+/**
+ * Whether a connection string pins TLS on the client side.
+ *
+ * The modes are not interchangeable, which is why this is a match on the
+ * specific values rather than a substring test. `sslmode=disable` and
+ * `sslmode=prefer` both contain "sslmode" while still permitting a plaintext
+ * connection — `prefer` silently downgrades if the server declines TLS, and
+ * that silent downgrade is the entire thing this guard exists to catch. The
+ * previous `includes("sslmode")` check would have gone quiet on exactly the
+ * two configurations worth warning about.
+ *
+ * Returns null when the variable is unset, which is a different fact from
+ * "set and insecure" and is reported as such rather than collapsed to false.
+ */
+const TLS_ENFORCING_SSLMODE = /[?&]sslmode=(require|verify-ca|verify-full)(&|$)/;
+
+export const connectionEnforcesTls = (url: string | undefined | null): boolean | null =>
+  url ? TLS_ENFORCING_SSLMODE.test(url) : null;
+
+/**
+ * Reported on /api/health so the TLS posture of both database connections is
+ * verifiable from outside, for the same reason `commit` is: otherwise
+ * confirming an environment-variable change means reading deploy logs in a
+ * dashboard, and an env edit redeploys the same commit so the SHA cannot
+ * distinguish before from after.
+ *
+ * Publishing that TLS *is* enforced gives an attacker nothing — it is the
+ * absence of the flag that would be interesting, and anyone who can reach the
+ * database directly does not need this endpoint to discover it.
+ */
+export const dbTlsStatus = {
+  /** The pooled runtime connection. */
+  database: connectionEnforcesTls(env.DATABASE_URL),
+  /** The direct migrate connection. Null where DIRECT_URL is not set. */
+  direct: connectionEnforcesTls(env.DIRECT_URL),
+};
+
 // Supabase's endpoints reject plaintext connections at the network level
-// regardless of what's in the connection string, so this is defense-in-depth
-// documentation, not a real vulnerability if missing — a soft warning, not a
-// fail-fast, since a legitimate provider/proxy could enforce TLS without
-// this exact query param.
-if (isProd && !env.DATABASE_URL.includes("sslmode")) {
+// regardless of what's in the connection string, so these are defense-in-depth
+// documentation, not a real vulnerability if missing — soft warnings, not a
+// fail-fast, since a legitimate provider/proxy could enforce TLS without this
+// exact query param.
+if (isProd && !dbTlsStatus.database) {
   console.error(
-    "DATABASE_URL has no sslmode parameter — add sslmode=require so the client also refuses to fall back to a plaintext connection.",
+    "DATABASE_URL has no sslmode=require — add it so the client also refuses to fall back to a plaintext connection.",
+  );
+}
+
+// DIRECT_URL is a second connection to the same database, opened by
+// `prisma migrate deploy` on every boot. It carries the same credentials over
+// the same network and was previously not checked at all.
+if (isProd && dbTlsStatus.direct === false) {
+  console.error(
+    "DIRECT_URL has no sslmode=require — the migrate connection can still fall back to plaintext even when DATABASE_URL cannot.",
+  );
+}
+
+if (isProd && dbTlsStatus.direct === null) {
+  console.error(
+    "DIRECT_URL is not set — `prisma migrate deploy` runs on every boot and needs it. Set it to the direct (non-pooled) connection string.",
   );
 }
