@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
+import { Button } from "@/components/ui/button";
 import { LiveClock } from "@/components/layout/live-clock";
 import { AppMenu } from "@/components/layout/app-menu";
 import { NotificationBell } from "@/components/layout/notification-bell";
@@ -61,7 +63,7 @@ export function AppHeader() {
           clock, gap) each give width back rather than clipping the overflow,
           so the row genuinely fits instead of being hidden. */}
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-5 xl:gap-6">
           {/* A responsive pair rather than one instance. size="lg" is shared
               with the public marketing header, where it is tuned against a
               36px hamburger; this header carries a notification bell and a
@@ -98,7 +100,7 @@ export function AppHeader() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                    "whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors",
                     active
                       ? "bg-surface-raised text-foreground"
                       : "text-muted-foreground hover:text-foreground",
@@ -110,7 +112,7 @@ export function AppHeader() {
             })}
           </nav>
         </div>
-        <div className="flex items-center gap-2.5 sm:gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {/* md and up. marketing-header's reference drops the clock below sm;
               this header carries a menu button the marketing one does not, so
               it needs the width back one breakpoint earlier. The clock is
@@ -120,11 +122,22 @@ export function AppHeader() {
             <LiveClock />
           </div>
           {user?.role !== "VERIFIER" && user?.role !== "DATA_ENTRY_INTERNAL" && <NotificationBell />}
-          {/* The account email and the log-out button used to sit inline here.
-              Both moved into AppMenu because the row could not hold them: with
-              the nav inline the email had an 82px budget against a 207px need,
-              which is what made every width from 640px to 1280px scroll. */}
+          {/* The account email moved into AppMenu because the row could not
+              hold it — with the nav inline it had an 82px budget against a
+              207px need, which is what made 640px to 1280px scroll. Log out
+              stays in the row at every width, so signing out is never behind
+              a menu, and is icon-only for the same reason: its label is 58px
+              the six-link super-admin nav does not have to give. */}
           <AppMenu links={allNavLinks} email={user?.email} onLogout={handleLogout} />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleLogout}
+            aria-label="Log out"
+            className="hidden sm:inline-flex"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </Button>
         </div>
       </div>
     </header>

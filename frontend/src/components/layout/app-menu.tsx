@@ -24,11 +24,13 @@ export interface AppMenuLink {
  * sideways, and the arithmetic leaves no version of the old layout that fits:
  * with the nav inline, the email alone had an 82px budget and needed 207px.
  *
- * So the two items that are account rather than navigation moved in here. The
- * email had nowhere else to go — this header is the only place the app shows
- * you which account you are signed into — and log out followed it, because an
- * account menu is where people look for it, and because leaving it in the row
- * put the six-link super-admin nav back over budget.
+ * The account email moved in here because it had nowhere else to go — this
+ * header is the only place the app shows which account you are signed into,
+ * and it is far too wide to sit beside the nav. Log out deliberately did NOT
+ * follow it: signing out should not be behind a menu, so it sits in the row
+ * from sm up and is icon-only to pay for itself. Below sm the row is down to
+ * the logo, the bell and this button, with no width left for a fourth — so
+ * there, and only there, log out appears in this panel instead.
  *
  * Navigation collapses in here below xl and is inline above it, which is what
  * actually reclaims the 640-1280 range. The nav section is xl:hidden rather
@@ -139,13 +141,15 @@ export function AppMenu({ links, email, onLogout }: { links: AppMenuLink[]; emai
                     <p className="mt-0.5 break-all text-sm text-foreground">{email}</p>
                   </>
                 )}
+                {/* sm:hidden — from sm up the header row carries log out itself,
+                    and offering it twice would be two controls for one action. */}
                 <button
                   type="button"
                   onClick={() => {
                     close();
                     onLogout();
                   }}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-surface-border bg-surface-raised px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:text-teal-500"
+                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-surface-border bg-surface-raised px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:text-teal-500 sm:hidden"
                 >
                   <LogOut className="h-3.5 w-3.5" />
                   Log out
