@@ -43,6 +43,33 @@ export interface GriSupplierAggregates {
   periodLabel: string | null;
 }
 
+/**
+ * One listed supplier, as the dashboard row renders it.
+ *
+ * The three states here are the three this platform actually holds per
+ * supplier. There is deliberately no per-ESG-category breakdown: Supplier
+ * carries no category columns, and GRI 308/414 are company-level aggregates
+ * about new suppliers screened in a period — they hold no per-supplier detail
+ * to attribute back. A category grid would therefore be drawing states nobody
+ * ever entered, which is the one thing this scorecard must not do, since its
+ * output is a table of other companies' names.
+ *
+ * `disclosureType` is free text the customer typed ("CDP response 2025"). It
+ * is shown as recorded and never parsed into a status.
+ */
+export interface SupplierScorecardRow {
+  id: string;
+  name: string;
+  sector: string | null;
+  country: string | null;
+  hasEsgDisclosure: boolean;
+  disclosureType: string | null;
+  riskFlag: Supplier["riskFlag"];
+  spendSharePct: number | null;
+  /** ISO date, or null where no review has been recorded. Never defaulted to today. */
+  lastReviewedAt: string | null;
+}
+
 export interface SupplierScorecard {
   hasData: boolean;
   supplierCount: number;
@@ -58,6 +85,13 @@ export interface SupplierScorecard {
   riskBreakdown: SupplierRiskBreakdown;
   highRiskWithoutDisclosure: number;
   gri: GriSupplierAggregates;
+  /**
+   * Every listed supplier, so the dashboard can show the actual rows rather
+   * than only the percentage. Ordered the way the card reads by default:
+   * suppliers still missing a disclosure first, because they are the ones
+   * with something outstanding, then by spend share, then by name.
+   */
+  rows: SupplierScorecardRow[];
 }
 
 const round = (value: number, decimals = 1) => {
@@ -142,8 +176,36 @@ export const buildSupplierScorecard = (suppliers: Supplier[], griRows: GriSuppli
     riskBreakdown,
     highRiskWithoutDisclosure,
     gri,
+    rows: buildRows(suppliers),
   };
 };
+
+/**
+ * Outstanding first: a supplier with no disclosure on file is the one the
+ * reader can act on, so it leads rather than being sorted to the bottom by
+ * name. Within each group, larger spend share first — a gap at 40% of spend
+ * matters more than the same gap at 2% — and suppliers with no recorded share
+ * sort last rather than as zero, since "not recorded" is not "small".
+ */
+const buildRows = (suppliers: Supplier[]): SupplierScorecardRow[] =>
+  suppliers
+    .map((supplier) => ({
+      id: supplier.id,
+      name: supplier.name,
+      sector: supplier.sector,
+      country: supplier.country,
+      hasEsgDisclosure: supplier.hasEsgDisclosure,
+      disclosureType: supplier.esgDisclosureType,
+      riskFlag: supplier.riskFlag,
+      spendSharePct: supplier.spendSharePct,
+      lastReviewedAt: supplier.lastReviewedAt ? supplier.lastReviewedAt.toISOString() : null,
+    }))
+    .sort((a, b) => {
+      if (a.hasEsgDisclosure !== b.hasEsgDisclosure) return a.hasEsgDisclosure ? 1 : -1;
+      const spend = (row: SupplierScorecardRow) => (row.spendSharePct == null ? -1 : row.spendSharePct);
+      if (spend(a) !== spend(b)) return spend(b) - spend(a);
+      return a.name.localeCompare(b.name);
+    });
 
 export const SUPPLIER_RISK_LABELS: Record<string, string> = {
   LOW: "Low",

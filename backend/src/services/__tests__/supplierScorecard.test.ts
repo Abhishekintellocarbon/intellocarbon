@@ -169,3 +169,60 @@ describe("nothing here rates another company", () => {
     expect(SUPPLIER_SCORECARD_NOTICE).toMatch(/not a judgement on what it contains/i);
   });
 });
+
+/**
+ * The per-supplier rows the dashboard renders.
+ *
+ * The property worth protecting is that the table is exactly the suppliers the
+ * company listed — never padded to fill a grid, never carrying a state nobody
+ * entered. The card draws three dots per row, and each has to come from a
+ * field that actually exists on Supplier.
+ */
+describe("supplier rows", () => {
+  it("returns exactly the listed suppliers, in outstanding-first order", () => {
+    const s = buildSupplierScorecard([
+      supplier({ name: "Has disclosure", hasEsgDisclosure: true, spendSharePct: 50 }),
+      supplier({ name: "Missing, small", hasEsgDisclosure: false, spendSharePct: 5 }),
+      supplier({ name: "Missing, large", hasEsgDisclosure: false, spendSharePct: 40 }),
+    ]);
+
+    expect(s.rows).toHaveLength(3);
+    expect(s.rows.map((r) => r.name)).toEqual(["Missing, large", "Missing, small", "Has disclosure"]);
+  });
+
+  /** "Not recorded" is not "small" — an unrecorded share must not sort as zero. */
+  it("sorts suppliers with no recorded spend share last within their group", () => {
+    const s = buildSupplierScorecard([
+      supplier({ name: "No share", hasEsgDisclosure: false, spendSharePct: null }),
+      supplier({ name: "Tiny share", hasEsgDisclosure: false, spendSharePct: 1 }),
+    ]);
+
+    expect(s.rows.map((r) => r.name)).toEqual(["Tiny share", "No share"]);
+  });
+
+  it("carries only fields Supplier actually holds, and never invents a review date", () => {
+    const [row] = buildSupplierScorecard([
+      supplier({ name: "Acme", sector: "Logistics", country: "India", riskFlag: "HIGH" }),
+    ]).rows;
+
+    expect(row).toMatchObject({
+      name: "Acme",
+      sector: "Logistics",
+      country: "India",
+      riskFlag: "HIGH",
+      hasEsgDisclosure: false,
+      disclosureType: null,
+      spendSharePct: null,
+      lastReviewedAt: null,
+    });
+    // No category state: there is none on Supplier, and GRI 308/414 are
+    // company-level aggregates with nothing per-supplier to attribute back.
+    expect(Object.keys(row)).not.toContain("categories");
+  });
+
+  it("has no rows when nothing is listed, even where GRI aggregates exist", () => {
+    const s = buildSupplierScorecard([], [{ reportingPeriod: "FY2025-26", env: { newSuppliersScreenedPct: 80, suppliersAssessedCount: 4, suppliersWithNegativeImpactsCount: 1 } }]);
+    expect(s.rows).toEqual([]);
+    expect(s.gri.hasData).toBe(true);
+  });
+});

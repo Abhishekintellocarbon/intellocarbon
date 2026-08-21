@@ -404,6 +404,24 @@ export interface Supplier {
   status: "DRAFT" | "SUBMITTED";
 }
 
+/**
+ * One listed supplier as the dashboard renders it. The three states carried
+ * here are the three the platform actually holds per supplier — there is no
+ * per-ESG-category breakdown, because Supplier has no category columns and
+ * GRI 308/414 are company-level aggregates with no per-supplier detail.
+ */
+export interface SupplierScorecardRow {
+  id: string;
+  name: string;
+  sector: string | null;
+  country: string | null;
+  hasEsgDisclosure: boolean;
+  disclosureType: string | null;
+  riskFlag: "LOW" | "MEDIUM" | "HIGH" | "NOT_ASSESSED";
+  spendSharePct: number | null;
+  lastReviewedAt: string | null;
+}
+
 export interface SupplierScorecard {
   hasData: boolean;
   supplierCount: number;
@@ -413,6 +431,8 @@ export interface SupplierScorecard {
   spendCoveredPct: number | null;
   riskBreakdown: { LOW: number; MEDIUM: number; HIGH: number; NOT_ASSESSED: number };
   highRiskWithoutDisclosure: number;
+  /** Every listed supplier; outstanding first, then by spend share, then name. */
+  rows: SupplierScorecardRow[];
   gri: {
     hasData: boolean;
     environmentalScreenedPct: number | null;
