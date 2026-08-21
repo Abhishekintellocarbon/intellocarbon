@@ -68,7 +68,7 @@ export function ComplianceStatusStrip({
   // sits next to the EU one rather than replacing or merging with it: a
   // company can owe both, and one combined number would describe neither.
   return (
-    <div className={cn("grid gap-5 sm:grid-cols-2", ukCbam.applicable ? "lg:grid-cols-4" : "sm:grid-cols-3")}>
+    <div className={cn("grid grid-cols-1 gap-5 sm:grid-cols-2", ukCbam.applicable ? "lg:grid-cols-4" : "sm:grid-cols-3")}>
       {/* Card 1 — CBAM */}
       {!access.hasCbam && cbamUpsell ? (
         <UpsellCard {...cbamUpsell} />

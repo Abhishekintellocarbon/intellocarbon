@@ -118,7 +118,7 @@ export function DisclosureCompletenessStrip({
           four above it. Three divides six evenly, and the cards are content
           cards rather than a fixed-width strip, so the extra width per card
           goes to the outstanding-requirement list rather than to whitespace. */}
-      <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {FRAMEWORKS.map((framework) => {
           const status = completeness[framework.key];
           const outstanding = status.requirements.filter((r) => !r.complete);

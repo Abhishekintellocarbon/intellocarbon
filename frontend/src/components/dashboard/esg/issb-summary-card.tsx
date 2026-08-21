@@ -39,7 +39,7 @@ export function IssbSummaryCard({ issb }: { issb: EsgIssbSummary }) {
 
       {issb.hasReports ? (
         <>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Metric label="Scope 1" value={fmtTco2e(issb.scope1Tco2e)} hint="Reused from your activity data" />
             <Metric label="Scope 2" value={fmtTco2e(issb.scope2Tco2e)} hint="Electricity and steam" />
             <Metric

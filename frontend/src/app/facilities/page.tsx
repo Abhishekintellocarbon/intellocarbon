@@ -76,7 +76,7 @@ function FacilitiesContent() {
         )}
 
         {facilities && facilities.length > 0 && (
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {facilities.map((facility) => (
               <Card key={facility.id} className="flex h-full flex-col p-6 transition-colors hover:border-teal-500/40">
                 <Link href={`/facilities/${facility.id}`} className="flex-1">

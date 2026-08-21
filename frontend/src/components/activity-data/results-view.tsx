@@ -150,7 +150,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
         <Alert variant="info">This entry hasn&apos;t been calculated yet.</Alert>
       ) : (
         <>
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <ScoreCard
               scheme="CBAM"
               title="Specific Embedded Emissions (SEE)"
@@ -223,7 +223,7 @@ export function ResultsView({ facilityId, dataId }: { facilityId: string; dataId
 
           <Card className="p-6">
             <h2 className="font-medium">GWP tables applied</h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <GwpCard table={result.breakdown.gwpTables.ar5} usedFor="CBAM" />
               <GwpCard table={result.breakdown.gwpTables.ar4} usedFor="CCTS" />
             </div>

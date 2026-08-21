@@ -105,7 +105,7 @@ function EsgOverviewContent() {
         {notSubscribed && <NotSubscribed />}
 
         {!overview && !error && !notSubscribed && (
-          <div className="mt-8 grid gap-5 sm:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
             <ChartSkeleton height={140} />
             <ChartSkeleton height={140} />
             <ChartSkeleton height={140} />
@@ -135,7 +135,7 @@ function EsgOverviewContent() {
                 Water, waste, energy, and workforce trends across all your facilities.
               </p>
 
-              <div className="mt-4 grid gap-5 sm:grid-cols-2">
+              <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <WaterTrendChart data={overview.brsr.waterTrend} />
                 <WasteTrendChart data={overview.brsr.wasteTrend} />
                 <EnergyCompositionChart energy={overview.brsr.energyComposition} />
@@ -330,7 +330,7 @@ function EsgOverviewContent() {
                 IFRS S1/S2 metrics and your Scope 3 value-chain inventory.
               </p>
 
-              <div className="mt-4 grid gap-5 lg:grid-cols-2">
+              <div className="mt-4 grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <IssbSummaryCard issb={overview.issb} />
                 <Scope3BreakdownChart scope3={overview.scope3} />
                 <div className="lg:col-span-2">

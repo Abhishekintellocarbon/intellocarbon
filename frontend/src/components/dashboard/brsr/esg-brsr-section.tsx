@@ -19,7 +19,7 @@ export function EsgBrsrSection({ brsr }: { brsr: CompanyBrsrAnalytics }) {
       <h2 className="text-lg font-semibold">ESG / BRSR Core</h2>
       <p className="mt-1 text-sm text-muted-foreground">Water, waste, energy, and workforce trends across all your facilities.</p>
 
-      <div className="mt-4 grid gap-5 sm:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
         <WaterTrendChart data={brsr.waterTrend} />
         <WasteTrendChart data={brsr.wasteTrend} />
         <EnergyCompositionChart energy={brsr.energyComposition} />

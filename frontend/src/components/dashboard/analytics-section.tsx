@@ -41,14 +41,14 @@ export function AnalyticsSection() {
       <p className="mt-1 text-sm text-muted-foreground">Emissions and compliance trends across all your facilities.</p>
 
       {!analytics ? (
-        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
           <ChartSkeleton />
           <ChartSkeleton />
           <ChartSkeleton height={110} />
           <ChartSkeleton height={110} />
         </div>
       ) : (
-        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
           <EmissionsTrendChart data={analytics.emissionsTrend} />
           <LiabilityTrendChart data={analytics.liabilityTrend} currentCertificatePrice={analytics.currentCertificatePrice} />
           {/* Renders nothing when the company isn't in UK scope. Placed

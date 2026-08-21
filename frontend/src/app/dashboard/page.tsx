@@ -180,7 +180,7 @@ function DashboardContent() {
             )}
 
             {facilities && facilities.length > 0 && (
-              <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {facilities.slice(0, 3).map((facility) => (
                   <Link key={facility.id} href={`/facilities/${facility.id}`}>
                     <Card className="h-full p-6 transition-colors hover:border-teal-500/40">
