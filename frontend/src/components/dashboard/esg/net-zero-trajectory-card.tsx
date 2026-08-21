@@ -63,7 +63,7 @@ export function NetZeroTrajectoryCard({ trajectory }: { trajectory: NetZeroTraje
                 {trajectory.latestActualYear != null && (
                   <ReferenceLine
                     x={trajectory.latestActualYear}
-                    stroke="#5B6B7A"
+                    stroke="#8AA0B4"
                     strokeDasharray="2 4"
                     label={{ value: "latest data", position: "insideTopRight", fill: "#8AA0B4", fontSize: 10 }}
                   />

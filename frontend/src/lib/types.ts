@@ -1610,7 +1610,9 @@ export type CompanyUkCbamAnalytics =
  */
 export interface LivePositionItem {
   id: string;
-  kind: "DATA_UPDATE" | "DEADLINE" | "TREND" | "PRICE";
+  /** STATUS is a state that is true right now (a reduction target behind or met),
+   *  as opposed to TREND's period-over-period move or DEADLINE's countdown. */
+  kind: "DATA_UPDATE" | "DEADLINE" | "TREND" | "PRICE" | "STATUS";
   label: string;
   detail: string;
   timestamp: string | null;

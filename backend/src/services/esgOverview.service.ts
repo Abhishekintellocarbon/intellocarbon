@@ -35,6 +35,7 @@ import { rollUpWaterFootprints, type WaterFootprintRollup } from "./waterCalcula
 import { summariseOffsets, type OffsetTotals } from "./voluntaryOffset.service";
 import {
   buildDeadlineItem,
+  buildPointsTrendItem,
   buildTrendItem,
   sortLivePosition,
   type LivePositionItem,
@@ -335,8 +336,18 @@ const buildEsgLivePosition = (options: {
   brsr: CompanyBrsrAnalytics;
   scope3All: Scope3Data[];
   lastUpdate: { at: Date; label: string; detail: string } | null;
+  // The Phase 2 rollups. These are the metrics that actually move between
+  // reporting deadlines — a REC lands, a target slips, renewable share ticks
+  // up — which is the gap this strip exists to fill. Before they were passed
+  // in, the strip could only ever talk about BRSR water, waste, safety and
+  // Scope 3, and the ten Phase 2 widgets sat in their own cards with no way
+  // of announcing that anything had changed.
+  circularity: CircularityRollup;
+  energyMix: EnergyMixTrend;
+  recCoverage: RecCoverage;
+  targets: Awaited<ReturnType<typeof listCompanyTargets>>;
 }): LivePositionItem[] => {
-  const { now, brsr, scope3All, lastUpdate } = options;
+  const { now, brsr, scope3All, lastUpdate, circularity, energyMix, recCoverage, targets } = options;
   const items: LivePositionItem[] = [];
 
   if (lastUpdate) {
@@ -461,6 +472,104 @@ const buildEsgLivePosition = (options: {
       href: "/esg/brsr",
     });
     if (item) items.push(item);
+  }
+
+  // --- Phase 2 signals -----------------------------------------------------
+
+  // Renewable share. energyMix already models its own move in points rather
+  // than percent (see changePoints in energyMix.service.ts); this reads the
+  // last two points directly so the strip and that field cannot diverge.
+  if (energyMix.hasData && energyMix.points.length >= 2) {
+    const previous = energyMix.points.at(-2)!;
+    const current = energyMix.points.at(-1)!;
+    const item = buildPointsTrendItem({
+      id: "esg-renewable-share",
+      metricLabel: "Renewable energy share",
+      previousPct: previous.renewablePct,
+      currentPct: current.renewablePct,
+      previousPeriodLabel: previous.periodLabel,
+      currentPeriodLabel: current.periodLabel,
+      higherIsBetter: true,
+      href: "/esg/overview",
+    });
+    if (item) items.push(item);
+  }
+
+  // REC coverage against grid electricity. coveragePct is null in a period
+  // with no grid draw, and buildPointsTrendItem drops the item in that case
+  // rather than reading the null as a zero.
+  if (recCoverage.hasData && recCoverage.periods.length >= 2) {
+    const previous = recCoverage.periods.at(-2)!;
+    const current = recCoverage.periods.at(-1)!;
+    const item = buildPointsTrendItem({
+      id: "esg-rec-coverage",
+      metricLabel: "REC coverage of grid electricity",
+      previousPct: previous.coveragePct,
+      currentPct: current.coveragePct,
+      previousPeriodLabel: previous.periodLabel,
+      currentPeriodLabel: current.periodLabel,
+      higherIsBetter: true,
+      href: "/esg/overview",
+    });
+    if (item) items.push(item);
+  }
+
+  // Circularity rate, period over period, computed from the BRSR waste trend.
+  //
+  // Gated on the rollup's own source being BRSR_CORE. GRI 306 and BRSR Core
+  // do not define diversion the same way, so on a GRI-sourced company this
+  // trend would be quoting a different rate from the one the Circularity card
+  // shows two rows away on the same page. One number per page beats two that
+  // disagree, so the item is simply omitted there.
+  if (circularity.source === "BRSR_CORE" && brsr.wasteTrend.length >= 2) {
+    const previous = brsr.wasteTrend.at(-2)!;
+    const current = brsr.wasteTrend.at(-1)!;
+    const rate = (p: { generatedTonnes: number; recoveredTonnes: number }) =>
+      p.generatedTonnes > 0 ? round((p.recoveredTonnes / p.generatedTonnes) * 100, 1) : null;
+    const item = buildPointsTrendItem({
+      id: "esg-circularity-rate",
+      metricLabel: "Circularity rate",
+      previousPct: rate(previous),
+      currentPct: rate(current),
+      previousPeriodLabel: fmtPeriodFor(previous.periodLabel),
+      currentPeriodLabel: fmtPeriodFor(current.periodLabel),
+      higherIsBetter: true,
+      href: "/esg/overview",
+    });
+    if (item) items.push(item);
+  }
+
+  // Reduction-target status. Only the two states worth interrupting someone
+  // for: a target that has slipped, and one that has been met. ON_TRACK and
+  // AHEAD are the expected case and would just be noise on every load, and
+  // NOT_TRACKABLE means there is nothing to say.
+  //
+  // selfReportedNotice is non-negotiable wherever a status appears (see
+  // CompanyTargetsSummary) — carried here in short form so the strip cannot
+  // imply Intellocarbon validated the target.
+  for (const progress of targets.progress) {
+    if (progress.status !== "BEHIND" && progress.status !== "ACHIEVED") continue;
+    const target = targets.targets.find((t) => t.id === progress.targetId);
+    if (!target) continue;
+
+    const variance =
+      progress.varianceTco2e != null
+        ? `${Math.abs(round(progress.varianceTco2e)).toLocaleString("en-IN")} tCO2e ${
+            progress.varianceTco2e > 0 ? "above" : "below"
+          } the allowed path`
+        : progress.reason;
+
+    items.push({
+      id: `esg-target-${progress.targetId}`,
+      kind: "STATUS",
+      label:
+        progress.status === "ACHIEVED"
+          ? `Reduction target for ${target.targetYear} achieved`
+          : `Reduction target for ${target.targetYear} is behind`,
+      detail: `${variance}. Self-reported target, not validated by Intellocarbon.`,
+      timestamp: null,
+      href: "/esg/overview",
+    });
   }
 
   return sortLivePosition(items);
@@ -990,6 +1099,6 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
         requirements: scope3Requirements,
       },
     },
-    livePosition: buildEsgLivePosition({ now, brsr, scope3All, lastUpdate }),
+    livePosition: buildEsgLivePosition({ now, brsr, scope3All, lastUpdate, circularity, energyMix, recCoverage, targets }),
   };
 };

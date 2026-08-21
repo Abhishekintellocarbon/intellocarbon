@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, IndianRupee, TrendingDown, TrendingUp, Upload } from "lucide-react";
+import { CalendarClock, IndianRupee, Target, TrendingDown, TrendingUp, Upload } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { LivePositionItem } from "@/lib/types";
 
@@ -22,6 +22,7 @@ const KIND_ICON: Record<LivePositionItem["kind"], typeof Upload> = {
   DEADLINE: CalendarClock,
   TREND: TrendingUp,
   PRICE: IndianRupee,
+  STATUS: Target,
 };
 
 const fmtTimestamp = (iso: string) =>

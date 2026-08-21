@@ -11,7 +11,7 @@ import { round } from "./dashboardShared.helpers";
  * nothing to say renders as an empty list rather than as invented urgency.
  * That's why every helper below returns `LivePositionItem | null`.
  */
-export type LivePositionKind = "DATA_UPDATE" | "DEADLINE" | "TREND" | "PRICE";
+export type LivePositionKind = "DATA_UPDATE" | "DEADLINE" | "TREND" | "PRICE" | "STATUS";
 
 export interface LivePositionItem {
   id: string;
@@ -63,6 +63,52 @@ export const buildTrendItem = (options: {
     timestamp: null,
     deltaPct,
     lowerIsBetter: options.lowerIsBetter,
+    href: options.href,
+  };
+};
+
+/**
+ * A percentage-point move, for metrics that are themselves percentages —
+ * renewable share, REC coverage, circularity rate.
+ *
+ * Deliberately not buildTrendItem: a percentage change *of* a percentage is
+ * close to meaningless to a reader. Renewable share going 20% -> 25% is "up
+ * 25%" by that arithmetic and "up 5 points" in the way anyone actually
+ * discusses it, and the second is the one that belongs on a dashboard. The
+ * panel never prints deltaPct — it reads it only to pick the arrow direction
+ * and the tone — so the signed point value can safely travel in that field.
+ *
+ * Same omit-rather-than-invent contract as every other builder here: no two
+ * comparable periods, or a move that rounds to zero, means no item.
+ */
+export const buildPointsTrendItem = (options: {
+  id: string;
+  metricLabel: string;
+  previousPct: number | null | undefined;
+  currentPct: number | null | undefined;
+  previousPeriodLabel: string;
+  currentPeriodLabel: string;
+  /** Renewable share and REC coverage want to rise; nothing here wants to fall yet. */
+  higherIsBetter: boolean;
+  href?: string;
+}): LivePositionItem | null => {
+  const { previousPct, currentPct } = options;
+  if (previousPct == null || currentPct == null) return null;
+
+  const points = round(currentPct - previousPct, 1);
+  if (points === 0) return null;
+
+  return {
+    id: options.id,
+    kind: "TREND",
+    label: `${options.metricLabel} ${points < 0 ? "down" : "up"} ${Math.abs(points)} points`,
+    detail: `${options.currentPeriodLabel} vs ${options.previousPeriodLabel} — ${round(currentPct, 1)}% vs ${round(
+      previousPct,
+      1,
+    )}%`,
+    timestamp: null,
+    deltaPct: points,
+    lowerIsBetter: !options.higherIsBetter,
     href: options.href,
   };
 };

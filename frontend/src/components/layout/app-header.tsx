@@ -54,13 +54,31 @@ export function AppHeader() {
 
   return (
     <header className="border-b border-surface-border bg-surface/60 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      {/* px-4 below sm. At 390px the row has 342px of content width, and the
+          lockup alone measured 268px against a 208px actions group — 476px
+          into 342px, which is where the page-wide horizontal scroll came from.
+          Nothing here could shrink: flex children default to min-width:auto
+          and the row has no wrap. The four changes below (padding, logo size,
+          clock, gap) each give width back rather than clipping the overflow,
+          so the row genuinely fits instead of being hidden. */}
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
         <div className="flex items-center gap-8">
-          {/* size="lg" so the in-app header carries the same mark and wordmark
-              treatment as the public site header — one logo size across every
-              page. Both headers move together; change SIZE_STYLES.lg, not this. */}
-          <Link href={(user && HOME_HREF[user.role]) || "/dashboard"}>
-            <Logo size="lg" dimensional />
+          {/* A responsive pair rather than one instance. size="lg" is shared
+              with the public marketing header, where it is tuned against a
+              36px hamburger; this header carries a notification bell and a
+              log-out button instead, so the same lockup does not fit here at
+              phone widths. Changing SIZE_STYLES.lg to suit this header would
+              retune the marketing header too, so the breakpoint lives here.
+              Both stay `dimensional`, so the mark and its gradient are the
+              same on a phone as on a desktop — only the scale changes.
+
+              Rendering both and hiding one is the pattern Logo is built for:
+              it scopes its gradient and mask ids per instance with useId for
+              exactly this case, so the display:none copy cannot win the
+              url(#id) lookup and blank the visible mark. See logo.tsx. */}
+          <Link href={(user && HOME_HREF[user.role]) || "/dashboard"} className="shrink-0">
+            <Logo size="md" dimensional className="sm:hidden" />
+            <Logo size="lg" dimensional className="hidden sm:flex" />
           </Link>
           <nav className="hidden items-center gap-1 sm:flex">
             {allNavLinks.map((link) => {
@@ -83,13 +101,27 @@ export function AppHeader() {
             })}
           </nav>
         </div>
-        <div className="flex items-center gap-4">
-          <LiveClock />
+        <div className="flex items-center gap-2.5 sm:gap-4">
+          {/* Hidden below sm, matching the breakpoint reference in
+              marketing-header: "< 640px — Logo + hamburger. No clock." The
+              clock is the one item here with no action attached to it, so it
+              is the right thing to drop when the row is tightest; the bell and
+              log-out both stay, at every width. */}
+          <div className="hidden sm:block">
+            <LiveClock />
+          </div>
           {user?.role !== "VERIFIER" && user?.role !== "DATA_ENTRY_INTERNAL" && <NotificationBell />}
           <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
-          <Button variant="secondary" size="sm" onClick={handleLogout}>
+          {/* Icon-only below sm. The label is 58px of the actions group, and
+              dropping it is what brings the row inside a 360px viewport —
+              the door-out-of-a-box icon carries the meaning on its own at
+              phone width. aria-label is unconditional so the button keeps its
+              accessible name in the icon-only state; the visible text is
+              redundant with it from sm up, which is why the label is a span
+              rather than a second aria-label. */}
+          <Button variant="secondary" size="sm" onClick={handleLogout} aria-label="Log out">
             <LogOut className="h-3.5 w-3.5" />
-            Log out
+            <span className="hidden sm:inline">Log out</span>
           </Button>
         </div>
       </div>
