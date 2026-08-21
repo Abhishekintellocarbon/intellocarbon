@@ -5,6 +5,13 @@ import { buildEnergyMixTrend, type EnergyMixTrend } from "./energyMix.service";
 import { listCompanyTargets } from "./companyTarget.service";
 import { buildRecCoverage, type RecCoverage } from "./recCoverage.service";
 import { buildGovernanceSummary, type GovernanceSummary } from "./governanceSummary.service";
+import {
+  buildCsrdMetrics,
+  CSRD_REPORT_INCLUDE,
+  type CsrdConformityEvaluation,
+} from "./csrdCalculation.service";
+import { buildCdpMetrics, CDP_REPORT_INCLUDE } from "./cdpCalculation.service";
+import { assessCdpMaturity, type CdpMaturityAssessment } from "./cdpMaturity.service";
 import { buildSupplierScorecard, type SupplierScorecard } from "./supplierScorecard.service";
 import { buildBenchmarkSet, type BenchmarkSet } from "./sectorBenchmark.service";
 import { buildNetZeroTrajectory, type NetZeroTrajectory } from "./netZeroTrajectory.service";
@@ -26,6 +33,8 @@ import {
   BRSR_CORE_ATTRIBUTES,
   ISSB_PILLARS,
   GRI_REPORTING_REQUIREMENTS,
+  CSRD_REPORTING_REQUIREMENTS,
+  CDP_REPORTING_REQUIREMENTS,
   isRequirementMet,
   type DisclosureRequirement,
 } from "../data/esgDisclosureChecklist";
@@ -746,6 +755,90 @@ const buildGriSummary = async (
 };
 
 // ---------------------------------------------------------------------------
+// CSRD / CDP completeness
+// ---------------------------------------------------------------------------
+
+/**
+ * Same shape as scoreGriCompleteness, and for the same reason: CSRD is
+ * materiality-gated, so the fixed thing to score is the frame around the
+ * assessment rather than a set of topics every company must report.
+ *
+ * `every` across the period's facilities, exactly as GRI does — the strip
+ * exists to show what is still outstanding somewhere, not to average it away.
+ */
+const scoreCsrdCompleteness = (
+  evaluations: CsrdConformityEvaluation[],
+  periodLabel: string | null,
+): FrameworkCompleteness => {
+  if (evaluations.length === 0 || periodLabel == null) return EMPTY_COMPLETENESS(CSRD_REPORTING_REQUIREMENTS);
+
+  const every = (predicate: (e: CsrdConformityEvaluation) => boolean) => evaluations.every(predicate);
+  const materialStandards = (e: CsrdConformityEvaluation) => e.standards.filter((standard) => standard.isMaterial);
+
+  const met: Record<string, boolean> = {
+    materiality: every((e) => e.materialityAssessmentComplete),
+    esrs2: every((e) => e.missingGeneralDisclosures.length === 0),
+    // An unexplained exclusion fails this the same way having no material
+    // standard at all does — ESRS requires the determination to be stated,
+    // not merely made. Mirrors GRI's materialTopics rule.
+    materialTopics: every((e) => e.materialStandardCount > 0 && e.unexplainedExclusions.length === 0),
+    minimumDisclosures: every((e) => materialStandards(e).every((standard) => standard.minimumDisclosuresComplete)),
+    standardData: every((e) => materialStandards(e).every((standard) => standard.hasAnyData)),
+  };
+
+  const scored = CSRD_REPORTING_REQUIREMENTS.map((requirement) => ({
+    key: requirement.key,
+    label: requirement.label,
+    complete: met[requirement.key] ?? false,
+  }));
+
+  return {
+    periodLabel,
+    complete: scored.filter((r) => r.complete).length,
+    total: scored.length,
+    requirements: scored,
+  };
+};
+
+/**
+ * One requirement per required CDP module, complete when every question in it
+ * is answered at every facility reporting this period.
+ *
+ * Reads assessCdpMaturity's per-module answered/total and ignores its bands
+ * entirely. The bands are a readiness indicator, not a CDP score, and turning
+ * one into a completeness tick would quietly restate it as a grade.
+ */
+const scoreCdpCompleteness = (
+  assessments: CdpMaturityAssessment[],
+  periodLabel: string | null,
+): FrameworkCompleteness => {
+  if (assessments.length === 0 || periodLabel == null) return EMPTY_COMPLETENESS(CDP_REPORTING_REQUIREMENTS);
+
+  const scored = CDP_REPORTING_REQUIREMENTS.map((requirement) => ({
+    key: requirement.key,
+    label: requirement.label,
+    complete: assessments.every((assessment) => {
+      const module = assessment.modules.find((m) => m.moduleCode === requirement.key);
+      // A module missing from the assessment is not evidence of completeness.
+      return module != null && module.total > 0 && module.answered === module.total;
+    }),
+  }));
+
+  return {
+    periodLabel,
+    complete: scored.filter((r) => r.complete).length,
+    total: scored.length,
+    requirements: scored,
+  };
+};
+
+/** Latest submitted period, then that period's reports — the selection BRSR, ISSB and GRI all use. */
+const latestPeriodReports = <T extends { reportingPeriod: string }>(reports: T[]) => {
+  const periodLabel = reports.map((r) => r.reportingPeriod).sort((a, b) => a.localeCompare(b)).at(-1) ?? null;
+  return { periodLabel, periodReports: periodLabel ? reports.filter((r) => r.reportingPeriod === periodLabel) : [] };
+};
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -772,6 +865,8 @@ export interface EsgOverview {
     brsr: FrameworkCompleteness;
     issb: FrameworkCompleteness;
     gri: FrameworkCompleteness;
+    csrd: FrameworkCompleteness;
+    cdp: FrameworkCompleteness;
     scope3: FrameworkCompleteness;
   };
   livePosition: LivePositionItem[];
@@ -788,7 +883,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
   const facilityIds = facilities.map((f) => f.id);
   const facilityNameById = new Map(facilities.map((f) => [f.id, f.name]));
 
-  const [brsr, brsrRows, issbReports, griReports, scope3All, relevance, waterRows, offsetPurchases] = await Promise.all([
+  const [brsr, brsrRows, issbReports, griReports, scope3All, relevance, waterRows, offsetPurchases, csrdReports, cdpReports] = await Promise.all([
     getCompanyBrsrAnalytics(facilities, company),
     facilityIds.length === 0
       ? Promise.resolve([])
@@ -843,6 +938,23 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     facilityIds.length === 0
       ? Promise.resolve([])
       : prisma.voluntaryOffsetPurchase.findMany({ where: { facilityId: { in: facilityIds } } }),
+    // CSRD and CDP, on the same SUBMITTED-only terms as every framework above.
+    // Both need their full relation sets for the same reason GRI does: neither
+    // is scored from columns on the report row. CSRD conformity is evaluated
+    // from the materiality assessment and the per-standard rows, and CDP
+    // completeness from the per-module answer rows.
+    facilityIds.length === 0
+      ? Promise.resolve([])
+      : prisma.csrdReport.findMany({
+          where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
+          include: CSRD_REPORT_INCLUDE,
+        }),
+    facilityIds.length === 0
+      ? Promise.resolve([])
+      : prisma.cdpReport.findMany({
+          where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
+          include: CDP_REPORT_INCLUDE,
+        }),
   ]);
 
   const { summary: issbSummary, periodReports: issbPeriodReports, periodLabel: issbPeriod } = await buildIssbSummary(
@@ -851,6 +963,24 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
   );
 
   const { summary: griSummary, completeness: griCompleteness } = await buildGriSummary(griReports, company);
+
+  // CSRD and CDP completeness. Each is evaluated on its own latest submitted
+  // period, for the same reason BRSR and ISSB are: a company can be a year
+  // ahead on one framework and behind on another, and flattening them to a
+  // single period would misreport both.
+  const { periodLabel: csrdPeriod, periodReports: csrdPeriodReports } = latestPeriodReports(csrdReports);
+  const csrdConformity = await Promise.all(
+    csrdPeriodReports.map(async (report) =>
+      (await buildCsrdMetrics(report, { id: report.facilityId }, company)).conformity,
+    ),
+  );
+
+  const { periodLabel: cdpPeriod, periodReports: cdpPeriodReports } = latestPeriodReports(cdpReports);
+  const cdpMaturity = await Promise.all(
+    cdpPeriodReports.map(async (report) =>
+      assessCdpMaturity(report, await buildCdpMetrics(report, { id: report.facilityId }, company)),
+    ),
+  );
 
   const relevanceByCategory = new Map(relevance.map((r) => [r.prismaCategory, r.relevance as string]));
   const scope3 = buildScope3Summary(scope3All, relevanceByCategory);
@@ -1092,6 +1222,8 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),
       issb: scoreCompleteness(issbPeriodReports, ISSB_PILLARS, issbPeriod),
       gri: griCompleteness,
+      csrd: scoreCsrdCompleteness(csrdConformity, csrdPeriod),
+      cdp: scoreCdpCompleteness(cdpMaturity, cdpPeriod),
       scope3: {
         periodLabel: scope3.periodLabel,
         complete: scope3Requirements.filter((r) => r.complete).length,

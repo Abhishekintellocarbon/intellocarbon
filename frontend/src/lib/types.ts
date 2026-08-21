@@ -1736,6 +1736,8 @@ export interface EsgOverview {
     brsr: EsgFrameworkCompleteness;
     issb: EsgFrameworkCompleteness;
     gri: EsgFrameworkCompleteness;
+    csrd: EsgFrameworkCompleteness;
+    cdp: EsgFrameworkCompleteness;
     scope3: EsgFrameworkCompleteness;
   };
   livePosition: LivePositionItem[];

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, FileBarChart, Globe2, Network } from "lucide-react";
+import { ArrowRight, BadgeCheck, FileBarChart, Globe2, Landmark, Network, ScrollText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { EsgFrameworkCompleteness } from "@/lib/types";
 
@@ -13,7 +13,7 @@ import type { EsgFrameworkCompleteness } from "@/lib/types";
  * the framework pages can't disagree about what "complete" means.
  */
 
-type FrameworkKey = "brsr" | "issb" | "gri" | "scope3";
+type FrameworkKey = "brsr" | "issb" | "gri" | "csrd" | "cdp" | "scope3";
 
 interface FrameworkCard {
   key: FrameworkKey;
@@ -54,6 +54,29 @@ const FRAMEWORKS: FrameworkCard[] = [
     unitLabel: "reporting requirements",
   },
   {
+    key: "csrd",
+    title: "CSRD / ESRS",
+    subtitle: "EFRAG",
+    icon: Landmark,
+    href: "/esg/csrd",
+    // Not "standards": which of the ten topical standards apply is an output
+    // of the company's own double materiality assessment, so the fixed thing
+    // to count is the frame around it — the same reasoning as GRI above. See
+    // CSRD_REPORTING_REQUIREMENTS on the backend.
+    unitLabel: "reporting requirements",
+  },
+  {
+    key: "cdp",
+    title: "CDP Climate Change",
+    subtitle: "CDP",
+    icon: ScrollText,
+    href: "/esg/cdp",
+    // Modules, because that is how the questionnaire is structured and how a
+    // responder works through it. Optional modules are excluded, so this is
+    // completeness of the response — never a CDP score or band.
+    unitLabel: "required modules",
+  },
+  {
     key: "scope3",
     title: "Scope 3",
     subtitle: "GHG Protocol",
@@ -90,7 +113,12 @@ export function DisclosureCompletenessStrip({
         <p className="text-xs text-muted-foreground">Current financial year: {currentFyLabel}</p>
       </div>
 
-      <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Three across, not four. With four frameworks a 4-column row was
+          exactly full; at six it would leave a two-card orphan row against
+          four above it. Three divides six evenly, and the cards are content
+          cards rather than a fixed-width strip, so the extra width per card
+          goes to the outstanding-requirement list rather than to whitespace. */}
+      <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {FRAMEWORKS.map((framework) => {
           const status = completeness[framework.key];
           const outstanding = status.requirements.filter((r) => !r.complete);

@@ -1,4 +1,5 @@
 import type { BrsrCoreReport, IssbS1S2Report } from "@prisma/client";
+import { CDP_MODULES } from "./cdpQuestionnaire";
 
 /**
  * What "complete" means for each framework, expressed as the fields that have
@@ -112,3 +113,50 @@ export const GRI_REPORTING_REQUIREMENTS: GriReportingRequirement[] = [
   { key: "universal", label: "General disclosures (GRI 2)" },
   { key: "topicData", label: "Disclosure data for every material topic" },
 ];
+
+/**
+ * CSRD/ESRS and CDP reporting requirements, for the same completeness strip.
+ *
+ * Both follow GRI's shape rather than BRSR's, and for the same reason: neither
+ * has a fixed set of fields that constitutes a complete disclosure.
+ *
+ * CSRD is double-materiality gated — which of the ten topical standards a
+ * company must report is an output of its own assessment, so counting all ten
+ * would score companies against each other instead of against ESRS. What is
+ * fixed is the frame around the assessment: ESRS 2 applies to everyone, the
+ * assessment itself must be done, exclusions must carry a stated rationale,
+ * and every standard found material must satisfy its minimum disclosures and
+ * actually carry data. These map one-to-one onto evaluateConformity's
+ * blockers, so the strip and the conformity claim cannot disagree.
+ *
+ * The registry-reconciliation blocker is deliberately NOT a requirement here.
+ * It is the platform's own gap, not the preparer's (see the comment on
+ * CsrdConformityEvaluation.registryReconciled), and showing it as an
+ * outstanding disclosure would ask a customer to fix something they cannot.
+ */
+export const CSRD_REPORTING_REQUIREMENTS: GriReportingRequirement[] = [
+  { key: "materiality", label: "Double materiality assessment complete" },
+  { key: "esrs2", label: "ESRS 2 general disclosures" },
+  { key: "materialTopics", label: "Material standards identified, exclusions explained" },
+  { key: "minimumDisclosures", label: "Minimum disclosures per material standard" },
+  { key: "standardData", label: "Datapoints reported for every material standard" },
+];
+
+/**
+ * CDP is scored by module, which is how the questionnaire is actually
+ * structured and how a responder works through it. One requirement per
+ * required module, met when every question in it is answered.
+ *
+ * Derived from CDP_MODULES rather than written out, so a module added to or
+ * renamed in the questionnaire cannot leave a stale hand-maintained list
+ * behind. Optional modules are excluded, matching assessCdpMaturity's own
+ * answered/total — an untouched optional module is not a gap, and counting it
+ * would report a complete response as incomplete.
+ *
+ * Note this is completeness, never a CDP score or band. CDP scores CDP
+ * submissions; the maturity bands elsewhere in the platform are a readiness
+ * indicator and must not be restated here as a grade.
+ */
+export const CDP_REPORTING_REQUIREMENTS: GriReportingRequirement[] = CDP_MODULES.filter(
+  (module) => !module.optional,
+).map((module) => ({ key: module.code, label: `${module.label} ${module.title}` }));
