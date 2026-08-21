@@ -569,6 +569,20 @@ export type CircularitySource = "GRI_306" | "BRSR_CORE";
  * backing disclosures define diversion differently, so the rate is only
  * meaningful alongside them. See wasteCircularity.service.ts.
  */
+/**
+ * One period on the circularity trend. `facilityCount` travels with each point
+ * because a rate can move from genuine improvement or from a facility joining
+ * or leaving the reporting set — indistinguishable on a line without it.
+ */
+export interface CircularityPoint {
+  periodLabel: string;
+  generatedTonnes: number;
+  divertedTonnes: number;
+  disposalTonnes: number;
+  circularityRatePct: number;
+  facilityCount: number;
+}
+
 export interface CircularityRollup {
   hasData: boolean;
   source: CircularitySource | null;
@@ -580,6 +594,8 @@ export interface CircularityRollup {
   circularityRatePct: number | null;
   facilityCount: number;
   approximated: boolean;
+  /** Same source as the headline rate, oldest first. Never mixes GRI and BRSR periods. */
+  trend: CircularityPoint[];
 }
 
 export interface WaterFootprintRollup extends WaterFootprint {

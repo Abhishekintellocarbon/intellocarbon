@@ -192,3 +192,113 @@ describe("the source note travels with the number", () => {
     expect(CIRCULARITY_SOURCE_NOTES.BRSR_CORE).toMatch(/GRI 306/);
   });
 });
+
+/**
+ * The trend.
+ *
+ * A rate answers "where are we"; the trend answers "are we getting better",
+ * which is the question a diversion figure is usually asked. The risk it
+ * introduces is the one this whole module is built around: a line drawn across
+ * two definitions of diversion would show a step at the switchover that is a
+ * change of definition, not of performance. These tests pin that it cannot.
+ */
+describe("circularity trend", () => {
+  const griRecycled = (period: string, diverted: number, landfilled: number) =>
+    griRow({
+      reportingPeriod: period,
+      nonHazardousDivertedRecyclingT: diverted,
+      nonHazardousDisposalLandfillT: landfilled,
+    });
+
+  it("returns one point per period, oldest first, ending on the headline period", () => {
+    const result = buildCircularityRollup(
+      [griRecycled("FY2023-24", 10, 90), griRecycled("FY2024-25", 50, 50), griRecycled("FY2025-26", 80, 20)],
+      [],
+    );
+
+    expect(result.trend.map((p) => p.periodLabel)).toEqual(["FY2023-24", "FY2024-25", "FY2025-26"]);
+    expect(result.trend.map((p) => p.circularityRatePct)).toEqual([10, 50, 80]);
+    expect(result.trend.at(-1)!.periodLabel).toBe(result.periodLabel);
+    expect(result.trend.at(-1)!.circularityRatePct).toBe(result.circularityRatePct);
+  });
+
+  /**
+   * The property that matters most. A company on GRI keeps a GRI-only line
+   * even when it also has BRSR waste for earlier years — those points would
+   * be a different measurement wearing the same axis.
+   */
+  it("never mixes BRSR periods into a GRI trend", () => {
+    const result = buildCircularityRollup(
+      [griRecycled("FY2025-26", 80, 20)],
+      [
+        { reportingPeriod: "FY2023-24", wasteGeneratedTonnes: 100, wasteRecoveredTonnes: 10 },
+        { reportingPeriod: "FY2024-25", wasteGeneratedTonnes: 100, wasteRecoveredTonnes: 20 },
+      ],
+    );
+
+    expect(result.source).toBe("GRI_306");
+    expect(result.trend).toHaveLength(1);
+    expect(result.trend[0]!.periodLabel).toBe("FY2025-26");
+  });
+
+  it("builds a BRSR-only trend when BRSR is the source", () => {
+    const result = buildCircularityRollup(
+      [],
+      [
+        { reportingPeriod: "FY2024-25", wasteGeneratedTonnes: 200, wasteRecoveredTonnes: 50 },
+        { reportingPeriod: "FY2025-26", wasteGeneratedTonnes: 200, wasteRecoveredTonnes: 150 },
+      ],
+    );
+
+    expect(result.source).toBe("BRSR_CORE");
+    expect(result.trend.map((p) => p.circularityRatePct)).toEqual([25, 75]);
+  });
+
+  /** The same clamp the headline applies, so a point cannot exceed 100%. */
+  it("clamps a BRSR period reporting more recovered than generated", () => {
+    const result = buildCircularityRollup(
+      [],
+      [
+        { reportingPeriod: "FY2024-25", wasteGeneratedTonnes: 100, wasteRecoveredTonnes: 40 },
+        { reportingPeriod: "FY2025-26", wasteGeneratedTonnes: 100, wasteRecoveredTonnes: 130 },
+      ],
+    );
+
+    expect(result.trend.at(-1)!.circularityRatePct).toBe(100);
+  });
+
+  /**
+   * No waste generated is not a circularity failure, and a 0% point would read
+   * as one on the line.
+   */
+  it("omits periods with nothing generated rather than plotting them at zero", () => {
+    const result = buildCircularityRollup(
+      [griRecycled("FY2023-24", 0, 0), griRecycled("FY2024-25", 30, 70), griRecycled("FY2025-26", 60, 40)],
+      [],
+    );
+
+    expect(result.trend.map((p) => p.periodLabel)).toEqual(["FY2024-25", "FY2025-26"]);
+  });
+
+  /**
+   * Carried per point so the card can distinguish a rate that improved from
+   * one that only looks improved because a low-diversion site stopped
+   * reporting.
+   */
+  it("reports how many facilities stood behind each point", () => {
+    const result = buildCircularityRollup(
+      [
+        griRecycled("FY2024-25", 30, 70),
+        griRecycled("FY2025-26", 60, 40),
+        griRecycled("FY2025-26", 20, 80),
+      ],
+      [],
+    );
+
+    expect(result.trend.map((p) => p.facilityCount)).toEqual([1, 2]);
+  });
+
+  it("has no trend when there is no waste data at all", () => {
+    expect(buildCircularityRollup([], []).trend).toEqual([]);
+  });
+});

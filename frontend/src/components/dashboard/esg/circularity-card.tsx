@@ -1,11 +1,22 @@
 "use client";
 
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Recycle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { DashboardEmptyState } from "../shared/dashboard-empty-state";
 import { CHART_COLORS } from "../shared/dashboard-constants";
-import type { CircularityRollup } from "@/lib/types";
+import type { CircularityPoint, CircularityRollup } from "@/lib/types";
 
 const fmtT = (n: number) => `${n.toLocaleString("en-IN", { maximumFractionDigits: 1 })} t`;
 
@@ -26,6 +37,15 @@ const SOURCE_LABELS: Record<string, string> = {
  * facilities look comparable when they are measuring different things.
  */
 export function CircularityCard({ circularity }: { circularity: CircularityRollup }) {
+  // A rate that rises because a low-diversion site stopped reporting looks
+  // exactly like one that rises because diversion improved. The card cannot
+  // tell them apart either, so it says the coverage moved rather than
+  // implying the performance did.
+  const facilityCounts = circularity.trend.map((point) => point.facilityCount);
+  const minFacilities = facilityCounts.length > 0 ? Math.min(...facilityCounts) : 0;
+  const maxFacilities = facilityCounts.length > 0 ? Math.max(...facilityCounts) : 0;
+  const coverageVaries = minFacilities !== maxFacilities;
+
   const split = [
     { label: "Diverted from disposal", value: circularity.divertedTonnes, color: CHART_COLORS.teal },
     { label: "Directed to disposal", value: circularity.disposalTonnes, color: CHART_COLORS.amber },
@@ -92,6 +112,68 @@ export function CircularityCard({ circularity }: { circularity: CircularityRollu
               </dl>
             </div>
           </div>
+
+          {/* The rate on its own says where you are, not whether you are
+              getting better — which is the question a diversion figure is
+              usually asked. Rendered only from two points up: a single period
+              is the headline figure again, drawn as a dot.
+
+              Same source as the headline by construction (see the trend field
+              on CircularityRollup), so the line never steps at a change of
+              definition. */}
+          {circularity.trend.length >= 2 && (
+            <div className="mt-5 border-t border-surface-border pt-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="text-xs font-medium">Circularity rate over time</p>
+                {coverageVaries && (
+                  <p className="text-xs text-amber-500">Reporting facilities changed between periods</p>
+                )}
+              </div>
+
+              <div className="mt-3 h-44">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={circularity.trend} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#22303f" />
+                    <XAxis dataKey="periodLabel" stroke="#8AA0B4" fontSize={12} />
+                    {/* Fixed 0-100. An auto domain would zoom into a two-point
+                        range and turn a one-point move into a cliff. */}
+                    <YAxis
+                      stroke="#8AA0B4"
+                      fontSize={12}
+                      width={44}
+                      domain={[0, 100]}
+                      tickFormatter={(v: number) => `${v}%`}
+                    />
+                    <Tooltip
+                      formatter={(value, _name, entry) => {
+                        const point = entry.payload as CircularityPoint;
+                        return [
+                          `${Number(value)}% — ${fmtT(point.divertedTonnes)} of ${fmtT(point.generatedTonnes)}`,
+                          `${point.facilityCount} ${point.facilityCount === 1 ? "facility" : "facilities"}`,
+                        ];
+                      }}
+                      contentStyle={{ background: "#162230", border: "1px solid #22303f", borderRadius: 8, fontSize: 12 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="circularityRatePct"
+                      name="Circularity rate"
+                      stroke={CHART_COLORS.teal}
+                      strokeWidth={2}
+                      dot={{ r: 3 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {coverageVaries && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Between {minFacilities} and {maxFacilities} facilities reported waste across these periods, so part
+                  of any movement is a change in what was counted rather than in how much was diverted.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* The number is never shown without saying what it counted. */}
           <div className="mt-5 border-t border-surface-border pt-4">
