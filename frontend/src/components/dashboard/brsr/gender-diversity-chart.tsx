@@ -27,8 +27,15 @@ export function GenderDiversityChart({ gender }: { gender: CompanyBrsrGenderDive
       </div>
 
       {hasValues ? (
-        <div className="mt-4 flex flex-col items-center gap-6 sm:flex-row">
-          <div className="relative h-56 w-56 shrink-0">
+        <div className="mt-4 flex flex-col items-center gap-6 lg:flex-row">
+          {/* lg, not sm. These cards sit in a two-column grid, so at sm the
+              card is about half of 592px and its content box ~238px — narrower
+              than the donut beside it, which is a fixed w-56/w-64 and shrink-0.
+              The list could not shrink either (a flex child defaults to
+              min-width:auto, now min-w-0), so the row overflowed its card and
+              the page scrolled sideways from 640px up. Side by side starts
+              once the card is actually wide enough for both. */}
+          <div className="relative h-56 w-56 max-w-full shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={segments} dataKey="value" nameKey="label" innerRadius="65%" outerRadius="95%" paddingAngle={2} strokeWidth={0}>
@@ -48,7 +55,7 @@ export function GenderDiversityChart({ gender }: { gender: CompanyBrsrGenderDive
             </div>
           </div>
 
-          <ul className="flex-1 space-y-3">
+          <ul className="min-w-0 flex-1 space-y-3">
             {segments.map((s) => (
               <li key={s.label} className="flex items-center justify-between gap-4 text-sm">
                 <span className="flex items-center gap-2">

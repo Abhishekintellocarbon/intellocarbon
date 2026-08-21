@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
-import { Button } from "@/components/ui/button";
 import { LiveClock } from "@/components/layout/live-clock";
+import { AppMenu } from "@/components/layout/app-menu";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
@@ -77,10 +76,20 @@ export function AppHeader() {
               exactly this case, so the display:none copy cannot win the
               url(#id) lookup and blank the visible mark. See logo.tsx. */}
           <Link href={(user && HOME_HREF[user.role]) || "/dashboard"} className="shrink-0">
-            <Logo size="md" dimensional className="sm:hidden" />
+            <Logo
+              size="md"
+              dimensional
+              /* Below 360px the wordmark goes too and the mark stands alone: at 320
+                 the row was still 22px over, and the wordmark is 186 of the 228 the
+                 lockup takes. Same arbitrary-variant idiom SIZE_STYLES already uses
+                 to resize the mark responsively — see markResponsive3d in logo.tsx. */
+              className="sm:hidden max-[359px]:[&>span]:hidden"
+            />
             <Logo size="lg" dimensional className="hidden sm:flex" />
           </Link>
-          <nav className="hidden items-center gap-1 sm:flex">
+          {/* xl and up only. Below that the same links live in AppMenu — see the
+              width arithmetic in that file for why this cannot be sm. */}
+          <nav className="hidden items-center gap-1 xl:flex">
             {allNavLinks.map((link) => {
               const activePrefix = ("activeFor" in link && link.activeFor) || link.href;
               const active = pathname === activePrefix || pathname.startsWith(`${activePrefix}/`);
@@ -102,27 +111,20 @@ export function AppHeader() {
           </nav>
         </div>
         <div className="flex items-center gap-2.5 sm:gap-4">
-          {/* Hidden below sm, matching the breakpoint reference in
-              marketing-header: "< 640px — Logo + hamburger. No clock." The
-              clock is the one item here with no action attached to it, so it
-              is the right thing to drop when the row is tightest; the bell and
-              log-out both stay, at every width. */}
-          <div className="hidden sm:block">
+          {/* md and up. marketing-header's reference drops the clock below sm;
+              this header carries a menu button the marketing one does not, so
+              it needs the width back one breakpoint earlier. The clock is
+              still the right thing to drop first — it is the only item here
+              with no action attached to it. */}
+          <div className="hidden md:block">
             <LiveClock />
           </div>
           {user?.role !== "VERIFIER" && user?.role !== "DATA_ENTRY_INTERNAL" && <NotificationBell />}
-          <span className="hidden text-sm text-muted-foreground sm:inline">{user?.email}</span>
-          {/* Icon-only below sm. The label is 58px of the actions group, and
-              dropping it is what brings the row inside a 360px viewport —
-              the door-out-of-a-box icon carries the meaning on its own at
-              phone width. aria-label is unconditional so the button keeps its
-              accessible name in the icon-only state; the visible text is
-              redundant with it from sm up, which is why the label is a span
-              rather than a second aria-label. */}
-          <Button variant="secondary" size="sm" onClick={handleLogout} aria-label="Log out">
-            <LogOut className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Log out</span>
-          </Button>
+          {/* The account email and the log-out button used to sit inline here.
+              Both moved into AppMenu because the row could not hold them: with
+              the nav inline the email had an 82px budget against a 207px need,
+              which is what made every width from 640px to 1280px scroll. */}
+          <AppMenu links={allNavLinks} email={user?.email} onLogout={handleLogout} />
         </div>
       </div>
     </header>
