@@ -11,6 +11,12 @@ import {
   type CsrdConformityEvaluation,
 } from "./csrdCalculation.service";
 import { buildCdpMetrics, CDP_REPORT_INCLUDE } from "./cdpCalculation.service";
+import {
+  buildCompanyProductFootprint,
+  buildProductFootprint,
+  type CompanyProductFootprint,
+} from "./productFootprint.service";
+import { resolveFyWindow, rollupFacilityGhgForFy } from "./brsrCalculation.service";
 import { assessCdpMaturity, type CdpMaturityAssessment } from "./cdpMaturity.service";
 import { buildSupplierScorecard, type SupplierScorecard } from "./supplierScorecard.service";
 import { buildBenchmarkSet, type BenchmarkSet } from "./sectorBenchmark.service";
@@ -839,6 +845,71 @@ const latestPeriodReports = <T extends { reportingPeriod: string }>(reports: T[]
 };
 
 // ---------------------------------------------------------------------------
+// Product footprint
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-SKU allocation for every facility, on the latest period any of them has
+ * submitted products for.
+ *
+ * One GHG rollup per facility, not per SKU — the allocation divides a site's
+ * total Scope 1 and 2, so the emissions query is per site regardless of how
+ * many products it lists. Facilities with no products for the period are
+ * skipped before the rollup runs, so a company that uses the module at one
+ * site out of twenty pays for one query, not twenty.
+ */
+const buildCompanyFootprint = async (
+  facilities: { id: string; name: string }[],
+  company: { reportingFyStartMonth: number },
+): Promise<CompanyProductFootprint> => {
+  const facilityIds = facilities.map((f) => f.id);
+  if (facilityIds.length === 0) return buildCompanyProductFootprint(null, []);
+
+  const skus = await prisma.productSku.findMany({
+    where: { facilityId: { in: facilityIds }, status: "SUBMITTED" },
+    orderBy: { name: "asc" },
+  });
+
+  // Same latest-period selection as every other framework here.
+  const periodLabel = skus.map((s) => s.reportingPeriod).sort((a, b) => a.localeCompare(b)).at(-1) ?? null;
+  if (periodLabel == null) return buildCompanyProductFootprint(null, []);
+
+  const periodSkus = skus.filter((s) => s.reportingPeriod === periodLabel);
+  const byFacility = new Map<string, typeof periodSkus>();
+  for (const sku of periodSkus) {
+    byFacility.set(sku.facilityId, [...(byFacility.get(sku.facilityId) ?? []), sku]);
+  }
+
+  const window = resolveFyWindow(periodLabel, company.reportingFyStartMonth);
+  const perFacility = await Promise.all(
+    facilities
+      .filter((facility) => byFacility.has(facility.id))
+      .map(async (facility) => {
+        const ghg = await rollupFacilityGhgForFy(facility.id, window);
+        return {
+          facilityId: facility.id,
+          facilityName: facility.name,
+          allocation: buildProductFootprint(
+            periodLabel,
+            ghg.totalCo2e,
+            (byFacility.get(facility.id) ?? []).map((s) => ({
+              id: s.id,
+              name: s.name,
+              skuCode: s.skuCode,
+              productionQuantity: s.productionQuantity,
+              unit: s.unit,
+            })),
+            ghg.productionQuantityT > 0 ? ghg.productionQuantityT : null,
+            "tonnes",
+          ),
+        };
+      }),
+  );
+
+  return buildCompanyProductFootprint(periodLabel, perFacility);
+};
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -860,6 +931,7 @@ export interface EsgOverview {
   benchmarks: BenchmarkSet;
   trajectory: NetZeroTrajectory;
   ecovadis: EcovadisReadiness;
+  productFootprint: CompanyProductFootprint;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: FrameworkCompleteness;
@@ -968,6 +1040,8 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
   // period, for the same reason BRSR and ISSB are: a company can be a year
   // ahead on one framework and behind on another, and flattening them to a
   // single period would misreport both.
+  const productFootprint = await buildCompanyFootprint(facilities, company);
+
   const { periodLabel: csrdPeriod, periodReports: csrdPeriodReports } = latestPeriodReports(csrdReports);
   const csrdConformity = await Promise.all(
     csrdPeriodReports.map(async (report) =>
@@ -1217,6 +1291,7 @@ export const getEsgOverview = async (userId: string, now: Date = new Date()): Pr
     benchmarks,
     trajectory,
     ecovadis,
+    productFootprint,
     offsets: buildOffsetsSummary(offsetPurchases, summariseOffsets(offsetPurchases), issbSummary),
     completeness: {
       brsr: scoreCompleteness(brsrPeriodRows, BRSR_CORE_ATTRIBUTES, brsrPeriod),

@@ -173,3 +173,91 @@ export const PRODUCT_FOOTPRINT_NOTICE =
   "Volume allocation also assumes every product is equally emissions-intensive per unit, so a complex or " +
   "energy-heavy line is understated and a simple one overstated. Do not use these figures for a customer product " +
   "declaration, an EPD or a CBAM submission.";
+
+// ---------------------------------------------------------------------------
+// Company-level rollup
+// ---------------------------------------------------------------------------
+
+export interface CompanySkuFootprint extends SkuFootprint {
+  facilityId: string;
+  facilityName: string;
+}
+
+export interface CompanyProductFootprint {
+  hasData: boolean;
+  periodLabel: string | null;
+  /** Sum of what was allocated at each site. A sum of tonnes is meaningful; a sum of per-unit figures is not. */
+  totalAllocatedTco2e: number;
+  skuCount: number;
+  /** Sites that produced an allocation, and sites that listed products at all. */
+  facilitiesAllocated: number;
+  facilitiesWithSkus: number;
+  rows: CompanySkuFootprint[];
+  unavailableReason: string | null;
+}
+
+/**
+ * The same allocation as buildProductFootprint, run per facility and then
+ * listed together for the company view.
+ *
+ * Deliberately NOT an aggregation. Allocation is only defined inside a
+ * facility — it divides that site's own Scope 1 and 2 across that site's
+ * output — so the rollup runs the calculation once per site and concatenates
+ * the results. Nothing is averaged across sites and nothing is merged.
+ *
+ * In particular, the same product made at two facilities stays as two rows.
+ * Merging them would need a weighted mean of two per-unit figures derived from
+ * two different emissions bases, which would read as one measured number for
+ * the product while being an average of two indicative ones. Two rows, each
+ * naming its site, states what is actually known.
+ *
+ * `allocationSharePct` on each row therefore remains a share of its own
+ * facility, not of the company — the caller has to label it as such, because
+ * the column does not sum to 100 across a multi-site table.
+ */
+export const buildCompanyProductFootprint = (
+  periodLabel: string | null,
+  perFacility: {
+    facilityId: string;
+    facilityName: string;
+    allocation: ProductFootprintAllocation;
+  }[],
+): CompanyProductFootprint => {
+  const withSkus = perFacility.filter((f) => f.allocation.skus.length > 0 || f.allocation.unavailableReason != null);
+  const allocated = perFacility.filter((f) => f.allocation.hasData);
+
+  const rows: CompanySkuFootprint[] = allocated
+    .flatMap((f) => f.allocation.skus.map((sku) => ({ ...sku, facilityId: f.facilityId, facilityName: f.facilityName })))
+    .sort((a, b) => b.allocatedTco2e - a.allocatedTco2e);
+
+  if (rows.length === 0) {
+    return {
+      hasData: false,
+      periodLabel,
+      totalAllocatedTco2e: 0,
+      skuCount: 0,
+      facilitiesAllocated: 0,
+      facilitiesWithSkus: withSkus.length,
+      rows: [],
+      // The single most common blocker, surfaced verbatim rather than
+      // rewritten, so the company view and the facility view give the same
+      // reason for the same gap. Only when every site agrees on it — otherwise
+      // there is no one reason to state.
+      unavailableReason:
+        withSkus.length > 0 && new Set(withSkus.map((f) => f.allocation.unavailableReason)).size === 1
+          ? withSkus[0]!.allocation.unavailableReason
+          : null,
+    };
+  }
+
+  return {
+    hasData: true,
+    periodLabel,
+    totalAllocatedTco2e: round(rows.reduce((sum, r) => sum + r.allocatedTco2e, 0), 2),
+    skuCount: rows.length,
+    facilitiesAllocated: allocated.length,
+    facilitiesWithSkus: withSkus.length,
+    rows,
+    unavailableReason: null,
+  };
+};

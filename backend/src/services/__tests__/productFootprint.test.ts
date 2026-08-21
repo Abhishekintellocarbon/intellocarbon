@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildCompanyProductFootprint,
   buildProductFootprint,
   PRODUCT_FOOTPRINT_NOTICE,
   type SkuInput,
@@ -159,3 +160,100 @@ describe("the notice does the work the number cannot", () => {
 function round3(n: number) {
   return Math.round(n * 100) / 100;
 }
+
+/**
+ * The company-level rollup.
+ *
+ * Allocation is only defined inside a facility — it divides one site's Scope 1
+ * and 2 across that site's output. Every property below exists to stop the
+ * rollup quietly becoming an aggregation, which is the one way this view could
+ * turn indicative per-site figures into a confident company-wide number that
+ * nothing computed.
+ */
+describe("buildCompanyProductFootprint", () => {
+  const alloc = (emissions: number, skus: { id: string; name: string; qty: number }[]) =>
+    buildProductFootprint(
+      "FY2025-26",
+      emissions,
+      skus.map((s) => ({ id: s.id, name: s.name, skuCode: null, productionQuantity: s.qty, unit: "tonnes" })),
+      null,
+      "tonnes",
+    );
+
+  const twoSites = () =>
+    buildCompanyProductFootprint("FY2025-26", [
+      {
+        facilityId: "f1",
+        facilityName: "Chakan Works",
+        allocation: alloc(1000, [{ id: "a", name: "Rebar 12mm", qty: 500 }]),
+      },
+      {
+        facilityId: "f2",
+        facilityName: "Pune Works",
+        // Same product, half the emissions for the same output — so a merged
+        // per-unit figure would be neither site's number.
+        allocation: alloc(500, [{ id: "b", name: "Rebar 12mm", qty: 500 }]),
+      },
+    ]);
+
+  it("keeps the same product at two facilities as two rows, each naming its site", () => {
+    const result = twoSites();
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows.map((r) => r.facilityName).sort()).toEqual(["Chakan Works", "Pune Works"]);
+    // Not averaged into a single 1.5 t/t figure.
+    expect(result.rows.map((r) => r.perUnitKgCo2e).sort((a, b) => a - b)).toEqual([1000, 2000]);
+  });
+
+  it("sums tonnes across sites but never per-unit figures", () => {
+    const result = twoSites();
+    expect(result.totalAllocatedTco2e).toBe(1500);
+    expect(result).not.toHaveProperty("perUnitKgCo2e");
+  });
+
+  it("counts sites that produced an allocation, not products", () => {
+    const result = twoSites();
+    expect(result.facilitiesAllocated).toBe(2);
+    expect(result.skuCount).toBe(2);
+  });
+
+  /**
+   * Shares are computed against each site's own output, so they sum to 100 per
+   * site and to 100 * siteCount down the table. The card heads the column
+   * "Share of site" for exactly this reason; this pins the arithmetic the
+   * label describes.
+   */
+  it("leaves each row's share relative to its own facility", () => {
+    const result = twoSites();
+    expect(result.rows.every((r) => r.allocationSharePct === 100)).toBe(true);
+  });
+
+  it("reports no data, and no invented reason, when no site has an allocation", () => {
+    const result = buildCompanyProductFootprint(null, []);
+    expect(result.hasData).toBe(false);
+    expect(result.rows).toEqual([]);
+    expect(result.totalAllocatedTco2e).toBe(0);
+    expect(result.unavailableReason).toBeNull();
+  });
+
+  /**
+   * One shared reason is worth surfacing; two different ones are not, because
+   * there is then no single thing for the reader to go and fix.
+   */
+  it("passes through a blocker only when every site gives the same one", () => {
+    const noSkus = alloc(1000, []);
+    const same = buildCompanyProductFootprint("FY2025-26", [
+      { facilityId: "f1", facilityName: "A", allocation: noSkus },
+      { facilityId: "f2", facilityName: "B", allocation: noSkus },
+    ]);
+    expect(same.unavailableReason).toBe(noSkus.unavailableReason);
+    expect(same.unavailableReason).not.toBeNull();
+
+    const differing = buildCompanyProductFootprint("FY2025-26", [
+      { facilityId: "f1", facilityName: "A", allocation: noSkus },
+      // Products listed, but no emissions to divide — a different blocker.
+      { facilityId: "f2", facilityName: "B", allocation: alloc(0, [{ id: "a", name: "Rebar", qty: 10 }]) },
+    ]);
+    expect(differing.unavailableReason).toBeNull();
+    expect(differing.facilitiesWithSkus).toBe(2);
+  });
+});

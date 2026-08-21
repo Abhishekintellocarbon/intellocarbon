@@ -23,6 +23,7 @@ import { SupplierScorecardCard } from "@/components/dashboard/esg/supplier-score
 import { SectorBenchmarkCard } from "@/components/dashboard/esg/sector-benchmark-card";
 import { NetZeroTrajectoryCard } from "@/components/dashboard/esg/net-zero-trajectory-card";
 import { EcovadisReadinessCard } from "@/components/dashboard/esg/ecovadis-readiness-card";
+import { CompanyProductFootprintCard } from "@/components/dashboard/esg/company-product-footprint-card";
 import { OffsetsSummaryCard } from "@/components/dashboard/esg/offsets-summary-card";
 import { WaterTrendChart } from "@/components/dashboard/brsr/water-trend-chart";
 import { WasteTrendChart } from "@/components/dashboard/brsr/waste-trend-chart";
@@ -284,6 +285,22 @@ function EsgOverviewContent() {
 
               <div className="mt-4">
                 <SectorBenchmarkCard benchmarks={overview.benchmarks} />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold">Product footprint</h2>
+                <span className="text-xs text-muted-foreground">Indicative allocation, not an LCA</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your facilities&apos; own Scope 1 and 2 emissions divided across the products they make, by share of
+                output. A starting point for a customer asking &ldquo;what is the footprint of this product&rdquo; —
+                not an answer to it, and not a substitute for a life cycle assessment.
+              </p>
+
+              <div className="mt-4">
+                <CompanyProductFootprintCard footprint={overview.productFootprint} />
               </div>
             </section>
 

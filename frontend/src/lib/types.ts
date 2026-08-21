@@ -319,6 +319,27 @@ export interface ProductFootprintAllocation {
   unavailableReason: string | null;
 }
 
+export interface CompanySkuFootprint extends SkuFootprint {
+  facilityId: string;
+  facilityName: string;
+}
+
+/**
+ * Per-SKU allocation across every facility. Not an aggregation — the same
+ * product made at two sites stays as two rows, because allocation is only
+ * defined inside a facility. See productFootprint.service.ts.
+ */
+export interface CompanyProductFootprint {
+  hasData: boolean;
+  periodLabel: string | null;
+  totalAllocatedTco2e: number;
+  skuCount: number;
+  facilitiesAllocated: number;
+  facilitiesWithSkus: number;
+  rows: CompanySkuFootprint[];
+  unavailableReason: string | null;
+}
+
 export interface TrajectoryPoint {
   year: number;
   /** Null for every year without submitted data, including all future years. */
@@ -1731,6 +1752,7 @@ export interface EsgOverview {
   benchmarks: BenchmarkSet;
   trajectory: NetZeroTrajectory;
   ecovadis: EcovadisReadiness;
+  productFootprint: CompanyProductFootprint;
   offsets: OffsetsOverviewSummary;
   completeness: {
     brsr: EsgFrameworkCompleteness;
