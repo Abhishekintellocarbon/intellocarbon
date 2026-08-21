@@ -30,6 +30,10 @@ const STATUS_STYLES: Record<string, string> = {
 
 interface ComparisonRow {
   label: string;
+  /** Scoping qualifier shown under the label — for rows that don't apply to
+   *  every subscriber on the plan. Kept as a second line rather than folded
+   *  into the label so the tick columns stay readable at table width. */
+  note?: string;
   ccts: boolean;
   cbam: boolean;
   both: boolean;
@@ -44,6 +48,16 @@ const COMPARISON_FEATURES: ComparisonRow[] = [
   { label: "Financial liability in Euros", ccts: false, cbam: true, both: true },
   { label: "EU default value comparison", ccts: false, cbam: true, both: true },
   { label: "Article 9 deduction", ccts: false, cbam: true, both: true },
+  // A bundled CBAM feature, not a tier of its own — it ticks the CBAM columns
+  // like any other line here and must never become its own plan or price. The
+  // note carries the two limits: steel only, and NISST certifies, not us.
+  {
+    label: "Green Steel Taxonomy assessment",
+    note: "Steel-sector clients only. Prepares the calculation for NISST certification — NISST issues it.",
+    ccts: false,
+    cbam: true,
+    both: true,
+  },
   { label: "Verification portal", ccts: true, cbam: true, both: true },
   { label: "O3CI submission ready", ccts: false, cbam: true, both: true },
   { label: "Quarterly deadline alerts", ccts: true, cbam: true, both: true },
@@ -586,7 +600,10 @@ function BillingContent() {
               <tbody>
                 {COMPARISON_FEATURES.map((row, i) => (
                   <tr key={row.label} className={i % 2 === 0 ? "bg-transparent" : "bg-surface-raised/40"}>
-                    <td className="px-5 py-3 text-foreground/90">{row.label}</td>
+                    <td className="px-5 py-3 text-foreground/90">
+                      {row.label}
+                      {row.note && <span className="mt-0.5 block text-xs text-muted-foreground">{row.note}</span>}
+                    </td>
                     <td className="px-5 py-3">
                       <ComparisonMark ok={row.ccts} />
                     </td>

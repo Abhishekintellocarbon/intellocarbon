@@ -71,6 +71,12 @@ const PILLARS = [
 // sub-items rather than promoted to a fourth pillar alongside CBAM/CCTS/ESG.
 const ESG_FRAMEWORKS = ["BRSR Core (SEBI)", "ISSB IFRS S1/S2", "GRI Standards 2021", "Scope 3 value chain"];
 
+// Calculation standards only — the strip's own subtitle promises every entry
+// traces back to published regulation. EcoVadis was considered here and left
+// out deliberately: it is a private ratings provider, not a standard anything
+// on this platform calculates against, and the bundle only claims readiness
+// against its themes. Listing it under this heading would overclaim. Its
+// correct homes are the ESG bundle list on /esg and the FAQ, where it already is.
 const STANDARDS = [
   { label: "EU CBAM Regulation 2023/956", dot: "#00D4AA" },
   { label: "BEE CCTS S.O. 2825(E)", dot: "#4A9EFF" },
@@ -128,6 +134,13 @@ const FOOTER_LINKS = {
   // and ESG is the correct top-level entry for it anyway. The term is still
   // carried by /products/esg-brsr, the ESG hub and the services dropdown, so
   // nothing is lost from search. Keep every item at the same level.
+  // Green Steel Taxonomy was considered for this column and left out: it has
+  // no page of its own — it is a section inside /products/cbam-compliance —
+  // so it could only appear as a sub-item under CBAM, which is exactly the
+  // indented-row problem described above. It is also steel-only, and a
+  // site-wide footer slot would give it more weight than a bundled,
+  // single-sector feature earns. It is surfaced on the homepage offerings
+  // grid, the CBAM product page, /services, /billing and the FAQ instead.
   platform: [
     { label: "CBAM", href: "/products/cbam-compliance" },
     { label: "CCTS", href: "/products/ccts-carbon-markets" },
