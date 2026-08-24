@@ -1852,6 +1852,8 @@ export interface AdminOverview {
 export interface AdminCompanySummary {
   id: string;
   name: string;
+  /** Sales/investor demo account, excluded from every aggregate. Badged in the list. */
+  isDemoAccount: boolean;
   registrationNumber: string | null;
   gstin: string | null;
   sector: Sector;

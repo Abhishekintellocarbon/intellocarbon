@@ -160,6 +160,21 @@ model Company {
   isPatDesignatedConsumer Boolean   @default(false)
   onboardingCompletedAt   DateTime?
 
+  // Sales/investor demonstration account, not a real customer. Seeded by
+  // scripts/seedDemoAccounts.ts and nothing else — no signup path can set it.
+  //
+  // Every cross-company aggregate MUST exclude these rows. A demo company
+  // carries a full year of fabricated activity data and an ACTIVE
+  // subscription it never paid for, so counting one inflates headline company
+  // /user/report counts and invents MRR that will never be collected. The
+  // exclusions live in adminOverview.service.ts and adminRevenue.service.ts;
+  // anything new that counts across tenants belongs on that list too.
+  //
+  // Sector benchmarking is deliberately NOT on that list: it derives from
+  // CctsObligatedEntity gazette rows, never from customer companies, so demo
+  // data cannot reach the one cross-company number real users are shown.
+  isDemoAccount           Boolean   @default(false)
+
   // Which CBAM regimes this company is in scope for. A set rather than a
   // single value or a second boolean: EU and UK CBAM are independent
   // obligations a company can hold either, both, or neither of, and a third

@@ -16,6 +16,12 @@ const monthlyValueOf = (s: SubscriptionWithCompany) => s.company._count.faciliti
 
 export const getAdminRevenue = async () => {
   const subscriptions = (await prisma.subscription.findMany({
+    // Demo accounts hold ACTIVE subscriptions they never paid a rupee for.
+    // Counting them would invent MRR and ARR that can never be collected, so
+    // they are excluded from revenue reporting entirely — not just from the
+    // headline totals, but from the plan distribution and the subscription
+    // table too, so no revenue surface disagrees with another.
+    where: { company: { isDemoAccount: false } },
     include: {
       company: {
         select: { name: true, owner: { select: { email: true } }, _count: { select: { facilities: true } } },

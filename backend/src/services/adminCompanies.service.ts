@@ -27,6 +27,10 @@ export const listCompanies = async () => {
     return {
       id: c.id,
       name: c.name,
+      // Surfaced so the Super Admin list can badge these rows. They are
+      // already excluded from every aggregate (see the Company schema note);
+      // this is so a human reading the table can see it too.
+      isDemoAccount: c.isDemoAccount,
       registrationNumber: c.registrationNumber,
       gstin: c.gstin,
       sector: c.sector,

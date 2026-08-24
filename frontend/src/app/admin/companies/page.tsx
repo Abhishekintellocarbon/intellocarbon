@@ -57,6 +57,14 @@ function AdminCompaniesContent() {
                       <Link href={`/admin/companies/${c.id}`} className="font-medium text-foreground hover:text-teal-500">
                         {c.name}
                       </Link>
+                      {/* Demo accounts are already excluded from every aggregate in
+                          the services; this is so nobody reading the table mistakes
+                          one for a customer. */}
+                      {c.isDemoAccount && (
+                        <span className="ml-2 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+                          Demo
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-3 text-muted-foreground">{c.registrationNumber ?? "—"}</td>
                     <td className="px-5 py-3 text-muted-foreground">{c.gstin ?? "—"}</td>

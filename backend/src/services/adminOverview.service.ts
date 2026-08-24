@@ -1,10 +1,18 @@
 import { prisma } from "../config/prisma";
 
+// Demo/investor-demonstration companies are excluded from every headline
+// metric. Each one carries a fabricated year of activity data, so counting
+// them overstates companies, users and reports alike. `user.count` filters on
+// the owned company rather than the user directly: a demo company's owner is
+// the only user it has, and users with no company at all (verifiers, internal
+// operators, super admins) must still be counted.
+const EXCLUDE_DEMO = { isDemoAccount: false } as const;
+
 export const getOverviewMetrics = async () => {
   const [totalCompanies, totalUsers, totalReports, totalLeadCaptures] = await Promise.all([
-    prisma.company.count(),
-    prisma.user.count(),
-    prisma.report.count(),
+    prisma.company.count({ where: EXCLUDE_DEMO }),
+    prisma.user.count({ where: { OR: [{ company: null }, { company: EXCLUDE_DEMO }] } }),
+    prisma.report.count({ where: { company: EXCLUDE_DEMO } }),
     prisma.leadCapture.count(),
   ]);
   return { totalCompanies, totalUsers, totalReports, totalLeadCaptures };
