@@ -350,35 +350,54 @@ export const deleteMyAccount = async (userId: string, password: string) => {
 
   const companyDataRetainedForCompliance = Boolean(user.company?.appliesCbam);
 
-  if (user.company && !companyDataRetainedForCompliance) {
-    await prisma.company.delete({ where: { id: user.company.id } });
-  }
-
   const anonymizedEmail = `deleted-${user.id}@deleted.intellocarbon.invalid`;
+  // Hashing is deliberately done before the transaction opens — bcrypt takes
+  // hundreds of milliseconds, and holding a write transaction open across it
+  // would pin the company's rows for no reason.
   const unusablePasswordHash = await hashPassword(randomBytes(32).toString("hex"));
 
-  await prisma.$transaction([
-    prisma.refreshToken.deleteMany({ where: { userId } }),
-    prisma.passwordResetToken.deleteMany({ where: { userId } }),
-    // LeadCapture isn't FK-linked to User (it's pre-signup IntelloCalc tool
-    // usage), but rows matching this email are the same person's personal
-    // data and aren't covered by any CBAM retention requirement.
-    prisma.leadCapture.updateMany({
-      where: { email: user.email },
-      data: { name: null, email: anonymizedEmail, company: null, phone: null },
-    }),
-    prisma.user.update({
-      where: { id: userId },
-      data: {
-        name: "Deleted user",
-        email: anonymizedEmail,
-        passwordHash: unusablePasswordHash,
-        companyName: null,
-        active: false,
-        emailVerified: false,
-      },
-    }),
-  ]);
+  // Company deletion and user anonymisation are one atomic unit. They used to
+  // be two steps — company.delete() first, then a separate $transaction for
+  // the user — which meant a failure in between left the worst possible state:
+  // the company and all its data gone, but the user row untouched, still
+  // holding a working password and their real email address. That user could
+  // log straight back in to an account whose data had been erased, and their
+  // personal data would still be on file after a deletion request they were
+  // told had succeeded.
+  //
+  // Interactive (callback) form rather than the array form because the company
+  // delete is conditional, and because the array form can't take a timeout:
+  // deleting a Company cascades across ~109 relations and a large account can
+  // comfortably exceed Prisma's 5s default.
+  await prisma.$transaction(
+    async (tx) => {
+      if (user.company && !companyDataRetainedForCompliance) {
+        await tx.company.delete({ where: { id: user.company.id } });
+      }
+
+      await tx.refreshToken.deleteMany({ where: { userId } });
+      await tx.passwordResetToken.deleteMany({ where: { userId } });
+      // LeadCapture isn't FK-linked to User (it's pre-signup IntelloCalc tool
+      // usage), but rows matching this email are the same person's personal
+      // data and aren't covered by any CBAM retention requirement.
+      await tx.leadCapture.updateMany({
+        where: { email: user.email },
+        data: { name: null, email: anonymizedEmail, company: null, phone: null },
+      });
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: "Deleted user",
+          email: anonymizedEmail,
+          passwordHash: unusablePasswordHash,
+          companyName: null,
+          active: false,
+          emailVerified: false,
+        },
+      });
+    },
+    { timeout: 30_000 },
+  );
 
   return { companyDataRetainedForCompliance };
 };
