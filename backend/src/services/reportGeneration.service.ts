@@ -2,7 +2,7 @@ import type { CbamFramework, ReportType, SubscriptionTier } from "@prisma/client
 import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { requireOwnedFacility } from "./facility.service";
-import { generateReportPdf, type ReportContext } from "./report.service";
+import { generateReportPdf, loadReportContext } from "./report.service";
 import { buildBrsrCoreMetrics } from "./brsrCalculation.service";
 import { buildBrsrCorePdf } from "./brsrReport/build";
 import { logFacilityAudit } from "./auditLog.service";
@@ -171,29 +171,32 @@ export const generateReport = async (userId: string, facilityId: string, reportT
   }
 
   if (reportType === "CBAM" || reportType === "CCTS" || reportType === "UK_CBAM") {
-    const activityData = await prisma.activityData.findFirst({
+    // Resolve *which* entry this period's report is built from here, but load
+    // it through loadReportContext rather than re-querying it.
+    //
+    // This used to run its own findFirst with its own include, and that include
+    // omitted fuelEntries, processMaterialEntries and precursorEntries — which
+    // every CBAM/CCTS/UK CBAM builder dereferences. An `as unknown as
+    // ReportContext` cast defeated the type error that would have caught it, so
+    // the mistake surfaced only at runtime, as a TypeError inside the PDF
+    // builder. Two queries claiming to produce the same context is the actual
+    // defect; there is now one loader, and the cast is gone with it.
+    const candidate = await prisma.activityData.findFirst({
       where: {
         facilityId,
         status: "SUBMITTED",
         calculationResult: { isNot: null },
         periodEnd: { gte: period.dataRangeStart, lte: period.dataRangeEnd },
       },
-      include: {
-        facility: { include: { company: { include: { owner: true } } } },
-        calculationResult: true,
-        verificationRequest: { include: { verifier: true } },
-      },
+      select: { id: true },
       orderBy: { periodEnd: "desc" },
     });
 
-    if (!activityData) {
+    if (!candidate) {
       throw AppError.badRequest(`No submitted activity data found for ${period.displayLabel} yet`, "NO_ACTIVITY_DATA_FOR_PERIOD");
     }
 
-    const ctx = {
-      ...activityData,
-      facility: { ...activityData.facility, productionRoute: activityData.facility.productionRoute ?? "OTHER" },
-    } as unknown as ReportContext;
+    const ctx = await loadReportContext(userId, facilityId, candidate.id);
 
     pdfDoc = await generateReportPdf(ctx, reportType);
   } else {
