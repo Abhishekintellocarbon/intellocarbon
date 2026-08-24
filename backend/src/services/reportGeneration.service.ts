@@ -5,6 +5,10 @@ import { requireOwnedFacility } from "./facility.service";
 import { generateReportPdf, loadReportContext } from "./report.service";
 import { buildBrsrCoreMetrics } from "./brsrCalculation.service";
 import { buildBrsrCorePdf } from "./brsrReport/build";
+import { buildGriPdf } from "./griReport/build";
+import { buildCsrdPdf } from "./csrdReport/build";
+import { getGriReportContextById } from "./gri.service";
+import { getCsrdReportContextById } from "./csrd.service";
 import { logFacilityAudit } from "./auditLog.service";
 import { loadReportPhase2Data } from "./reportSections/phase2Data";
 import {
@@ -84,7 +88,9 @@ const hasUncrossCheckedEvidence = async (facilityId: string): Promise<boolean> =
   return uncheckedCount > 0;
 };
 
-const REPORT_TYPES: ReportType[] = ["CBAM", "UK_CBAM", "CCTS", "BRSR"];
+// Exported so the generate-report validator can be tested against it — the two
+// have to list the same types, and nothing else ties them together.
+export const REPORT_TYPES: ReportType[] = ["CBAM", "UK_CBAM", "CCTS", "BRSR"];
 
 /**
  * Which report types this company can see a card for. Subscription access is
@@ -199,6 +205,42 @@ export const generateReport = async (userId: string, facilityId: string, reportT
     const ctx = await loadReportContext(userId, facilityId, candidate.id);
 
     pdfDoc = await generateReportPdf(ctx, reportType);
+  } else if (reportType === "GRI") {
+    // GRI, CSRD and BRSR Core share the FY period convention but are three
+    // different documents. This branch used to build a BRSR Core PDF for all
+    // three, then file it under a gri-report-*.pdf or csrd-report-*.pdf name —
+    // so asking for a GRI report handed back somebody's BRSR disclosure with
+    // the wrong title on it. The real builders already existed and were
+    // reachable only from their own download endpoints; they are wired here now.
+    const griReport = await prisma.griReport.findUnique({
+      where: { facilityId_reportingPeriod: { facilityId, reportingPeriod: period.period } },
+      select: { id: true },
+    });
+    if (!griReport) {
+      throw AppError.badRequest(`No GRI report found for ${period.displayLabel} yet`, "NO_GRI_REPORT_FOR_PERIOD");
+    }
+    // The context loader carries its own ownership, ESG-bundle, SUBMITTED and
+    // GRI-window checks, so this deliberately does not repeat them — one place
+    // decides whether a GRI report may be produced, and it is the same place
+    // the /api/gri download endpoint asks.
+    const { report, facility: griFacility, metrics, contentIndex, phase2 } = await getGriReportContextById(
+      userId,
+      griReport.id,
+    );
+    pdfDoc = await buildGriPdf(report, griFacility, metrics, contentIndex, phase2);
+  } else if (reportType === "CSRD") {
+    const csrdReport = await prisma.csrdReport.findUnique({
+      where: { facilityId_reportingPeriod: { facilityId, reportingPeriod: period.period } },
+      select: { id: true },
+    });
+    if (!csrdReport) {
+      throw AppError.badRequest(`No CSRD report found for ${period.displayLabel} yet`, "NO_CSRD_REPORT_FOR_PERIOD");
+    }
+    const { report, facility: csrdFacility, metrics, disclosureIndex, phase2 } = await getCsrdReportContextById(
+      userId,
+      csrdReport.id,
+    );
+    pdfDoc = await buildCsrdPdf(report, csrdFacility, metrics, disclosureIndex, phase2);
   } else {
     const brsrReport = await prisma.brsrCoreReport.findUnique({
       where: { facilityId_reportingPeriod: { facilityId, reportingPeriod: period.period } },
