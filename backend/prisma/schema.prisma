@@ -120,6 +120,27 @@ enum CbamFramework {
 model Company {
   id                      String    @id @default(cuid())
   ownerId                 String    @unique
+  // DANGER, read before deleting any `users` row by hand: this cascade runs
+  // User -> Company, not the other way round. Deleting a single user row
+  // silently takes their entire company with it — every facility, activity
+  // data row, report, document, verification request, subscription, payment,
+  // manual payment, and audit log underneath it, via the ~109 onDelete:
+  // Cascade relations hanging off Company. There is no confirmation, no soft
+  // delete, and no restore path.
+  //
+  // Nothing in the application ever hard-deletes a user, deliberately:
+  // auth.service.ts's deleteMyAccount anonymises the User row in place and
+  // deletes the Company *explicitly and separately* when (and only when) the
+  // CBAM retention hold doesn't apply. Never reach for `prisma.user.delete`
+  // as a shortcut for account removal — go through deleteMyAccount so the
+  // retention branch is honoured.
+  //
+  // This stays Cascade rather than Restrict because the test suite depends on
+  // it: ~16 service tests tear down a whole fixture tree with a single
+  // `prisma.user.deleteMany({ where: { id: userId } })`. Tightening it to
+  // Restrict would turn this footgun into a loud error (a good trade) but
+  // requires rewriting every one of those teardowns to delete the company
+  // first — a deliberate change, not a drive-by one.
   owner                   User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name                    String
   registrationNumber      String?
