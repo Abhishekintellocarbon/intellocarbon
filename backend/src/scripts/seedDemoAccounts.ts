@@ -30,6 +30,7 @@
  * Re-running deletes and rebuilds the demo companies. It never touches a row
  * that isn't one of them.
  */
+import { randomBytes } from "crypto";
 import { prisma } from "../config/prisma";
 import { logger } from "../utils/logger";
 import { hashPassword } from "../utils/password";
@@ -37,8 +38,56 @@ import { calculateEmissionsForActivityData } from "../services/emissionCalculati
 import { generateReport } from "../services/reportGeneration.service";
 import type { Prisma, Sector, SubscriptionTier } from "@prisma/client";
 
-/** Shown in the console after seeding so sales can actually log in. */
-export const DEMO_PASSWORD = "DemoAccount!2026";
+/**
+ * Password for the four demo logins.
+ *
+ * NOT a constant in this file any more. These are real accounts on whatever
+ * database the seed is pointed at, so a committed password means anyone with
+ * repo access can log into them — which is survivable on a local dev database
+ * and is not on production.
+ *
+ * Set DEMO_ACCOUNT_PASSWORD to choose one. Otherwise a random password is
+ * generated and printed once, at the end of the run — capture it then, because
+ * nothing stores it and a re-seed produces a different one.
+ *
+ * Must satisfy the platform password policy (auth.validators.ts): 8+ chars with
+ * a lowercase letter, an uppercase letter and a digit. The generated form
+ * always does; a supplied one is checked below rather than failing later at a
+ * login nobody can explain.
+ */
+const generatePassword = () => {
+  // Ambiguous characters left out — this gets read off a terminal and typed
+  // into a login form, sometimes by someone who did not run the seed.
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const digits = "23456789";
+  const symbols = "!@#$%^&*";
+  const all = lower + upper + digits + symbols;
+  const pick = (set: string) => set[randomBytes(1)[0] % set.length];
+  // Seed one of each required class, then fill, so policy compliance is
+  // structural rather than a matter of luck.
+  const chars = [pick(lower), pick(upper), pick(digits), pick(symbols)];
+  while (chars.length < 20) chars.push(pick(all));
+  // Fisher-Yates over crypto bytes, so the guaranteed classes aren't always
+  // in the first four positions.
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomBytes(1)[0] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
+};
+
+const resolvePassword = (): { password: string; generated: boolean } => {
+  const supplied = process.env.DEMO_ACCOUNT_PASSWORD?.trim();
+  if (!supplied) return { password: generatePassword(), generated: true };
+  const policy = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,128}$/;
+  if (!policy.test(supplied)) {
+    throw new Error(
+      "DEMO_ACCOUNT_PASSWORD does not meet the platform password policy (8+ characters, with a lowercase letter, an uppercase letter and a digit).",
+    );
+  }
+  return { password: supplied, generated: false };
+};
 
 const DEMO_NAME_PREFIX = "DEMO - ";
 
@@ -213,12 +262,12 @@ const purgeExistingDemos = async () => {
 // ---------------------------------------------------------------------------
 // Company + facility scaffolding
 // ---------------------------------------------------------------------------
-const createDemoCompany = async (spec: DemoSpec, extra: Partial<Prisma.CompanyUncheckedCreateInput> = {}) => {
+const createDemoCompany = async (spec: DemoSpec, password: string, extra: Partial<Prisma.CompanyUncheckedCreateInput> = {}) => {
   const owner = await prisma.user.create({
     data: {
       name: spec.ownerName,
       email: spec.email,
-      passwordHash: await hashPassword(DEMO_PASSWORD),
+      passwordHash: await hashPassword(password),
       role: "ADMIN",
       approvalStatus: "APPROVED",
       active: true,
@@ -398,9 +447,9 @@ const reportIntensity = async (label: string, facilityId: string) => {
 // ---------------------------------------------------------------------------
 // 1. CCTS Compliance demo — cement plant against a notified GEI target
 // ---------------------------------------------------------------------------
-const seedCctsDemo = async (anchor: Date) => {
+const seedCctsDemo = async (anchor: Date, password: string) => {
   const spec = DEMOS.ccts;
-  const { company } = await createDemoCompany(spec, {
+  const { company } = await createDemoCompany(spec, password, {
     subSector: "Grey cement (OPC/PPC)",
     city: "Satara",
     state: "Maharashtra",
@@ -495,9 +544,9 @@ const seedCctsDemo = async (anchor: Date) => {
 // five-star band. Both thresholds are the platform's real reference values;
 // only the plant's throughput and fuel mix are invented.
 // ---------------------------------------------------------------------------
-const seedCbamDemo = async (anchor: Date) => {
+const seedCbamDemo = async (anchor: Date, password: string) => {
   const spec = DEMOS.cbam;
-  const { company } = await createDemoCompany(spec, {
+  const { company } = await createDemoCompany(spec, password, {
     subSector: "Flat and long steel products",
     city: "Ratnagiri",
     state: "Maharashtra",
@@ -601,9 +650,9 @@ const seedCbamDemo = async (anchor: Date) => {
 // than a headline saving. carbonPricePaidEurPerTonne is what drives that
 // deduction.
 // ---------------------------------------------------------------------------
-const seedCombinedDemo = async (anchor: Date) => {
+const seedCombinedDemo = async (anchor: Date, password: string) => {
   const spec = DEMOS.combined;
-  const { company } = await createDemoCompany(spec, {
+  const { company } = await createDemoCompany(spec, password, {
     subSector: "Integrated flat steel",
     city: "Bellary",
     state: "Karnataka",
@@ -692,9 +741,9 @@ const seedCombinedDemo = async (anchor: Date) => {
 // status: "SUBMITTED" (see esgOverview.service.ts), so a DRAFT here would show
 // as an empty dashboard — which is the exact failure this demo exists to avoid.
 // ---------------------------------------------------------------------------
-const seedEsgDemo = async (anchor: Date) => {
+const seedEsgDemo = async (anchor: Date, password: string) => {
   const spec = DEMOS.esg;
-  const { company } = await createDemoCompany(spec, {
+  const { company } = await createDemoCompany(spec, password, {
     subSector: "Diversified industrial manufacturing",
     city: "Coimbatore",
     state: "Tamil Nadu",
@@ -1356,12 +1405,13 @@ const tryGenerateReport = async (
 
 export const seedDemoAccounts = async (): Promise<void> => {
   const anchor = new Date();
+  const { password, generated: passwordWasGenerated } = resolvePassword();
   await purgeExistingDemos();
 
-  const ccts = await seedCctsDemo(anchor);
-  const cbam = await seedCbamDemo(anchor);
-  const combined = await seedCombinedDemo(anchor);
-  const esg = await seedEsgDemo(anchor);
+  const ccts = await seedCctsDemo(anchor, password);
+  const cbam = await seedCbamDemo(anchor, password);
+  const combined = await seedCombinedDemo(anchor, password);
+  const esg = await seedEsgDemo(anchor, password);
 
   const generated: string[] = [];
   const record = async (label: string, ownerId: string, facilityId: string, type: "CBAM" | "CCTS" | "BRSR" | "GRI") => {
@@ -1373,17 +1423,30 @@ export const seedDemoAccounts = async (): Promise<void> => {
   await record(combined.company.name, combined.company.ownerId, combined.facility.id, "CBAM");
   await record(combined.company.name, combined.company.ownerId, combined.facility.id, "CCTS");
   await record(esg.company.name, esg.company.ownerId, esg.facilities[0].id, "BRSR");
-  // GRI is deliberately NOT generated through generateReport. That path's
-  // BRSR/GRI/CSRD branch builds a BRSR Core PDF whatever type it is asked for
-  // (see the else branch in reportGeneration.service.ts), so it would file a
-  // BRSR document under a gri-report-*.pdf filename — a demo that hands an
-  // investor the wrong report. The real GRI PDF is produced by buildGriPdf via
-  // GET /api/gri/report/:reportId/pdf, and the SUBMITTED GriReport seeded
-  // above is what that route renders.
+  // GRI is not generated here. The dispatch builds it correctly now, but the
+  // generate-report endpoint deliberately does not accept GRI: it is produced
+  // and downloaded from GET /api/gri/report/:reportId/pdf, which streams the
+  // PDF rather than storing a Report row. The SUBMITTED GriReport seeded above
+  // is what that route renders.
+  //
+  // Nor is a CBAM Communication Package generated, for either CBAM demo. Its
+  // filing window is a real regulatory calendar rule and this seed does not
+  // defeat it. The CBAM demo shows its position through
+  // GET /api/facilities/:facilityId/cbam-executive-summary, which is
+  // deliberately not window-gated because it is an internal management
+  // document rather than a submission, and which renders the same net
+  // liability, certificate count and volume-in-scope from the same
+  // calculation. See the note in report.service.ts on why loadReportContext
+  // was split out from getReportContext.
 
   logger.info("");
   logger.info("[DemoSeed] ======================================================");
-  logger.info(`[DemoSeed] 4 demo companies seeded. Password for all: ${DEMO_PASSWORD}`);
+  logger.info("[DemoSeed] 4 demo companies seeded.");
+  logger.info(
+    passwordWasGenerated
+      ? `[DemoSeed] Generated password (shown once, nothing stores it): ${password}`
+      : "[DemoSeed] Password: the DEMO_ACCOUNT_PASSWORD you supplied.",
+  );
   for (const email of DEMO_EMAILS) logger.info(`[DemoSeed]   ${email}`);
   logger.info(`[DemoSeed] Reports generated: ${generated.length ? generated.join(", ") : "none (all windows closed)"}`);
   logger.info("[DemoSeed] All four carry isDemoAccount: true and are excluded");
