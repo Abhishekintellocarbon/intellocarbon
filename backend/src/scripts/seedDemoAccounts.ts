@@ -134,7 +134,10 @@ const DEMOS: Record<"ccts" | "cbam" | "combined" | "esg", DemoSpec> = {
     cbamFrameworks: ["EU_CBAM"],
   },
   esg: {
-    email: "demo-esg@intellocarbon.com",
+    // A real, reachable mailbox rather than an @intellocarbon.com address that
+    // nobody can open. This is the account used for live ESG walkthroughs, so
+    // password resets and any notification it triggers have to actually arrive.
+    email: "intellocarbon.demo.esg@gmail.com",
     ownerName: "Demo Head of Sustainability",
     companyName: "Nilgiri Industries",
     sector: "OTHER",
@@ -146,6 +149,16 @@ const DEMOS: Record<"ccts" | "cbam" | "combined" | "esg", DemoSpec> = {
 };
 
 export const DEMO_EMAILS = Object.values(DEMOS).map((d) => d.email);
+
+/**
+ * Addresses a demo account used to be seeded under.
+ *
+ * The purge matches on address, so renaming one in DEMOS above would otherwise
+ * strand the old row: the next run would not recognise it, would not delete it,
+ * and would create a second company alongside it. Retiring an address means
+ * moving it here, not deleting it.
+ */
+const LEGACY_DEMO_EMAILS = ["demo-esg@intellocarbon.com"];
 
 // ---------------------------------------------------------------------------
 // Deterministic variation.
@@ -245,8 +258,9 @@ const lastCompletedFy = (d: Date) => {
 // Teardown
 // ---------------------------------------------------------------------------
 const purgeExistingDemos = async () => {
+  const purgeEmails = [...DEMO_EMAILS, ...LEGACY_DEMO_EMAILS];
   const existing = await prisma.company.findMany({
-    where: { isDemoAccount: true, owner: { email: { in: DEMO_EMAILS } } },
+    where: { isDemoAccount: true, owner: { email: { in: purgeEmails } } },
     select: { id: true, name: true },
   });
   for (const c of existing) {
@@ -255,7 +269,7 @@ const purgeExistingDemos = async () => {
   }
   // Owners are deleted explicitly rather than via the User -> Company cascade,
   // which runs the other way round anyway (see the schema note on that FK).
-  const { count } = await prisma.user.deleteMany({ where: { email: { in: DEMO_EMAILS } } });
+  const { count } = await prisma.user.deleteMany({ where: { email: { in: purgeEmails } } });
   if (count) logger.info(`[DemoSeed] Removed ${count} existing demo owner(s)`);
 };
 
