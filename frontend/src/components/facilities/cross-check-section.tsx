@@ -8,6 +8,7 @@ import { Field } from "@/components/ui/field";
 import { crossCheckApi, ApiError } from "@/lib/api";
 import { ACTIVITY_DATA_FIELDS, formatFieldValue } from "@/lib/activity-data-fields";
 import type { CrossCheckEntry, CrossCheckDocument, CrossCheckReview } from "@/lib/types";
+import { BillExtractionPanel } from "@/components/bill-intelligence/bill-extraction-panel";
 
 const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
 
@@ -181,6 +182,15 @@ function CrossCheckCard({
           </div>
         </div>
       </div>
+
+      {/* IntelloAdvisor Bill Intelligence — full card width, beneath both
+          columns, because it is a comparison *between* them. Renders nothing
+          when the document has no extraction, leaving the card exactly as it
+          was before this feature. */}
+      <BillExtractionPanel
+        extraction={document.billExtraction}
+        submittedGridElectricityMwh={entry.gridElectricityMwh ?? null}
+      />
 
       <div className="mt-5 border-t border-surface-border pt-4">
         {isReviewed && review ? (

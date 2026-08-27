@@ -634,6 +634,10 @@ model Document {
   createdAt       DateTime      @default(now())
 
   crossCheckReview CrossCheckReview?
+  // IntelloAdvisor Bill Intelligence. Optional by construction — a document
+  // uploaded before this feature, or one whose extraction failed, simply has
+  // none, and every read path treats that as "manual flow only".
+  billExtraction   BillExtraction?
 
   @@index([facilityId])
   @@index([activityDataId])
@@ -3807,4 +3811,110 @@ model GreenSteelAssessment {
   @@unique([facilityId, reportingPeriod])
   @@index([companyId])
   @@map("green_steel_assessments")
+}
+
+// ---------------------------------------------------------------------------
+// IntelloAdvisor — Bill Intelligence
+//
+// Deterministic extraction of the fields printed on an electricity bill, run
+// over a SUPPORTING_EVIDENCE document that a client has already uploaded. This
+// is a read-only intelligence layer bolted onto the existing upload and
+// cross-check pipe: it never writes to ActivityData, never changes what the
+// client submitted, and never gates verification. If every field here is null
+// the product behaves exactly as it did before this table existed.
+// ---------------------------------------------------------------------------
+
+enum BillExtractionStatus {
+  // Queued or mid-run. Extraction is deliberately not done inside the upload
+  // request — OCR on a 10MB photo takes seconds, and blocking the upload on it
+  // would trade a working feature for a timeout.
+  PENDING
+  COMPLETED
+  // Ran and could not produce usable text (encrypted PDF, blank scan, OCR
+  // engine unavailable). Not an error state for the user: the UI falls back to
+  // the manual flow, which is the flow that existed before this feature.
+  FAILED
+  // File type carries no extractable text layer and is not an image we OCR.
+  UNSUPPORTED
+}
+
+enum BillExtractionEngine {
+  // Digitally-generated PDF — text is read straight out of the PDF's own text
+  // layer. Character-exact, no OCR involved, so no OCR confidence applies.
+  PDF_TEXT_LAYER
+  // Photo, scan, or image-only PDF page — Tesseract OCR.
+  OCR_IMAGE
+}
+
+model BillExtraction {
+  id         String   @id @default(cuid())
+  documentId String   @unique
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  status        BillExtractionStatus  @default(PENDING)
+  engine        BillExtractionEngine?
+  // Machine-readable reason a run ended without fields (ENCRYPTED_PDF,
+  // NO_TEXT_LAYER, OCR_UNAVAILABLE, TIMEOUT, ...). Null on COMPLETED.
+  failureReason String?
+
+  // --- Extracted values -----------------------------------------------------
+  // Every one is nullable and every one is independent: a bill that yields
+  // units but no sanctioned load stores the units and leaves the rest null,
+  // rather than failing the whole extraction. Nothing here is ever inferred
+  // from anything else here.
+  state      String?
+  discomName String?
+  // Registry key for the matched distribution utility (e.g. "MSEDCL"), so a
+  // future per-discom parser profile can key off an identifier rather than
+  // re-matching display text.
+  discomCode String?
+
+  // Active energy in kWh, as printed. A bill that states only kVAh (apparent
+  // energy) deliberately leaves this null — converting kVAh to kWh needs the
+  // power factor, which the bill does not always print, and inventing one
+  // would breach the platform's no-assumed-values rule.
+  unitsConsumedKwh Float?
+
+  // Tariff as printed ("HT-I", "LT-V(B)"), plus the two facts that can be read
+  // off it without interpretation. Anything not literally present stays null.
+  tariffCode    String?
+  tariffVoltage String? // HT / LT / EHT
+  tariffSegment String? // INDUSTRIAL / COMMERCIAL / RESIDENTIAL / AGRICULTURAL
+
+  // Stored with the unit as printed rather than normalised: KVA, KW and HP are
+  // not interconvertible without a power factor or a motor-efficiency
+  // convention, neither of which is on the bill.
+  sanctionedLoadValue Float?
+  sanctionedLoadUnit  String? // KVA / KW / HP
+
+  billingPeriodStart DateTime?
+  billingPeriodEnd   DateTime?
+
+  ratePerUnitInr Float?
+
+  // Per-field provenance: { field: { confidence, reason, rawText } }. JSON
+  // rather than 21 more columns because it is only ever read as a whole, for
+  // display next to the value it explains, and its shape follows the parser
+  // rather than the schema. See billIntelligence/fieldParser.ts.
+  fieldMeta Json @default("{}")
+
+  // The text the parser actually read, kept so a verifier looking at a
+  // surprising number can see the line it came from, and so a parser bug is
+  // diagnosable after the fact without re-running OCR on the stored file.
+  extractedText String?
+  // Tesseract's own mean per-word confidence for the page, 0-100. Null for
+  // PDF_TEXT_LAYER, where characters are read exactly rather than recognised.
+  ocrMeanConfidence Float?
+
+  // Set when the client clicks "Use this value" on the Scope 2 pre-fill
+  // suggestion. Its value to a verifier is the distinction between a number
+  // the client typed off their own records and one they took from the bill —
+  // so this records the acceptance, and never the value, which lives on
+  // ActivityData where the client can still edit it afterwards.
+  prefillAcceptedAt DateTime?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@map("bill_extractions")
 }

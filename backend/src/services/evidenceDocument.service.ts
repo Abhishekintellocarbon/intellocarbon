@@ -2,6 +2,7 @@ import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { requireAccessibleFacility } from "./facility.service";
 import { requireOwnedActivityData } from "./activityData.service";
+import { queueExtraction } from "./billIntelligence/billExtraction.service";
 
 const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -33,7 +34,7 @@ export const uploadEvidenceDocument = async (
       ? `${fmt(activityData.periodStart)} to ${fmt(activityData.periodEnd)}`
       : "Draft period";
 
-  return prisma.document.create({
+  const document = await prisma.document.create({
     data: {
       facilityId,
       companyId: facility.companyId,
@@ -45,6 +46,20 @@ export const uploadEvidenceDocument = async (
       fileData: file.buffer,
     },
   });
+
+  // IntelloAdvisor Bill Intelligence, strictly additive: the upload above has
+  // already succeeded and is what the caller is told about. Extraction is
+  // started, not awaited, and a failure to even queue it is swallowed —
+  // an unreadable bill must never turn a successful upload into an error the
+  // client has to act on. Everything downstream treats a missing extraction
+  // as "manual review only", which is how this flow worked before.
+  try {
+    await queueExtraction(document.id, file.buffer);
+  } catch (err) {
+    console.error(`[billIntelligence] could not queue extraction for document ${document.id}:`, err);
+  }
+
+  return document;
 };
 
 export const listFacilityDocuments = async (userId: string, facilityId: string) => {

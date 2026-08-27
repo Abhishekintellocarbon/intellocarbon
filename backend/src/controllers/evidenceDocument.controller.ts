@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { AppError } from "../utils/AppError";
 import * as evidenceDocumentService from "../services/evidenceDocument.service";
+import * as billExtractionService from "../services/billIntelligence/billExtraction.service";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
@@ -89,4 +90,28 @@ export const downloadFacilityDocument = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "application/octet-stream");
   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
   res.send(fileData);
+});
+
+// IntelloAdvisor Bill Intelligence. Polled by the client after an upload —
+// `extraction: null` means this document has none (uploaded before the feature,
+// or never queued), and the caller renders the plain manual flow.
+export const getBillExtraction = asyncHandler(async (req, res) => {
+  const extraction = await billExtractionService.getExtractionForDocument(
+    req.user!.sub,
+    req.params.facilityId,
+    req.params.documentId,
+  );
+  res.status(200).json({ extraction });
+});
+
+// Records that the client accepted the Scope 2 suggestion. The value itself is
+// written by the form's existing autosave, not here — this endpoint only
+// captures the provenance a verifier later reads.
+export const acceptBillPrefill = asyncHandler(async (req, res) => {
+  const extraction = await billExtractionService.recordPrefillAccepted(
+    req.user!.sub,
+    req.params.facilityId,
+    req.params.documentId,
+  );
+  res.status(200).json({ extraction });
 });

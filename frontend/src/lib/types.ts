@@ -1302,11 +1302,209 @@ export interface CrossCheckReview {
   reviewer: { id: string; name: string; email: string } | null;
 }
 
+// --- IntelloAdvisor Decarbonization Recommendation Engine (Phase 2/3) ---
+// Mirrors backend/src/services/recommendationEngine/. Dates arrive as ISO
+// strings over JSON, so they are typed as such here rather than as Date.
+//
+// The provenance fields are not decoration: a recommendation on this platform
+// is only worth showing if the reader can see where each figure came from, so
+// `source` on every input and `verification` on every citation are rendered,
+// not just carried.
+
+export type RecommendationVerificationStatus = "VERIFIED_AGAINST_PRIMARY_SOURCE" | "NEEDS_COMPLIANCE_REVIEW";
+
+export interface RecommendationCitation {
+  publisher: string;
+  document: string;
+  reference: string;
+  asOf: string;
+  url?: string;
+  verification: RecommendationVerificationStatus;
+}
+
+export type RecommendationInputSource =
+  | "PLATFORM_CALCULATION"
+  | "BILL_EXTRACTION"
+  | "PUBLISHED_BENCHMARK"
+  | "FACILITY_PROFILE";
+
+export interface RecommendationInput {
+  label: string;
+  value: string;
+  source: RecommendationInputSource;
+}
+
+/** Always a range. `basis` says in words what its two ends are. */
+export interface RecommendationImpactRange {
+  metric: string;
+  unit: "PERCENT_OF_TOTAL_EMISSIONS" | "TCO2E_PER_YEAR";
+  low: number;
+  high: number;
+  basis: string;
+}
+
+export type RecommendationCategory = "SCOPE_2_ELECTRICITY" | "SCOPE_1_COMBUSTION" | "LIABILITY_STRUCTURE";
+
+export interface RecommendationCard {
+  id: string;
+  category: RecommendationCategory;
+  title: string;
+  explanation: string;
+  inputs: RecommendationInput[];
+  /** Null when the engine lacked the data to size an impact — never a guess. */
+  impact: RecommendationImpactRange | null;
+  citations: RecommendationCitation[];
+  caveats: string[];
+  requiresComplianceReview: boolean;
+}
+
+export interface RecommendationComponentShare {
+  co2e: number;
+  sharePct: number;
+}
+
+export interface RecommendationComposition {
+  basis: "CBAM_AR5";
+  totalCo2e: number;
+  scope1Combustion: RecommendationComponentShare;
+  scope1Process: RecommendationComponentShare;
+  scope2Electricity: RecommendationComponentShare;
+  scope2Steam: RecommendationComponentShare;
+  precursorEmbedded: RecommendationComponentShare;
+  solidFossilFuel:
+    | (RecommendationComponentShare & { fuels: Array<{ fuelType: string; label: string; co2e: number; sharePct: number }> })
+    | null;
+}
+
+export interface RecommendationGridFactorSplit {
+  scope2ElectricityCo2e: number;
+  gridElectricityMwh: number;
+  renewableElectricityMwh: number;
+  emissionFactorUsed: number;
+  nationalGridFactor: number;
+  nationalGridFactorSource: string;
+  gridFactorDrivenCo2e: number;
+  facilityFactorChoiceCo2e: number;
+  gridFactorDrivenSharePct: number;
+  facilityFactorChoiceSharePct: number;
+  co2ePerMwhDisplaced: number;
+  renewableSharePct: number;
+  alreadyAvoidedCo2e: number;
+  definitionNote: string;
+  whyNoVolumeSplit: string;
+}
+
+export interface RecommendationSanctionedLoad {
+  value: number;
+  unit: string;
+  discomName: string | null;
+  tariffCode: string | null;
+  state: string | null;
+}
+
+export interface RecommendationReport {
+  facility: { id: string; name: string; state: string | null; sector: string };
+  activityData: {
+    id: string;
+    periodStart: string | null;
+    periodEnd: string | null;
+    reportingPeriodDays: number | null;
+    annualisedGridMwh: number | null;
+  } | null;
+  basedOnCalculationAt: string | null;
+  generatedAt: string;
+  engineVersion: string;
+  basis: "CBAM_AR5";
+  composition: RecommendationComposition | null;
+  gridFactorSplit: RecommendationGridFactorSplit | null;
+  billDataUsed: {
+    sanctionedLoad: RecommendationSanctionedLoad | null;
+    absenceReason: string | null;
+    sourceDocumentId: string | null;
+    /** State implied by the distribution utility named on the bill. */
+    billState: string | null;
+    /** Which state the open-access rules were resolved against. */
+    openAccessStateSource: "BILL_DISCOM" | "FACILITY_PROFILE" | "NONE";
+    /**
+     * Non-null when the bill's state and the facility's registered state
+     * disagree. Surfaced, never resolved away — one of the two records is
+     * wrong and the customer has to be the one to say which.
+     */
+    stateMismatch: {
+      billState: string;
+      facilityState: string;
+      discomName: string | null;
+      message: string;
+    } | null;
+  };
+  recommendations: RecommendationCard[];
+  /** Non-null when no analysis could be produced; `recommendations` is then empty. */
+  unavailableReason: string | null;
+}
+
+// --- IntelloAdvisor Bill Intelligence ---
+// Mirrors backend/src/services/billIntelligence/. Every field is nullable
+// because every field independently may not have been readable off the bill;
+// a null here always means "not on the bill, or not readable from it", never
+// zero and never a default.
+
+export type BillFieldConfidence = "HIGH" | "MEDIUM" | "LOW";
+
+export type BillFieldProvenance =
+  | { status: "EXTRACTED"; confidence: BillFieldConfidence; reason: string; rawText: string }
+  | {
+      status: "NOT_EXTRACTED";
+      reason: "NOT_FOUND" | "AMBIGUOUS" | "UNIT_NOT_CONVERTIBLE" | "OUT_OF_RANGE" | "UNPARSEABLE";
+      detail?: string;
+    };
+
+export interface BillExtractionFields {
+  state: string | null;
+  discomName: string | null;
+  discomCode: string | null;
+  unitsConsumedKwh: number | null;
+  tariffCode: string | null;
+  tariffVoltage: string | null;
+  tariffSegment: string | null;
+  sanctionedLoadValue: number | null;
+  sanctionedLoadUnit: string | null;
+  billingPeriodStart: string | null;
+  billingPeriodEnd: string | null;
+  ratePerUnitInr: number | null;
+}
+
+/** The Scope 2 pre-fill offer. Null whenever there is nothing safe to suggest. */
+export interface BillScope2Suggestion {
+  field: "gridElectricityMwh";
+  unitsConsumedKwh: number;
+  suggestedValueMwh: number;
+  confidence: BillFieldConfidence;
+  reason: string;
+  rawText: string;
+  accepted: boolean;
+}
+
+export interface BillExtraction {
+  documentId: string;
+  status: "PENDING" | "COMPLETED" | "FAILED" | "UNSUPPORTED";
+  engine: "PDF_TEXT_LAYER" | "OCR_IMAGE" | null;
+  failureReason: string | null;
+  fields: BillExtractionFields;
+  fieldMeta: Record<string, BillFieldProvenance>;
+  ocrMeanConfidence: number | null;
+  scope2Suggestion: BillScope2Suggestion | null;
+  completedAt: string | null;
+}
+
 export interface CrossCheckDocument {
   id: string;
   fileName: string;
   createdAt: string;
   crossCheckReview: CrossCheckReview | null;
+  // Null for documents uploaded before Bill Intelligence shipped, and for any
+  // whose extraction never ran. The cross-check UI renders the manual
+  // comparison alone in that case, exactly as it did before.
+  billExtraction: BillExtraction | null;
 }
 
 export type CrossCheckEntry = ActivityData & { documents: CrossCheckDocument[] };

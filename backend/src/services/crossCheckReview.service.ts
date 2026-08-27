@@ -4,6 +4,7 @@ import { env } from "../config/env";
 import { requireCompanyAssigned } from "./verifierAssignment.service";
 import type { AccessTokenPayload } from "../utils/tokens";
 import type { UpsertCrossCheckReviewInput } from "../validators/crossCheckReview.validators";
+import { toBillExtractionView } from "./billIntelligence/billExtraction.service";
 
 const superAdminEmails = env.SUPER_ADMIN_EMAILS.split(",")
   .map((e) => e.trim().toLowerCase())
@@ -88,6 +89,11 @@ export const listCrossCheckReviewsForFacility = async (user: AccessTokenPayload,
           crossCheckReview: {
             include: { reviewer: { select: { id: true, name: true, email: true } } },
           },
+          // IntelloAdvisor Bill Intelligence, shown beside the manual
+          // comparison. Read-only context for the reviewer — it does not set,
+          // pre-empt or gate the MATCHED/MISMATCH decision, which stays
+          // entirely theirs.
+          billExtraction: true,
         },
         orderBy: { createdAt: "asc" },
       },
@@ -95,5 +101,15 @@ export const listCrossCheckReviewsForFacility = async (user: AccessTokenPayload,
     orderBy: { periodEnd: "desc" },
   });
 
-  return entries;
+  // Mapped through the same view builder the client uses, so a verifier and a
+  // client looking at the same bill see the same fields, the same confidence
+  // bands and the same stale-PENDING handling. Documents with no extraction
+  // keep a null here and the UI shows the manual comparison alone.
+  return entries.map((entry) => ({
+    ...entry,
+    documents: entry.documents.map((document) => ({
+      ...document,
+      billExtraction: document.billExtraction ? toBillExtractionView(document.billExtraction) : null,
+    })),
+  }));
 };

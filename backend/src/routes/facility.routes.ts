@@ -3,6 +3,7 @@ import * as facilityController from "../controllers/facility.controller";
 import * as facilityDashboardController from "../controllers/facilityDashboard.controller";
 import * as facilityReportsController from "../controllers/facilityReports.controller";
 import * as evidenceDocumentController from "../controllers/evidenceDocument.controller";
+import * as recommendationController from "../controllers/recommendation.controller";
 import * as facilityQueriesController from "../controllers/facilityQueries.controller";
 import * as cbamExecutiveSummaryController from "../controllers/cbamExecutiveSummary.controller";
 import { requireAuth } from "../middleware/requireAuth";
@@ -31,6 +32,17 @@ router.get("/:facilityId/reports/:reportId/pdf", facilityReportsController.downl
 router.get("/:facilityId/cbam-executive-summary", cbamExecutiveSummaryController.downloadCbamExecutiveSummary);
 router.get("/:facilityId/documents", evidenceDocumentController.listFacilityDocuments);
 router.get("/:facilityId/documents/:documentId/download", evidenceDocumentController.downloadFacilityDocument);
+// IntelloAdvisor Bill Intelligence — read the fields extracted from an
+// uploaded bill, and record the client accepting the Scope 2 suggestion.
+// Facility-scoped like every other document route, so access is the same
+// check the upload and download already make.
+router.get("/:facilityId/documents/:documentId/extraction", evidenceDocumentController.getBillExtraction);
+router.post("/:facilityId/documents/:documentId/extraction/accept", evidenceDocumentController.acceptBillPrefill);
+// IntelloAdvisor Phase 2 — Decarbonization Recommendation Engine. Read-only and
+// derived on every request from the stored emissions calculation, so it needs no
+// regeneration endpoint and can never serve a stale card.
+router.get("/:facilityId/recommendations", recommendationController.getFacilityRecommendations);
+router.get("/:facilityId/activity-data/:dataId/recommendations", recommendationController.getActivityDataRecommendations);
 router.get("/:facilityId/queries", facilityQueriesController.listFacilityQueries);
 router.post("/:facilityId/queries/:queryId/respond", validate(respondQuerySchema), facilityQueriesController.respondToQuery);
 router.put("/:facilityId", validate(facilitySchema), facilityController.updateFacility);

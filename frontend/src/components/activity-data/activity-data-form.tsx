@@ -14,6 +14,7 @@ import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
 import { useAutosave } from "@/hooks/use-autosave";
+import { BillPrefillUpload } from "@/components/bill-intelligence/bill-prefill-upload";
 import { activityDataSchema, type ActivityDataFormValues } from "@/lib/validations/activity-data";
 import { activityDataApi, companyApi, referenceApi, ApiError } from "@/lib/api";
 import type { ActivityData, EmissionFactorReference, Sector } from "@/lib/types";
@@ -83,6 +84,7 @@ export function ActivityDataForm({
     handleSubmit,
     watch,
     getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ActivityDataFormValues>({
     resolver: zodResolver(activityDataSchema),
@@ -203,7 +205,10 @@ export function ActivityDataForm({
     })),
   });
 
-  const { status: autosaveStatus, triggerAutosave } = useAutosave(async () => {
+  // The single draft-write path. Both the debounced autosave below and the
+  // bill upload's ensureDraftId go through it, so there is one definition of
+  // "save this draft" and the upload cannot drift from what autosave does.
+  const persistDraft = async (): Promise<string> => {
     const payload = buildAutosavePayload(getValues());
     if (!savedDataId.current) {
       const { entry } = await activityDataApi.autosaveNew(facilityId, payload);
@@ -211,7 +216,23 @@ export function ActivityDataForm({
     } else {
       await activityDataApi.autosave(facilityId, savedDataId.current, payload);
     }
+    return savedDataId.current;
+  };
+
+  // Unchanged in behaviour: still debounced, still fired on blur, still leaves
+  // the entry a DRAFT. It just calls the shared writer now.
+  const { status: autosaveStatus, triggerAutosave } = useAutosave(async () => {
+    await persistDraft();
   });
+
+  /**
+   * A bill can only be attached to an activity data row that exists, and on a
+   * brand-new form none does until the first autosave lands. This forces that
+   * save immediately rather than waiting out the 800ms debounce, and returns
+   * the id. It writes the same DRAFT payload autosave would have written, so
+   * uploading a bill never advances the entry's status or validation state.
+   */
+  const ensureDraftId = () => persistDraft();
 
   // Drop-in replacement for `register(name)` that also triggers a debounced
   // autosave on blur.
@@ -798,6 +819,24 @@ export function ActivityDataForm({
           <div>
             <Label htmlFor="gridElectricityMwh">Grid electricity purchased (MWh)</Label>
             <Input id="gridElectricityMwh" type="number" step="any" placeholder="45000" {...autosaveField("gridElectricityMwh")} />
+          </div>
+          {/* IntelloAdvisor Bill Intelligence. Sits directly beside the field
+              it feeds, spanning the grid so its explanation has room. Purely
+              additive — the input above works exactly as before whether or not
+              anyone touches this. */}
+          <div className="sm:col-span-2">
+            <BillPrefillUpload
+              facilityId={facilityId}
+              ensureDraftId={ensureDraftId}
+              currentValueMwh={watch("gridElectricityMwh") ?? ""}
+              onUseValue={(mwh) => {
+                setValue("gridElectricityMwh", mwh === null ? "" : String(mwh), { shouldDirty: true });
+                // Persist through the same debounced autosave every other
+                // field uses, so an accepted suggestion is saved exactly the
+                // way a typed one is.
+                triggerAutosave();
+              }}
+            />
           </div>
           <div>
             <Label htmlFor="renewableElectricityMwh">

@@ -2,3 +2,8 @@ node_modules
 dist
 .env
 *.log
+
+# Tesseract English model, fetched at build time by scripts/fetch-ocr-langdata.js.
+# ~5MB of generated third-party data — downloaded, never edited, so it is built
+# rather than committed.
+ocr-langdata/

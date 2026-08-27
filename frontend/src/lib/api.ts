@@ -96,6 +96,8 @@ import type {
   UpdateCctsObligatedEntityInput,
   CctsBulkImportRowResult,
   CctsEntityStatus,
+  BillExtraction,
+  RecommendationReport,
 } from "./types";
 import type {
   BorderInputs,
@@ -1100,6 +1102,29 @@ export const verifierApi = {
 
   fetchDocumentBlob: (facilityId: string, documentId: string): Promise<Blob> =>
     fetchAuthedBlob(`${API_URL}/api/verifier/facilities/${facilityId}/documents/${documentId}/download`),
+};
+
+export const billIntelligenceApi = {
+  // Polled after an upload while status is PENDING. A null extraction is a
+  // normal answer, not an error — the caller shows the manual flow.
+  get: (facilityId: string, documentId: string): Promise<{ extraction: BillExtraction | null }> =>
+    apiFetch(`/api/facilities/${facilityId}/documents/${documentId}/extraction`),
+
+  // Records that the client took the suggested figure. The value itself is
+  // written by the activity-data form's own autosave.
+  acceptPrefill: (facilityId: string, documentId: string): Promise<{ extraction: BillExtraction }> =>
+    apiFetch(`/api/facilities/${facilityId}/documents/${documentId}/extraction/accept`, { method: "POST" }),
+};
+
+export const recommendationsApi = {
+  // Derived server-side on every request from the stored emissions
+  // calculation, so there is nothing to refresh or invalidate — a GET straight
+  // after a resubmission already reflects it.
+  forFacility: (facilityId: string): Promise<{ report: RecommendationReport }> =>
+    apiFetch(`/api/facilities/${facilityId}/recommendations`),
+
+  forActivityData: (facilityId: string, dataId: string): Promise<{ report: RecommendationReport }> =>
+    apiFetch(`/api/facilities/${facilityId}/activity-data/${dataId}/recommendations`),
 };
 
 export const crossCheckApi = {
