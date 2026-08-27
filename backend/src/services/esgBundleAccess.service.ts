@@ -2,8 +2,12 @@ import { prisma } from "../config/prisma";
 import { AppError } from "../utils/AppError";
 import { getPlan } from "../data/plans";
 
-const ACCESS_DENIED_MESSAGE = `Subscribe to the ${getPlan("BRSR_CORE_REPORTING").name} to access BRSR Core, ISSB IFRS S1/S2, and Scope 3 reporting`;
+const ACCESS_DENIED_MESSAGE = `Subscribe to the ${getPlan("BRSR_CORE_REPORTING").name} to access BRSR Core, ISSB IFRS S1/S2, Scope 3 reporting, and IntelloAdvisor`;
 
+// Shown by every endpoint this bundle gates, so it has to name all of them. It
+// previously stopped at Scope 3, which meant a caller refused on the
+// IntelloAdvisor endpoints was told to subscribe in order to access three
+// things they had not asked for, and nothing about the one they had.
 export const throwEsgBundleAccessDenied = (): never => {
   throw AppError.forbidden(ACCESS_DENIED_MESSAGE, "ESG_BUNDLE_NOT_SUBSCRIBED");
 };

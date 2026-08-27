@@ -2,3 +2,12 @@ node_modules
 .DS_Store
 *.log
 .claude/
+
+# Tesseract language models. tesseract.js caches its model to the *working
+# directory* by default, so running anything that touches OCR from a directory
+# other than backend/ silently drops ~5MB of binary wherever you happened to be
+# — it has already turned up once inside the bill fixtures directory. Ignored
+# repo-wide rather than under backend/ because the cwd is exactly what varies.
+# The copy the API actually uses is fetched at build time into
+# backend/ocr-langdata/, which is ignored separately.
+*.traineddata
