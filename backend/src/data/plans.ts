@@ -132,7 +132,7 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
     facilityLimit: null,
     priceInr: 19999,
     priceLabel: "₹19,999/facility/mo",
-    description: "BRSR Core + ISSB IFRS S1/S2 + GRI Standards 2021 + CSRD/ESRS + CDP Climate Change — reusing your existing GHG calculation data.",
+    description: "BRSR Core + ISSB IFRS S1/S2 + GRI Standards 2021 + CSRD/ESRS + CDP Climate Change + IntelloAdvisor — reusing your existing GHG calculation data.",
     features: [
       "All 9 BRSR Core attributes (GHG, water, waste, energy, workforce, diversity, inclusion, openness, fairness)",
       "ISSB IFRS S1 & S2 disclosure — Governance, Strategy, Risk Management, Metrics & Targets",
@@ -162,6 +162,19 @@ export const PLANS: Record<SubscriptionTier, PlanDefinition> = {
       "Net-zero trajectory — historical emissions against your stated target path",
       "Product carbon footprint per SKU — an allocation of facility emissions by production share, not a life cycle assessment",
       "EcoVadis readiness — completeness of your data against the four EcoVadis themes. A readiness indicator, not a predicted EcoVadis score",
+      // IntelloAdvisor, gated on this bundle since 27 Aug 2026 — see
+      // requireAdvisorAccess in services/recommendationEngine/index.ts. Listed
+      // here because gating a capability behind a plan whose copy never
+      // mentions it means existing subscribers do not know they have it and
+      // prospects do not know they are buying it.
+      //
+      // Same rule as the ten lines above: named for what it actually does,
+      // with the limit stated in the line rather than left to a footnote.
+      // "Suggests", "directional" and "cited" are all load-bearing — this
+      // reads bills and quotes published benchmarks, it does not calculate a
+      // project, verify a number, or generate advice.
+      "IntelloAdvisor bill intelligence — electricity bills read on upload for units consumed, tariff category, sanctioned load and discom, suggested into your Scope 2 entry and shown to your verifier beside the manual comparison. Never writes over a figure you have already entered, and leaves a field blank rather than guessing at it",
+      "IntelloAdvisor decarbonization recommendations — rules-based solar sizing against your sanctioned load and your state's open-access threshold, a fuel-switching analysis of your coal and coke share, and a breakdown of what sets your Scope 2 number. Every figure traces to your own calculated emissions or to a cited published benchmark, and impacts are given as ranges: directional guidance, not a verified project calculation or professional advice",
     ],
     razorpayPlanIdEnvVar: "RAZORPAY_PLAN_ID_BRSR_CORE",
   },
