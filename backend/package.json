@@ -16,7 +16,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "prisma:seed": "prisma db seed",
-    "fetch:ocr-langdata": "node ../scripts/fetch-ocr-langdata.js ./ocr-langdata"
+    "fetch:ocr-langdata": "node scripts/fetch-ocr-langdata.js ./ocr-langdata"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

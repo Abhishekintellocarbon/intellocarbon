@@ -13,7 +13,12 @@
 // fatal: the API degrades to fetching at runtime, and if that also fails the
 // extraction is marked OCR_UNAVAILABLE and the manual flow carries on.
 //
-// Usage:
+// Lives under backend/ rather than the repo-root scripts/ directory on purpose:
+// the API's Docker build context is backend/, so a root-level path is not
+// present inside the image and `npm run build` — which calls this — dies with
+// MODULE_NOT_FOUND at image build time, failing the whole deploy.
+//
+// Usage (from backend/):
 //   node scripts/fetch-ocr-langdata.js [targetDir]
 const fs = require("fs");
 const path = require("path");
@@ -26,7 +31,7 @@ const LANG = "eng";
 const URL = `https://cdn.jsdelivr.net/npm/@tesseract.js-data/${LANG}/4.0.0_best_int/${LANG}.traineddata.gz`;
 const TIMEOUT_MS = 120_000;
 
-const targetDir = process.argv[2] ?? path.join(__dirname, "..", "backend", "ocr-langdata");
+const targetDir = process.argv[2] ?? path.join(__dirname, "..", "ocr-langdata");
 const targetFile = path.join(targetDir, `${LANG}.traineddata`);
 
 (async () => {

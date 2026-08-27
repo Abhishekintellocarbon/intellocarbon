@@ -46,6 +46,19 @@ ENV GIT_COMMIT=$GIT_COMMIT
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
+# Tesseract's English model, fetched during `npm run build` by
+# scripts/fetch-ocr-langdata.js. Without this line the build stage downloads it
+# and the runner throws it away, so the first bill photo uploaded after each
+# deploy pays for a ~5MB CDN fetch inside its own request — which is the exact
+# failure the build step exists to prevent, and which fails outright wherever
+# egress is restricted.
+#
+# The directory is created before that download is attempted and is never
+# removed on failure, so it always exists here and a CDN hiccup cannot turn
+# into a failed image build. An empty directory simply means OCR falls back to
+# fetching at runtime, and failing that, to reporting OCR_UNAVAILABLE while the
+# manual upload flow carries on untouched.
+COPY --from=build /app/ocr-langdata ./ocr-langdata
 COPY package.json ./
 
 EXPOSE 4000
