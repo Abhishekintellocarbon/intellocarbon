@@ -288,6 +288,10 @@ export const fuelSwitchRule = (facts: FuelSwitchFacts): RecommendationCard | nul
   // Energy-for-energy substitution: one TJ of coal replaced by one TJ of the
   // alternative. Per-tonne factors cannot be compared across fuels.
   const gasReductionFraction = (coal.value - gas.value) / coal.value;
+  // biomass.value is the RED II-certified case. The uncertified case is
+  // biomass.uncertifiedValue, which exceeds coal — so it is not an upper bound
+  // on a *reduction* and is surfaced as a stated condition and caveat rather
+  // than folded into this range.
   const biomassReductionFraction = (coal.value - biomass.value) / coal.value;
 
   const share = FUEL_SWITCH_QUOTED_SUBSTITUTION_SHARE;
@@ -305,8 +309,10 @@ export const fuelSwitchRule = (facts: FuelSwitchFacts): RecommendationCard | nul
       `${pct(solid.sharePct)}% of this facility's total CBAM-basis emissions come from burning coal or coke` +
       (fuelList ? ` — ${fuelList}` : "") +
       `. On an energy-equivalent basis, natural gas emits ${gas.value} tCO2/TJ against ${coal.value} tCO2/TJ for bituminous coal, ` +
-      `a ${pct(gasReductionFraction * 100)}% reduction for the energy substituted; biomass is biogenic and zero-rated in CBAM ` +
-      `embedded-emissions accounting, so it removes the substituted share entirely. Fuel switching and biomass blending are ` +
+      `a ${pct(gasReductionFraction * 100)}% reduction for the energy substituted. Biomass is zero-rated in CBAM ` +
+      `embedded-emissions accounting only where it ${biomass.zeroRatingCondition} — on that condition it removes the ` +
+      `substituted share entirely. Biomass that does not meet it is accounted as fossil at ${biomass.uncertifiedValue} tCO2/TJ, ` +
+      `above coal on an energy basis, so uncertified blending removes nothing and can raise the number. Fuel switching and biomass blending are ` +
       `the common directional levers for this emissions profile. This is an informational note, not a recommendation of any ` +
       `specific fuel supply, technology or vendor, and it does not assess whether either lever is technically feasible at this plant.`,
     inputs: [
@@ -314,7 +320,16 @@ export const fuelSwitchRule = (facts: FuelSwitchFacts): RecommendationCard | nul
       { label: "Coal / coke emissions", value: `${fmt(solid.co2e, 1)} tCO2e`, source: "PLATFORM_CALCULATION" },
       { label: "Bituminous coal CO2 factor", value: `${coal.value} tCO2/TJ`, source: "PUBLISHED_BENCHMARK" },
       { label: "Natural gas CO2 factor", value: `${gas.value} tCO2/TJ`, source: "PUBLISHED_BENCHMARK" },
-      { label: "Biomass CO2 factor (CBAM treatment)", value: `${biomass.value} tCO2/TJ`, source: "PUBLISHED_BENCHMARK" },
+      {
+        label: "Biomass CO2 factor — RED II certified",
+        value: `${biomass.value} tCO2/TJ`,
+        source: "PUBLISHED_BENCHMARK",
+      },
+      {
+        label: "Biomass CO2 factor — uncertified (treated as fossil)",
+        value: `${biomass.uncertifiedValue} tCO2/TJ`,
+        source: "PUBLISHED_BENCHMARK",
+      },
     ],
     impact: {
       metric: "Reduction in total CBAM-basis emissions",
@@ -323,7 +338,9 @@ export const fuelSwitchRule = (facts: FuelSwitchFacts): RecommendationCard | nul
       high: pct(impactHigh),
       basis:
         `Quoted per ${pct(share * 100, 0)}% of coal/coke energy substituted: the low end is natural gas ` +
-        `(${pct(gasReductionFraction * 100)}% less CO2 per TJ), the high end is biomass (zero-rated). The effect is linear in the ` +
+        `(${pct(gasReductionFraction * 100)}% less CO2 per TJ), the high end is biomass that qualifies for CBAM zero-rating — it ` +
+        `${biomass.zeroRatingCondition}. Biomass that does not qualify is accounted as fossil and contributes no reduction, so the ` +
+        `high end is conditional on certification rather than on the fuel choice alone. The effect is linear in the ` +
         `substitution share, so ${pct(share * 200, 0)}% substituted is twice these figures. The substitution level is a commercial ` +
         `decision, not a published benchmark, which is why it is stated rather than assumed.`,
     },
@@ -331,7 +348,7 @@ export const fuelSwitchRule = (facts: FuelSwitchFacts): RecommendationCard | nul
     caveats: [
       "The reduction percentages are CO2-only ratios from the IPCC energy tables, applied to a CO2e line that also carries small CH4 and N2O contributions. For coal these non-CO2 gases are a low single-digit share, so the natural-gas figure is approximate and slightly conservative.",
       "Energy-equivalent substitution assumes the replacement fuel delivers the same useful heat. It takes no view on burner or kiln compatibility, fuel availability, gas pipeline connectivity or the cost of either fuel.",
-      "Biomass being zero-rated is a CBAM accounting treatment. Sustainability criteria and any national reporting obligations for biogenic fuel still apply.",
+      `Biomass zero-rating is conditional, not automatic. It applies only where the fuel ${biomass.zeroRatingCondition}. Without that evidence the biomass is accounted as fossil at its full emission factor (${biomass.uncertifiedValue} tCO2/TJ), the high end of the range above does not hold, and blending can increase the CBAM number rather than reduce it. This platform does not currently hold biomass certification evidence, so it cannot tell you which case a given consignment falls into.`,
     ],
     requiresComplianceReview: needsReview(citations),
   };
