@@ -55,6 +55,17 @@ export type Citation = {
  * a precision the underlying data does not have. The engine carries the range
  * through to the recommendation's impact range rather than collapsing it to a
  * midpoint.
+ *
+ * CITATION UPGRADE OUTSTANDING (the figure itself is not in doubt)
+ * ---------------------------------------------------------------
+ * 1,400–1,600 kWh/kWp/year is directionally supported by current data —
+ * Chhattisgarh plants run at roughly 1,450–1,550 kWh/kWp/year — so the range
+ * is left as it stands. What is not yet primary-sourced is the citation: it
+ * names MNRE/NISE generically rather than a specific published table. Replace
+ * it with a direct pointer to MNRE/NISE benchmark performance data or a PVGIS
+ * query for the site's coordinates (publisher, table/query and vintage stated)
+ * before this value is quoted as a verified benchmark. Until then it keeps
+ * NEEDS_COMPLIANCE_REVIEW, which is why the solar card is still badged.
  */
 export const SOLAR_SPECIFIC_YIELD_KWH_PER_KWP_YEAR = {
   low: 1400,
@@ -104,20 +115,33 @@ export type StateOpenAccessProfile = {
 /**
  * The national floor, applied to any state not in the table below.
  *
- * Section 42(2) of the Electricity Act 2003 opened access to consumers with a
- * load of 1 MW and above, and that threshold is national — a state can be more
- * permissive but not less. So an unlisted state still gets a correct, citable
- * eligibility statement rather than silence or a guess borrowed from a
- * neighbouring state's tariff order.
+ * The binding threshold for *green energy* open access — the only kind this
+ * engine ever recommends — is the 100 kW sanctioned load / contracted demand
+ * floor set nationally by the Ministry of Power's Green Energy Open Access
+ * Rules, 2022. It is national, and a state commission may be more permissive
+ * but not less, so an unlisted state still gets a correct, citable eligibility
+ * statement rather than silence or a figure borrowed from a neighbouring
+ * state's tariff order.
+ *
+ * This is deliberately *not* the 1 MW threshold of Section 42(2) of the
+ * Electricity Act 2003. That one still governs conventional open access; the
+ * 2022 Rules lowered the floor to 100 kW for renewable energy specifically,
+ * and quoting 1 MW here told consumers between 100 kW and 1 MW that they were
+ * ineligible when the Rules make them eligible.
+ *
+ * The Rules express the floor as sanctioned load / contracted demand of 100 kW
+ * and above, which is why the comparison in the solar rule holds whether the
+ * bill prints that load in kW or kVA.
  */
 export const NATIONAL_OPEN_ACCESS_FLOOR = {
-  openAccessMinimumLoadKw: 1000,
+  openAccessMinimumLoadKw: 100,
   citation: {
-    publisher: "Government of India",
-    document: "The Electricity Act, 2003",
-    reference: "Section 42(2) — open access for consumers with load of 1 MW and above",
-    asOf: "2003, as amended",
-    verification: "NEEDS_COMPLIANCE_REVIEW",
+    publisher: "Ministry of Power, Government of India",
+    document: "Green Energy Open Access Rules, 2022 (Ministry of Power)",
+    reference:
+      "Rule 4 — green energy open access available to consumers with a sanctioned load / contracted demand of 100 kW and above (aggregated across multiple connections in the same distribution licensee's area), with no load limit for captive consumers",
+    asOf: "2022, as amended",
+    verification: "VERIFIED_AGAINST_PRIMARY_SOURCE",
   } satisfies Citation,
 };
 
@@ -135,17 +159,21 @@ export const STATE_OPEN_ACCESS_PROFILES: Record<string, StateOpenAccessProfile> 
   Chhattisgarh: {
     stateName: "Chhattisgarh",
     regulator: "Chhattisgarh State Electricity Regulatory Commission (CSERC)",
-    openAccessMinimumLoadKw: 1000,
+    // The eligibility floor is the national 100 kW one from the Green Energy
+    // Open Access Rules, 2022, not a CSERC-set threshold. CSERC's role on this
+    // card is the surcharges in `notes`, which genuinely are state-set.
+    openAccessMinimumLoadKw: 100,
     netMeteringCeilingKw: null,
     bankingPermitted: null,
     notes:
-      "Open-access supply in Chhattisgarh attracts wheeling charges, a cross-subsidy surcharge and an additional surcharge, each revised by CSERC tariff order. Those charges decide whether open access is economic and are not modelled here — this recommendation addresses the emissions effect only.",
+      "Eligibility is set nationally at 100 kW by the Green Energy Open Access Rules, 2022. What CSERC sets is the cost: open-access supply in Chhattisgarh attracts wheeling charges, a cross-subsidy surcharge and an additional surcharge, each revised by CSERC tariff order. Those charges decide whether open access is economic and are not modelled here — this recommendation addresses the emissions effect only.",
     citation: {
-      publisher: "Chhattisgarh State Electricity Regulatory Commission",
-      document: "CSERC open access regulations and prevailing tariff order",
-      reference: "Open-access eligibility threshold and applicable surcharges",
-      asOf: "Confirm against the current tariff order",
-      verification: "NEEDS_COMPLIANCE_REVIEW",
+      publisher: "Ministry of Power, Government of India",
+      document: "Green Energy Open Access Rules, 2022 (Ministry of Power)",
+      reference:
+        "Rule 4 — green energy open access threshold of 100 kW sanctioned load / contracted demand, applicable in Chhattisgarh as a national floor. Wheeling, cross-subsidy and additional surcharges are set separately by CSERC tariff order and are not quoted on this card.",
+      asOf: "2022, as amended",
+      verification: "VERIFIED_AGAINST_PRIMARY_SOURCE",
     },
   },
 };
@@ -183,8 +211,8 @@ export const resolveOpenAccessProfile = (state: string | null | undefined): Reso
     netMeteringCeilingKw: null,
     bankingPermitted: null,
     notes: state
-      ? `State-specific open-access rules for ${state} are not yet in the reference table, so the national threshold under the Electricity Act 2003 is shown instead. Wheeling charges, cross-subsidy surcharge and banking rules are set by the state regulator and must be confirmed there.`
-      : "No state is recorded for this facility, so the national threshold under the Electricity Act 2003 is shown. State rules may be more permissive.",
+      ? `State-specific open-access rules for ${state} are not yet in the reference table, so the national threshold under the Green Energy Open Access Rules, 2022 is shown instead. Wheeling charges, cross-subsidy surcharge and banking rules are set by the state regulator and must be confirmed there.`
+      : "No state is recorded for this facility, so the national threshold under the Green Energy Open Access Rules, 2022 is shown. State rules may be more permissive.",
     citation: NATIONAL_OPEN_ACCESS_FLOOR.citation,
     stateSpecific: false,
   };
@@ -228,20 +256,43 @@ export const FUEL_CO2_PER_TJ = {
     } satisfies Citation,
   },
   /**
-   * Biogenic CO2 is reported but not counted towards the CBAM embedded
-   * emissions total, which is why the platform's BIOMASS fuel already carries a
-   * zero CO2 factor. Zero here is therefore a regulatory treatment, not an
-   * assertion that combustion releases no carbon.
+   * Biomass zero-rating under CBAM is CONDITIONAL, not automatic.
+   *
+   * Biogenic CO2 may be counted at zero in the embedded-emissions total only
+   * where the biomass meets the sustainability and greenhouse-gas-saving
+   * criteria of Article 29 of Directive (EU) 2018/2001 (RED II), evidenced by
+   * valid certification covering the fuel *at the time it was consumed*.
+   * Biomass that does not meet those criteria, or that meets them but cannot be
+   * evidenced for the consumption period, is treated as fossil: the full
+   * emission factor applies and none of the substituted share is removed.
+   *
+   * Both numbers therefore live here. `value` is the certified case; consuming
+   * code that quotes it must state the condition alongside it, and must never
+   * present zero as the treatment biomass gets by default.
    */
   biomass: {
+    /** Certified case only: RED II Article 29 criteria met and evidenced for the consumption period. */
     value: 0,
-    label: "Biomass (biogenic, zero-rated)",
+    /**
+     * Uncertified case: RED II criteria not met, or met but not evidenced at
+     * the time of consumption. The fuel is then accounted as fossil at its full
+     * IPCC default factor — which is *above* bituminous coal per unit of
+     * energy, so uncertified biomass blending does not reduce the CBAM number
+     * and can increase it.
+     */
+    uncertifiedValue: 112,
+    label: "Biomass (biogenic — zero-rated only where RED II criteria are met and certified)",
+    /** Stated verbatim on any card that quotes the zero. */
+    zeroRatingCondition:
+      "meets the RED II sustainability and greenhouse-gas-saving criteria and holds valid certification covering the fuel at the time of consumption",
     citation: {
       publisher: "European Commission",
-      document: "Regulation (EU) 2023/956 (CBAM) and Implementing Regulation (EU) 2023/1773",
-      reference: "Biogenic CO2 is zero-rated in embedded emissions accounting",
-      asOf: "2023",
-      verification: "NEEDS_COMPLIANCE_REVIEW",
+      document:
+        "Regulation (EU) 2023/956 (CBAM), Implementing Regulation (EU) 2023/1773 and Directive (EU) 2018/2001 (RED II), Article 29",
+      reference:
+        "Biogenic CO2 counts as zero in embedded emissions only where the biomass meets the RED II Article 29 sustainability and GHG-saving criteria with valid certification at the time of consumption; otherwise the full fossil emission factor applies. Uncertified value is the IPCC 2006 Guidelines Vol. 2 Table 2.2 default for wood/wood waste, 112,000 kg CO2/TJ.",
+      asOf: "2023 (CBAM); RED II as amended",
+      verification: "VERIFIED_AGAINST_PRIMARY_SOURCE",
     } satisfies Citation,
   },
 };

@@ -165,7 +165,10 @@ describe("high electricity share", () => {
     const solar = cardById(report(), "SOLAR_SELF_GENERATION")!;
     expect(solar.citations.length).toBeGreaterThanOrEqual(2);
     expect(solar.citations.some((c) => /National Institute of Solar Energy|New and Renewable Energy/.test(c.publisher))).toBe(true);
-    expect(solar.citations.some((c) => /Chhattisgarh/.test(c.publisher))).toBe(true);
+    // Eligibility is cited to the national Rules; the Chhattisgarh entry is
+    // what selects them and adds the state's surcharge position in `reference`.
+    expect(solar.citations.some((c) => /Green Energy Open Access Rules, 2022/.test(c.document))).toBe(true);
+    expect(solar.citations.some((c) => /Chhattisgarh|CSERC/.test(c.reference))).toBe(true);
   });
 
   it("caps the system at the sanctioned load rather than at the offset target", () => {
@@ -195,7 +198,9 @@ describe("high electricity share", () => {
 describe("state awareness", () => {
   it("uses the state profile when the state is in the lookup table", () => {
     const solar = cardById(report({ facility: facility("Chhattisgarh") }), "SOLAR_SELF_GENERATION")!;
-    expect(solar.explanation).toMatch(/1,000 kW/);
+    // 100 kW, the Green Energy Open Access Rules, 2022 floor — not a
+    // CSERC-set threshold, and not the 1 MW conventional-open-access figure.
+    expect(solar.explanation).toMatch(/100 kW/);
     expect(solar.caveats.some((c) => /cross-subsidy surcharge/i.test(c))).toBe(true);
   });
 
@@ -210,7 +215,7 @@ describe("state awareness", () => {
       }),
       "SOLAR_SELF_GENERATION",
     )!;
-    expect(solar.citations.some((c) => /Electricity Act, 2003/.test(c.document))).toBe(true);
+    expect(solar.citations.some((c) => /Green Energy Open Access Rules, 2022/.test(c.document))).toBe(true);
     expect(solar.caveats.some((c) => /not yet in the reference table/i.test(c))).toBe(true);
   });
 
@@ -239,8 +244,12 @@ describe("bill state versus registered state", () => {
     const solar = cardById(r, "SOLAR_SELF_GENERATION")!;
     // Maharashtra is not in the profile table, so the national floor applies —
     // proving the bill's state, not Chhattisgarh's CSERC entry, drove this.
-    expect(solar.citations.some((c) => /Electricity Act, 2003/.test(c.document))).toBe(true);
-    expect(solar.citations.some((c) => /Chhattisgarh/.test(c.publisher))).toBe(false);
+    // The two now share a publisher and document (both are the 2022 Rules), so
+    // the discriminator is the Chhattisgarh entry's surcharge text, which the
+    // fallback does not carry.
+    expect(solar.citations.some((c) => /Green Energy Open Access Rules, 2022/.test(c.document))).toBe(true);
+    expect(solar.citations.some((c) => /Chhattisgarh|CSERC/.test(c.reference))).toBe(false);
+    expect(solar.caveats.some((c) => /not yet in the reference table/i.test(c))).toBe(true);
   });
 
   it("reports the mismatch rather than resolving it away", () => {
@@ -557,9 +566,33 @@ describe("report assembly", () => {
   });
 
   it("marks cards whose benchmarks are not yet compliance-reviewed", () => {
-    // The solar card leans on a yield benchmark and a state tariff position,
-    // neither signed off yet. Phase 3 has to be able to badge that.
-    expect(cardById(report(), "SOLAR_SELF_GENERATION")!.requiresComplianceReview).toBe(true);
+    // The open-access citation is now primary-sourced, but the solar card still
+    // leans on the specific-yield benchmark, whose figure is sound and whose
+    // citation is not yet a direct MNRE/PVGIS pointer. Phase 3 has to be able
+    // to badge that, and only that.
+    const solar = cardById(report(), "SOLAR_SELF_GENERATION")!;
+    expect(solar.requiresComplianceReview).toBe(true);
+    const unreviewed = solar.citations.filter((c) => c.verification === "NEEDS_COMPLIANCE_REVIEW");
+    expect(unreviewed).toHaveLength(1);
+    expect(unreviewed[0].reference).toMatch(/kWh\/kWp/);
+  });
+
+  it("no longer badges the fuel-switch card, whose citations are all primary-sourced", () => {
+    // Coal and gas were already IPCC-verified; the biomass citation is now
+    // verified against CBAM plus RED II Article 29, so nothing is outstanding.
+    const fuel = cardById(report({ calculationResult: combustionHeavy() }), "SOLID_FUEL_SWITCHING")!;
+    expect(fuel.requiresComplianceReview).toBe(false);
+    expect(fuel.citations.every((c) => c.verification === "VERIFIED_AGAINST_PRIMARY_SOURCE")).toBe(true);
+  });
+
+  it("states biomass zero-rating as conditional on RED II certification", () => {
+    const fuel = cardById(report({ calculationResult: combustionHeavy() }), "SOLID_FUEL_SWITCHING")!;
+    expect(fuel.explanation).toMatch(/RED II/);
+    expect(fuel.explanation).toMatch(/only where/i);
+    // The fossil treatment of uncertified biomass must be stated, not implied.
+    expect(fuel.inputs.some((i) => /uncertified/i.test(i.label) && i.value === "112 tCO2/TJ")).toBe(true);
+    expect(fuel.caveats.some((c) => /conditional, not automatic/i.test(c))).toBe(true);
+    expect(fuel.impact!.basis).toMatch(/conditional on certification/i);
   });
 
   it("traces every quoted figure to a source", () => {

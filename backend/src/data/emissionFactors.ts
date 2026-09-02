@@ -128,9 +128,21 @@ export const FUEL_LIBRARY: Record<string, FuelDefinition> = {
   },
   BIOMASS: {
     key: "BIOMASS",
-    label: "Biomass (biogenic)",
+    label: "Biomass (biogenic — zero-rated only if RED II certified)",
     unit: "GJ",
-    // Zero-rated for CBAM purposes — biogenic CO2 is not counted.
+    // Zero-rating under CBAM is CONDITIONAL, not automatic: biogenic CO2 counts
+    // as zero only where the biomass meets the sustainability and GHG-saving
+    // criteria of Article 29 of Directive (EU) 2018/2001 (RED II) and holds
+    // valid certification covering the fuel at the time of consumption.
+    // Biomass without that evidence is accounted as fossil at the full IPCC
+    // default for wood/wood waste, 112 tCO2/TJ = 0.112 tCO2/GJ — above coal per
+    // unit of energy. The factor below is therefore the certified case, and the
+    // label says so at the point of entry.
+    //
+    // The platform does not yet capture certification evidence per consignment,
+    // so it cannot enforce the condition; selecting this fuel is the user
+    // asserting the certified case. Add a certification field (and switch this
+    // entry to 0.112 when it is absent) before biomass is reported at scale.
     efCo2PerUnit: 0,
     efCh4PerUnit: 0,
     efN2oPerUnit: 0,
