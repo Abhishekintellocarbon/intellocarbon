@@ -1326,12 +1326,21 @@ export type RecommendationInputSource =
   | "PLATFORM_CALCULATION"
   | "BILL_EXTRACTION"
   | "PUBLISHED_BENCHMARK"
-  | "FACILITY_PROFILE";
+  | "FACILITY_PROFILE"
+  /**
+   * A forward projection (Pathway Modelling), not a measured or calculated
+   * fact. Part of this union rather than a parallel type so a projected figure
+   * carries a visibly different badge anywhere an input list is rendered — see
+   * lib/source-meta.ts. The recommendation engine never emits it.
+   */
+  | "PROJECTED";
 
 export interface RecommendationInput {
   label: string;
   value: string;
   source: RecommendationInputSource;
+  /** What a PROJECTED figure derives from. Rendered as "Projected from {this}". */
+  derivedFrom?: string;
 }
 
 /** Always a range. `basis` says in words what its two ends are. */
@@ -1439,6 +1448,90 @@ export interface RecommendationReport {
   };
   recommendations: RecommendationCard[];
   /** Non-null when no analysis could be produced; `recommendations` is then empty. */
+  unavailableReason: string | null;
+}
+
+// --- IntelloAdvisor Pathway Modelling (Phase 4) ---
+// Mirrors backend/src/services/pathwayModelling/. Every projected figure is a
+// ProjectedValue rather than a bare number, and every projected metric names
+// what it was projected from — the UI is not free to print a projection as if
+// it were a measured fact.
+
+export type PathwayScenarioId = "SOLAR_RECOMMENDED_CAPACITY" | "PRODUCTION_CHANGE" | "BUSINESS_AS_USUAL";
+
+export type PathwayMetricId = "TOTAL_EMISSIONS_TCO2E" | "CBAM_LIABILITY_EUR" | "CCTS_POSITION_TCO2E";
+
+export interface ProjectedValue {
+  low: number;
+  high: number;
+  /** True when the two ends coincide at this metric's precision — print one number. */
+  isPoint: boolean;
+  /** Decimal places the underlying data supports. Never print more. */
+  decimals: number;
+  /** In words: what the two ends of this range actually are. */
+  basis: string;
+}
+
+export interface PathwayMetric {
+  metric: PathwayMetricId;
+  label: string;
+  unit: string;
+  current: number | null;
+  /** Never "PROJECTED" — the current position is measured, not projected. */
+  currentSource: RecommendationInputSource;
+  projected: ProjectedValue | null;
+  /** Printed by the badge as "Projected from {this}". */
+  projectedFrom: string;
+  changeLow: number | null;
+  changeHigh: number | null;
+  /** Emissions and liability want to fall; a CCTS surplus wants to rise. */
+  lowerIsBetter: boolean;
+  unavailableReason: string | null;
+  inputs: RecommendationInput[];
+  citations: RecommendationCitation[];
+  caveats: string[];
+}
+
+export interface PathwayScenario {
+  id: PathwayScenarioId;
+  title: string;
+  summary: string;
+  assumption: string;
+  metrics: PathwayMetric[];
+  /** Non-null when the scenario could not be modelled; metrics is then empty. */
+  unavailableReason: string | null;
+  requiresComplianceReview: boolean;
+}
+
+export interface PathwayCurrentPosition {
+  totalEmissionsCbamAr5: number;
+  ghgIntensityCcts: number;
+  productionQuantityT: number | null;
+  productionBasisLabel: string;
+  cbamNetLiabilityEur: number;
+  cbamGrossLiabilityEur: number;
+  certificatePrice: number;
+  certificatePriceQuarter: string;
+  certificatePriceSource: string;
+  carbonPricePaidEurPerTonne: number;
+  cctsTargetIntensity: number | null;
+  cctsPositionTco2e: number | null;
+}
+
+export interface PathwayReport {
+  facility: { id: string; name: string; state: string | null; sector: string };
+  activityData: {
+    id: string;
+    periodStart: string | null;
+    periodEnd: string | null;
+    reportingPeriodDays: number | null;
+  } | null;
+  basedOnCalculationAt: string | null;
+  generatedAt: string;
+  engineVersion: string;
+  basis: "CBAM_AR5";
+  current: PathwayCurrentPosition | null;
+  scenarios: PathwayScenario[];
   unavailableReason: string | null;
 }
 
@@ -1788,8 +1881,10 @@ export interface CompanyFacilityComparisonPoint {
 
 export interface CompanyYearOverYear {
   hasData: boolean;
-  thisYear?: { emissionsTco2e: number; liabilityEur: number };
-  lastYear?: { emissionsTco2e: number; liabilityEur: number };
+  // liabilityEur is null when the company holds no CBAM tier. Emissions are
+  // always present — they are the half a CCTS-only subscriber has paid for.
+  thisYear?: { emissionsTco2e: number; liabilityEur: number | null };
+  lastYear?: { emissionsTco2e: number; liabilityEur: number | null };
   emissionsDeltaPct?: number | null;
   liabilityDeltaPct?: number | null;
 }
@@ -1880,8 +1975,11 @@ export interface CompanyDashboardAnalytics {
   facilityCount: number;
   livePosition: LivePositionItem[];
   emissionsTrend: CompanyEmissionsTrendPoint[];
-  liabilityTrend: CompanyLiabilityTrendPoint[];
-  currentCertificatePrice: { pricePerTonneEur: number; quarterLabel: string };
+  // Both null when the company holds no active CBAM tier (CBAM_COMPLIANCE or
+  // CBAM_PLUS_CCTS) — distinct from an empty array, which means "entitled, no
+  // data yet". Same convention as `brsr` below.
+  liabilityTrend: CompanyLiabilityTrendPoint[] | null;
+  currentCertificatePrice: { pricePerTonneEur: number; quarterLabel: string } | null;
   emissionsComposition: CompanyEmissionsComposition;
   cctsIntensity: CompanyCctsIntensity;
   ukCbam: CompanyUkCbamAnalytics;

@@ -22,6 +22,7 @@ import {
   type Citation,
   type ResolvedOpenAccess,
 } from "../../data/decarbonizationBenchmarks";
+import { sizeSolarSystem } from "./solarSizing";
 import type { EmissionsComposition, GridFactorSplit } from "./composition";
 import type { RecommendationCard } from "./types";
 
@@ -141,41 +142,25 @@ export const solarSelfGenerationRule = (facts: SolarRuleFacts): RecommendationCa
 
   if (facts.sanctionedLoad && facts.annualisedGridMwh !== null && facts.annualisedGridMwh > 0) {
     const load = facts.sanctionedLoad;
-    const yieldLow = SOLAR_SPECIFIC_YIELD_KWH_PER_KWP_YEAR.low;
-    const yieldHigh = SOLAR_SPECIFIC_YIELD_KWH_PER_KWP_YEAR.high;
     citations.push(SOLAR_SPECIFIC_YIELD_KWH_PER_KWP_YEAR.citation);
 
-    const annualKwh = facts.annualisedGridMwh * 1000;
-
-    // Low end pairs the smaller offset target with the better yield (least
-    // capacity needed); high end pairs the larger target with the poorer yield.
-    // That is the widest honest reading of the same two published ranges.
-    const rawLowKwp = (annualKwh * SOLAR_OFFSET_DESIGN_RANGE.low) / yieldHigh;
-    const rawHighKwp = (annualKwh * SOLAR_OFFSET_DESIGN_RANGE.high) / yieldLow;
-
-    // The connection cannot exceed the sanctioned load. Where the bill states
-    // that load in kVA, capping kWp at the kVA figure is deliberately
-    // conservative rather than converted: real power in kW never exceeds
-    // apparent power in kVA, so the bound holds without inventing a power
-    // factor the bill does not print.
-    const capKw = load.value;
-    const lowKwp = Math.min(rawLowKwp, capKw);
-    const highKwp = Math.min(rawHighKwp, capKw);
-    const cappedByLoad = rawHighKwp > capKw;
-
-    // Generation cannot exceed consumption — offsetting more than you draw is
-    // export, which is a different commercial arrangement and a different
-    // emissions claim.
-    const genLowMwh = Math.min((lowKwp * yieldLow) / 1000, facts.annualisedGridMwh);
-    const genHighMwh = Math.min((highKwp * yieldHigh) / 1000, facts.annualisedGridMwh);
+    // The sizing itself lives in solarSizing.ts, shared with Pathway Modelling,
+    // so the capacity this card recommends and the capacity that feature
+    // projects forward can never be two different systems.
+    const sizing = sizeSolarSystem({
+      annualisedGridMwh: facts.annualisedGridMwh,
+      sanctionedLoadValue: load.value,
+      emissionFactorUsed: facts.grid.emissionFactorUsed,
+    });
+    const { yieldLow, yieldHigh, lowKwp, highKwp, cappedByLoad } = sizing;
 
     // Both the saving and the total are put on the same annual basis, so the
     // percentage is a like-for-like share and not a period-length artefact.
     const annualisationFactor = facts.annualisedGridMwh / (facts.grid.gridElectricityMwh || facts.annualisedGridMwh);
     const annualisedTotalCo2e = facts.composition.totalCo2e * annualisationFactor;
 
-    const savedLow = genLowMwh * facts.grid.emissionFactorUsed;
-    const savedHigh = genHighMwh * facts.grid.emissionFactorUsed;
+    const savedLow = sizing.savedLowCo2e;
+    const savedHigh = sizing.savedHighCo2e;
 
     inputs.push(
       {

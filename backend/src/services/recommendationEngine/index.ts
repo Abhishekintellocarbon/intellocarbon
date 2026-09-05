@@ -106,7 +106,7 @@ export type RecommendationReport = {
  * not 29 — an off-by-one here propagates straight into annualised consumption
  * and from there into the solar sizing.
  */
-const reportingPeriodDays = (start: Date | null, end: Date | null): number | null => {
+export const reportingPeriodDays = (start: Date | null, end: Date | null): number | null => {
   if (!start || !end) return null;
   const days = Math.round((end.getTime() - start.getTime()) / MS_PER_DAY) + 1;
   return days > 0 ? days : null;
@@ -121,7 +121,7 @@ type BillExtractionRow = {
   tariffCode: string | null;
 };
 
-type BillDocument = { id: string; billExtraction: BillExtractionRow | null };
+export type BillDocument = { id: string; billExtraction: BillExtractionRow | null };
 
 const completedExtractions = (documents: BillDocument[]) =>
   documents.filter((d) => d.billExtraction?.status === "COMPLETED").map((d) => ({ id: d.id, e: d.billExtraction! }));
@@ -137,7 +137,7 @@ const completedExtractions = (documents: BillDocument[]) =>
  * yields null and a reason, and the solar rule then omits its sizing rather
  * than sizing against a coin toss.
  */
-const resolveBillData = (documents: BillDocument[], facilityState: string | null): BillDataUsed => {
+export const resolveBillData = (documents: BillDocument[], facilityState: string | null): BillDataUsed => {
   const completed = completedExtractions(documents);
 
   // --- State implied by the discom -----------------------------------------

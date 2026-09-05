@@ -24,6 +24,7 @@ import { EvidencePendingBanner } from "@/components/facilities/dashboard/evidenc
 import { CrossCheckStatusIndicator } from "@/components/facilities/dashboard/cross-check-status-indicator";
 import { OpenQueriesSection } from "@/components/facilities/dashboard/open-queries-section";
 import { RecommendationsSection } from "@/components/advisor/recommendations-section";
+import { PathwaySection } from "@/components/advisor/pathway-section";
 import { computeDashboardAccess } from "@/components/facilities/dashboard/dashboard-access";
 import { billingApi, facilityApi } from "@/lib/api";
 import type { Facility, FacilityDashboard as FacilityDashboardData, PlanDefinition, Subscription } from "@/lib/types";
@@ -128,6 +129,16 @@ function FacilityDashboardContent() {
               decides whether to show cards or an upsell, while the endpoint
               itself 403s without the subscription. */}
           <RecommendationsSection
+            facilityId={facility.id}
+            hasEsgBundle={access.hasBrsr}
+            esgBundlePlan={plans.find((p) => p.tier === "BRSR_CORE_REPORTING") ?? null}
+          />
+
+          {/* Pathway Modelling sits directly below the recommendation cards
+              because it projects the very levers those cards propose — the
+              solar scenario models the capacity the card above it sized. Same
+              ESG Disclosure Bundle gate, enforced on the endpoint. */}
+          <PathwaySection
             facilityId={facility.id}
             hasEsgBundle={access.hasBrsr}
             esgBundlePlan={plans.find((p) => p.tier === "BRSR_CORE_REPORTING") ?? null}

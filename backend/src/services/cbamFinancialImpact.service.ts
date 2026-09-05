@@ -46,6 +46,63 @@ export const reportReferenceNumber = (ctx: ReportContext, reportType: CbamReport
   return `ICT-${REFERENCE_MARKER[reportType]}-${ctx.periodEnd.getUTCFullYear()}-Q${quarter}-${stableDigits(ctx.id)}`;
 };
 
+/**
+ * The certificate arithmetic, on its own.
+ *
+ * Split out of computeCbamFinancialImpact so Pathway Modelling can price a
+ * *projected* emissions figure through exactly the formula that prices the
+ * actual one — including the Article 9 deduction, which is not a flat
+ * percentage and would be the easiest thing in the product to get subtly wrong
+ * in a second implementation. Nothing here reads the database or the clock;
+ * the caller supplies the price so a projection and the report it is compared
+ * against are priced at the same certificate price.
+ */
+export interface CbamCertificateArithmetic {
+  certificatesRequired: number;
+  article9DeductionTonnes: number;
+  netCertificates: number;
+  grossLiabilityEur: number;
+  article9DeductionEur: number;
+  netLiabilityEur: number;
+}
+
+export const computeCbamCertificateArithmetic = (input: {
+  /** Total CBAM-basis (AR5) emissions for the period, tCO2e. */
+  totalEmissionsCbamAr5: number;
+  /** Tonnes of product, or MWh exported to the EU for the electricity sector. */
+  production: number;
+  /** Carbon price effectively paid in the country of origin, EUR/tCO2e. */
+  carbonPricePaidEurPerTonne: number;
+  certificatePrice: number;
+}): CbamCertificateArithmetic => {
+  const certificatesRequired = input.totalEmissionsCbamAr5;
+  const article9DeductionTonnes =
+    input.carbonPricePaidEurPerTonne > 0
+      ? Math.min(certificatesRequired, (input.carbonPricePaidEurPerTonne * input.production) / input.certificatePrice)
+      : 0;
+  const netCertificates = Math.max(0, certificatesRequired - article9DeductionTonnes);
+
+  return {
+    certificatesRequired,
+    article9DeductionTonnes,
+    netCertificates,
+    grossLiabilityEur: certificatesRequired * input.certificatePrice,
+    article9DeductionEur: article9DeductionTonnes * input.certificatePrice,
+    netLiabilityEur: netCertificates * input.certificatePrice,
+  };
+};
+
+/**
+ * CCTS compliance position in tCO2e — positive is a surplus against the
+ * BEE-notified intensity target, negative a deficit.
+ *
+ * A one-line formula, but exported for the same reason as the certificate
+ * arithmetic above: Pathway Modelling projects this number forward, and a
+ * second copy of even a one-liner is a place for the sign convention to drift.
+ */
+export const cctsPositionTco2e = (targetIntensity: number, actualIntensity: number, production: number): number =>
+  (targetIntensity - actualIntensity) * production;
+
 export interface CctsCccPosition {
   pending: true;
 }
@@ -99,18 +156,16 @@ export const computeCbamFinancialImpact = (ctx: ReportContext, reportType: CbamR
 
   const cbamCertificatePrice = getCbamCertificatePrice();
   const certificatePrice = cbamCertificatePrice.pricePerTonneEur;
-  const certificatesRequired = result.totalEmissionsCbamAr5;
-
   const carbonPricePaidEurPerTonne = ctx.carbonPricePaidEurPerTonne ?? 0;
-  const article9DeductionTonnes =
-    carbonPricePaidEurPerTonne > 0
-      ? Math.min(certificatesRequired, (carbonPricePaidEurPerTonne * production) / certificatePrice)
-      : 0;
-  const netCertificates = Math.max(0, certificatesRequired - article9DeductionTonnes);
 
-  const grossLiabilityEur = certificatesRequired * certificatePrice;
-  const article9DeductionEur = article9DeductionTonnes * certificatePrice;
-  const netLiabilityEur = netCertificates * certificatePrice;
+  const { certificatesRequired, article9DeductionTonnes, netCertificates, grossLiabilityEur, article9DeductionEur, netLiabilityEur } =
+    computeCbamCertificateArithmetic({
+      totalEmissionsCbamAr5: result.totalEmissionsCbamAr5,
+      production,
+      carbonPricePaidEurPerTonne,
+      certificatePrice,
+    });
+
   const savingVsDefaultEur = varianceFromDefault * production * certificatePrice;
 
   const cctsPosition: CctsCccPosition | CctsCccPositionResolved =
@@ -119,7 +174,7 @@ export const computeCbamFinancialImpact = (ctx: ReportContext, reportType: CbamR
           pending: false,
           targetIntensity: ctx.cctsTargetIntensity,
           actualIntensity: result.ghgIntensityCcts,
-          deltaTco2e: round((ctx.cctsTargetIntensity - result.ghgIntensityCcts) * production, 2),
+          deltaTco2e: round(cctsPositionTco2e(ctx.cctsTargetIntensity, result.ghgIntensityCcts, production), 2),
           isSurplus: ctx.cctsTargetIntensity - result.ghgIntensityCcts >= 0,
         }
       : { pending: true };

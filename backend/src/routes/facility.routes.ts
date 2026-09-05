@@ -4,6 +4,7 @@ import * as facilityDashboardController from "../controllers/facilityDashboard.c
 import * as facilityReportsController from "../controllers/facilityReports.controller";
 import * as evidenceDocumentController from "../controllers/evidenceDocument.controller";
 import * as recommendationController from "../controllers/recommendation.controller";
+import * as pathwayController from "../controllers/pathway.controller";
 import * as facilityQueriesController from "../controllers/facilityQueries.controller";
 import * as cbamExecutiveSummaryController from "../controllers/cbamExecutiveSummary.controller";
 import { requireAuth } from "../middleware/requireAuth";
@@ -43,6 +44,11 @@ router.post("/:facilityId/documents/:documentId/extraction/accept", evidenceDocu
 // regeneration endpoint and can never serve a stale card.
 router.get("/:facilityId/recommendations", recommendationController.getFacilityRecommendations);
 router.get("/:facilityId/activity-data/:dataId/recommendations", recommendationController.getActivityDataRecommendations);
+// IntelloAdvisor Phase 4 — Pathway Modelling. Projects the same stored
+// calculation forward under a chosen scenario; gated on the same ESG Disclosure
+// Bundle subscription as the recommendations above, enforced in the service.
+router.get("/:facilityId/pathway", pathwayController.getFacilityPathway);
+router.get("/:facilityId/activity-data/:dataId/pathway", pathwayController.getActivityDataPathway);
 router.get("/:facilityId/queries", facilityQueriesController.listFacilityQueries);
 router.post("/:facilityId/queries/:queryId/respond", validate(respondQuerySchema), facilityQueriesController.respondToQuery);
 router.put("/:facilityId", validate(facilitySchema), facilityController.updateFacility);

@@ -1,6 +1,7 @@
 import { API_URL } from "./config";
 import type {
   CheckoutResult,
+  PathwayReport,
   Company,
   CompanyDashboardAnalytics,
   EsgOverview,
@@ -1125,6 +1126,31 @@ export const recommendationsApi = {
 
   forActivityData: (facilityId: string, dataId: string): Promise<{ report: RecommendationReport }> =>
     apiFetch(`/api/facilities/${facilityId}/activity-data/${dataId}/recommendations`),
+};
+
+export const pathwayApi = {
+  // Projections are derived on every request from the same stored calculation
+  // the recommendations are, so there is nothing to refresh. `productionChangePct`
+  // is omitted rather than defaulted when the customer has not entered one —
+  // the server then returns that scenario with a stated reason instead of
+  // projecting an invented volume change.
+  forFacility: (facilityId: string, productionChangePct?: number | null): Promise<{ report: PathwayReport }> =>
+    apiFetch(
+      `/api/facilities/${facilityId}/pathway${
+        productionChangePct === null || productionChangePct === undefined ? "" : `?productionChangePct=${productionChangePct}`
+      }`,
+    ),
+
+  forActivityData: (
+    facilityId: string,
+    dataId: string,
+    productionChangePct?: number | null,
+  ): Promise<{ report: PathwayReport }> =>
+    apiFetch(
+      `/api/facilities/${facilityId}/activity-data/${dataId}/pathway${
+        productionChangePct === null || productionChangePct === undefined ? "" : `?productionChangePct=${productionChangePct}`
+      }`,
+    ),
 };
 
 export const crossCheckApi = {

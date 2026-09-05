@@ -14,12 +14,27 @@ export type InputSource =
   /** A published external figure from data/decarbonizationBenchmarks.ts. */
   | "PUBLISHED_BENCHMARK"
   /** Recorded on the facility by the customer. */
-  | "FACILITY_PROFILE";
+  | "FACILITY_PROFILE"
+  /**
+   * A forward projection, not a measured or calculated fact — Pathway
+   * Modelling only. It is a member of this union rather than a parallel type so
+   * that a projected figure carries a visibly different badge *anywhere* an
+   * input list is rendered, including any surface built later that reuses
+   * InputsList without knowing pathways exist. The recommendation rules never
+   * emit it; a test asserts that.
+   */
+  | "PROJECTED";
 
 export type RecommendationInput = {
   label: string;
   value: string;
   source: InputSource;
+  /**
+   * What a PROJECTED figure was projected from, rendered as "Projected from
+   * {derivedFrom}". Required in practice on PROJECTED inputs (the pathway
+   * builder always sets it) and unused by every other source.
+   */
+  derivedFrom?: string;
 };
 
 /**

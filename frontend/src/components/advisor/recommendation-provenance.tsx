@@ -1,7 +1,8 @@
 "use client";
 
-import { BookMarked, Calculator, FileText, Info, MapPin, TriangleAlert } from "lucide-react";
+import { BookMarked, Calculator, FileText, Info, MapPin, TrendingUp, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SOURCE_META, sourceBadgeLabel } from "@/lib/source-meta";
 import type {
   RecommendationCitation,
   RecommendationInput,
@@ -18,53 +19,44 @@ import type {
  * dropped for a tidier card — it is the difference between a recommendation and
  * an assertion.
  *
- * The three sources are styled distinctly on purpose. "0.716 tCO2e/MWh from
+ * The five sources are styled distinctly on purpose. "0.716 tCO2e/MWh from
  * CEA" and "2,500 kVA read off your bill by OCR" carry very different
- * confidence, and rendering them identically would flatten that away.
+ * confidence, and rendering them identically would flatten that away. The
+ * projected badge goes further and is the only dashed one in the set, because
+ * the gap between "this is what your plant emitted" and "this is what it would
+ * emit under a scenario" is the largest gap of all — a reader must not have to
+ * read the label to spot it.
+ *
+ * The labels, colours and hints live in lib/source-meta.ts so they can be
+ * tested; only the icons stay here.
  */
 
-const SOURCE_META: Record<
-  RecommendationInputSource,
-  { label: string; className: string; icon: React.ReactNode; hint: string }
-> = {
-  PLATFORM_CALCULATION: {
-    label: "Your calculated data",
-    className: "border-teal-500/30 bg-teal-500/10 text-teal-500",
-    icon: <Calculator className="h-2.5 w-2.5" />,
-    hint: "Taken from this facility's own emissions calculation on the platform.",
-  },
-  BILL_EXTRACTION: {
-    label: "Read from your bill",
-    className: "border-blue-500/30 bg-blue-500/10 text-blue-400",
-    icon: <FileText className="h-2.5 w-2.5" />,
-    hint: "Extracted from an electricity bill you uploaded. Check it against the document if it looks wrong.",
-  },
-  PUBLISHED_BENCHMARK: {
-    label: "Published benchmark",
-    className: "border-amber-500/30 bg-amber-500/10 text-amber-500",
-    icon: <BookMarked className="h-2.5 w-2.5" />,
-    hint: "An external published figure. The source is listed under Sources below.",
-  },
-  FACILITY_PROFILE: {
-    label: "Facility profile",
-    className: "border-surface-border bg-surface-raised text-muted-foreground",
-    icon: <MapPin className="h-2.5 w-2.5" />,
-    hint: "Recorded against this facility in your account.",
-  },
+const SOURCE_ICON: Record<RecommendationInputSource, React.ReactNode> = {
+  PLATFORM_CALCULATION: <Calculator className="h-2.5 w-2.5" />,
+  BILL_EXTRACTION: <FileText className="h-2.5 w-2.5" />,
+  PUBLISHED_BENCHMARK: <BookMarked className="h-2.5 w-2.5" />,
+  FACILITY_PROFILE: <MapPin className="h-2.5 w-2.5" />,
+  PROJECTED: <TrendingUp className="h-2.5 w-2.5" />,
 };
 
-export function SourceBadge({ source }: { source: RecommendationInputSource }) {
+export function SourceBadge({ source, derivedFrom }: { source: RecommendationInputSource; derivedFrom?: string }) {
   const meta = SOURCE_META[source];
   return (
     <span
       title={meta.hint}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
+        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium",
+        // The four observed-source labels are two or three words and must not
+        // wrap. "Projected from …" carries a full clause, so it wraps instead of
+        // overflowing its card — which is what it did before this: the badge ran
+        // off the right edge of the CBAM liability panel and the sentence naming
+        // the projection's source was cut off mid-word.
+        source === "PROJECTED" ? "min-w-0 whitespace-normal break-words text-left" : "shrink-0",
         meta.className,
       )}
     >
-      {meta.icon}
-      {meta.label}
+      <span className="shrink-0">{SOURCE_ICON[source]}</span>
+      {sourceBadgeLabel(source, derivedFrom)}
     </span>
   );
 }
@@ -79,8 +71,18 @@ export function InputsList({ inputs }: { inputs: RecommendationInput[] }) {
           <li key={`${input.label}-${input.value}`} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <span className="text-xs text-muted-foreground">{input.label}</span>
             <span className="flex items-center gap-2">
-              <span className="text-xs font-medium text-foreground">{input.value}</span>
-              <SourceBadge source={input.source} />
+              <span
+                className={cn(
+                  "text-xs font-medium",
+                  // A projected figure is set in the projection colour and
+                  // italicised, so the *value* is marked as well as the badge
+                  // beside it — the two travel together everywhere.
+                  input.source === "PROJECTED" ? "italic text-purple-300" : "text-foreground",
+                )}
+              >
+                {input.value}
+              </span>
+              <SourceBadge source={input.source} derivedFrom={input.derivedFrom} />
             </span>
           </li>
         ))}
